@@ -1,0 +1,1315 @@
+{
+  "name": "WA Instâncias (uazapi) — Unificca",
+  "nodes": [
+    {
+      "id": "wa-00",
+      "name": "Webhook Instancias WA",
+      "webhookId": "d2f1a0c4-9b3e-4a77-8c61-5e0a7b9d1c23",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -260,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "unificca-wa-instance",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-01",
+      "name": "Validar token do CRM",
+      "notes": "Confere se o token é de um usuário logado. Ponha a chave anon (pública) em apikey.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueErrorOutput",
+      "position": [
+        -40,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcGR2ZGJsd2FzdW93amRva3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjI3ODAsImV4cCI6MjA3ODUzODc4MH0.Vhv0sGU7DCf-nCeMLwk9aX_wunq8OugSKaF0IYgwmb0"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wa-02",
+      "name": "Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\n// Junta o que veio do CRM com quem é o usuário, para o resto do fluxo usar.\nconst body = $('Webhook Instancias WA').first().json.body || {};\nconst user = $('Validar token do CRM').first().json || {};\nreturn [{ json: {\n  user_id: user.id || null,\n  action: String(body.action || ''),\n  client_id: body.client_id || null,\n  instance_id: body.instance_id || null,\n  label: body.label || null\n} }];\n"
+      }
+    },
+    {
+      "id": "wa-03",
+      "name": "Papel do usuario",
+      "notes": "crm_role_check em vez de crm_role_of: a segunda devolve escalar cru (\"admin\") e o nó HTTP do n8n recusa esse corpo como JSON inválido.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.user_id, p_client_id: $json.client_id }) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-04",
+      "name": "Pode gerenciar?",
+      "notes": "Lê o campo papel devolvido por crm_role_check.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        620,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "or",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.papel }}",
+              "rightValue": "master",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.papel }}",
+              "rightValue": "admin",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-05",
+      "name": "E criar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Contexto').first().json.action }}",
+              "rightValue": "create",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-06",
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        180,
+        520
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"Não autorizado. Faça login no CRM e tente de novo.\" }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "wa-07",
+      "name": "Responder 403",
+      "notes": "O texto traz o retorno cru da RPC de propósito: sem isso, um 403 não distingue papel insuficiente de função inacessível. Tire quando o fluxo estabilizar.",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        840,
+        80
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"Só administrador ou master pode gerenciar o WhatsApp deste cliente. (diagnóstico — crm_role_of devolveu: \" + JSON.stringify($('Papel do usuario').first().json) + \" · client_id: \" + ($('Contexto').first().json.client_id || \"vazio\") + \" · user_id: \" + ($('Contexto').first().json.user_id || \"vazio\") + \")\" }) }}",
+        "options": {
+          "responseCode": 403
+        }
+      }
+    },
+    {
+      "id": "wa-08",
+      "name": "Cota de instancias",
+      "notes": "crm_wa_quota_of, não crm_wa_instance_quota: o n8n chama com service_role, onde auth.uid() é nulo. alwaysOutputData para o fluxo não morrer em silêncio se vier vazio.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_quota_of",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $('Contexto').first().json.user_id, p_client_id: $('Contexto').first().json.client_id }) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-09",
+      "name": "Dentro da cota?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.pode_criar }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-10",
+      "name": "Responder limite",
+      "notes": "Cobre os dois casos: cota cheia, e cota que não veio (sem acesso à loja ou função indisponível). Sem isso o segundo caso não gerava resposta nenhuma e o webhook terminava em 200 vazio.",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1500,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: ($json.limite === undefined ? \"Não foi possível ler a cota desta loja — confira se você tem acesso a ela.\" : \"Limite de \" + $json.limite + \" instância(s) atingido para este cliente.\") }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      }
+    },
+    {
+      "id": "wa-11",
+      "name": "uazapi criar",
+      "notes": "Usa o admintoken da uazapi (credencial arkynia-uazapi). O nome da instância sai do rótulo digitado no CRM, para bater com o que aparece lá.\nFALTA CREDENCIAL: crie um Header Auth com nome 'admintoken' e o admintoken da uazapi, e anexe aqui.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1500,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://arkyniatech.uazapi.com/instance/create",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const ctx = $('Contexto').first().json;\n  // Nome legível no painel da uazapi, a partir do que a pessoa digitou.\n  // O sufixo com o começo do client_id existe porque lá o nome é único na\n  // conta inteira: duas lojas poderiam querer \"vendas\".\n  const slug = String(ctx.label || 'instancia')\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/^-+|-+$/g, '')\n    .slice(0, 24) || 'instancia';\n  return JSON.stringify({ name: slug + '-' + String(ctx.client_id).slice(0, 8) });\n})() }}"
+      }
+    },
+    {
+      "id": "wa-12",
+      "name": "Gravar instancia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1720,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const ctx = $('Contexto').first().json;\n  const r = $('uazapi criar').first().json || {};\n  const inst = r.instance || r;\n  return JSON.stringify({\n    client_id: ctx.client_id,\n    instance_name: inst.name || inst.instance_name || inst.id,\n    label: ctx.label,\n    status: 'disconnected',\n    created_by: ctx.user_id\n  });\n})() }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-13",
+      "name": "Gravar token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1940,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instance_tokens",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const r = $('uazapi criar').first().json || {};\n  const inst = r.instance || r;\n  return JSON.stringify({\n    instance_id: $('Gravar instancia').first().json.id,\n    token: r.token || inst.token || ''\n  });\n})() }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-14",
+      "name": "Responder criada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: \"disconnected\", instance_id: $('Gravar instancia').first().json.id }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-15",
+      "name": "Carregar instancia",
+      "notes": "O filtro por client_id é a checagem de posse: instância de outro cliente não volta.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        520
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances?select=id,instance_name,status,wa_instance_tokens(token)&id=eq.' + $('Contexto').first().json.instance_id + '&client_id=eq.' + $('Contexto').first().json.client_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-16",
+      "name": "Instancia existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        520
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-17",
+      "name": "Responder nao encontrada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1280,
+        760
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"Instância não encontrada neste cliente.\" }) }}",
+        "options": {
+          "responseCode": 404
+        }
+      }
+    },
+    {
+      "id": "wa-18",
+      "name": "Acao",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1500,
+        520
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Contexto').first().json.action }}",
+                    "rightValue": "connect",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Contexto').first().json.action }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Contexto').first().json.action }}",
+                    "rightValue": "disconnect",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Contexto').first().json.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "wa-19",
+      "name": "Responder acao invalida",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1720,
+        1000
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"Ação desconhecida.\" }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "wa-20",
+      "name": "uazapi conectar",
+      "notes": "",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1720,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://arkyniatech.uazapi.com/instance/connect",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ (function(){ const e = $('Carregar instancia').first().json.wa_instance_tokens; const t = Array.isArray(e) ? e[0] : e; return (t && t.token) || ''; })() }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}"
+      }
+    },
+    {
+      "id": "wa-21",
+      "name": "Marcar conectando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1940,
+        300
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances?id=eq.' + $('Contexto').first().json.instance_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'connecting', last_status_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-22",
+      "name": "Responder QR",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (function(){\n  const r = $('uazapi conectar').first().json || {};\n  const i = r.instance || {};\n  // o nome do campo do QR varia conforme a instalação da uazapi\n  const qr = r.qrcode || r.qrCode || r.base64 || i.qrcode || i.qrCode || null;\n  const pc = r.paircode || r.pairCode || i.paircode || i.pairCode || null;\n  return JSON.stringify({ ok: true, status: 'connecting', qrcode: qr, paircode: pc });\n})() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-23",
+      "name": "uazapi status",
+      "notes": "",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1720,
+        460
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://arkyniatech.uazapi.com/instance/status",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ (function(){ const e = $('Carregar instancia').first().json.wa_instance_tokens; const t = Array.isArray(e) ? e[0] : e; return (t && t.token) || ''; })() }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wa-24",
+      "name": "Gravar status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1940,
+        460
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances?id=eq.' + $('Contexto').first().json.instance_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const r = $('uazapi status').first().json || {};\n  const i = r.instance || {};\n  const flags = (r.status && typeof r.status === 'object') ? r.status : {};\n  // A uazapi tem DUAS coisas chamadas status: instance.status é o estado\n  // (\"connected\", \"disconnected\"...) e o status de primeiro nível é um objeto\n  // com connected/loggedIn. Pegar o de primeiro nível vira \"[object Object]\".\n  const bruto = (typeof i.status === 'string' && i.status)\n             || (typeof r.status === 'string' && r.status) || '';\n  const validos = ['disconnected','connecting','connected','hibernated','registering','registration_conflict'];\n  const st = validos.indexOf(bruto) >= 0 ? bruto : (flags.connected ? 'connected' : 'disconnected');\n  const out = {\n    status: st,\n    last_status_at: new Date().toISOString(),\n    updated_at: new Date().toISOString(),\n    last_error: null\n  };\n  // Só registra erro se a uazapi mandar um estado fora da lista — e o limpa\n  // em toda leitura boa, senão o aviso antigo fica pendurado para sempre.\n  if (bruto && validos.indexOf(bruto) < 0) out.last_error = 'estado não previsto da uazapi: ' + bruto;\n  const fone = i.owner || i.phone || r.phone || null;\n  out.phone = fone ? String(fone).split('@')[0].replace(/[^0-9]/g, '') : null;\n  out.profile_name = i.profileName || i.profile_name || null;\n  return JSON.stringify(out);\n})() }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-25",
+      "name": "Responder status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (function(){\n  const r = $('uazapi status').first().json || {};\n  const i = r.instance || {};\n  const flags = (r.status && typeof r.status === 'object') ? r.status : {};\n  // A uazapi tem DUAS coisas chamadas status: instance.status é o estado\n  // (\"connected\", \"disconnected\"...) e o status de primeiro nível é um objeto\n  // com connected/loggedIn. Pegar o de primeiro nível vira \"[object Object]\".\n  const bruto = (typeof i.status === 'string' && i.status)\n             || (typeof r.status === 'string' && r.status) || '';\n  const validos = ['disconnected','connecting','connected','hibernated','registering','registration_conflict'];\n  const st = validos.indexOf(bruto) >= 0 ? bruto : (flags.connected ? 'connected' : 'disconnected');\n  return JSON.stringify({ ok: true, status: st });\n})() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-26",
+      "name": "uazapi desconectar",
+      "notes": "",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1720,
+        620
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://arkyniatech.uazapi.com/instance/disconnect",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ (function(){ const e = $('Carregar instancia').first().json.wa_instance_tokens; const t = Array.isArray(e) ? e[0] : e; return (t && t.token) || ''; })() }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}"
+      }
+    },
+    {
+      "id": "wa-27",
+      "name": "Marcar desconectado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1940,
+        620
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances?id=eq.' + $('Contexto').first().json.instance_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'disconnected', phone: null, profile_name: null, last_status_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-28",
+      "name": "Responder desconectado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        620
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: \"disconnected\" }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-29",
+      "name": "uazapi deletar",
+      "notes": "DELETE /instance — não /instance/delete, e autenticado pelo token da instância, não pelo admintoken. Responde 200 quando apaga na hora e 202 quando agenda; os dois contam como sucesso, e repetir a chamada é seguro.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1720,
+        780
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://arkyniatech.uazapi.com/instance",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ (function(){ const e = $('Carregar instancia').first().json.wa_instance_tokens; const t = Array.isArray(e) ? e[0] : e; return (t && t.token) || ''; })() }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wa-30",
+      "name": "Apagar do banco",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        2160,
+        780
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_instances?id=eq.' + $('Contexto').first().json.instance_id }}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PInceeL9GkpLm81V",
+          "name": "crm-levy"
+        }
+      }
+    },
+    {
+      "id": "wa-31",
+      "name": "Responder apagada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2380,
+        780
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: \"disconnected\" }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-desconectar-antes",
+      "name": "uazapi desconectar antes",
+      "notes": "A uazapi espera a sessão encerrada antes de apagar a instância. Se já estiver desconectada, este passo não faz mal.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        1500,
+        780
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://arkyniatech.uazapi.com/instance/disconnect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ (function(){ const e = $('Carregar instancia').first().json.wa_instance_tokens; const t = Array.isArray(e) ? e[0] : e; return (t && t.token) || ''; })() }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-conferir-delete",
+      "name": "Apagou na uazapi?",
+      "notes": "Passa quando a uazapi confirmou OU quando a instância já não existe lá (404). Qualquer outro erro segura o delete no banco, para os dois lados não divergirem.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1940,
+        780
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ (function(){\n  const j = $json || {};\n  const e = j.error;\n  if (!e) return 'ok';\n  const t = (typeof e === 'string' ? e : JSON.stringify(e)).toLowerCase();\n  // Instância que já não existe lá é o mesmo resultado de apagada: se\n  // tratarmos 404 como falha, a linha do CRM nunca sai e o usuário fica\n  // com um registro que não dá para remover por caminho nenhum.\n  return (t.indexOf('404') >= 0 || t.indexOf('not found') >= 0) ? 'ok' : 'falhou';\n})() }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa-delete-falhou",
+      "name": "Responder falha ao apagar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        960
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"A uazapi não apagou a instância: \" + JSON.stringify($('uazapi deletar').first().json) + \". A instância continua no CRM de propósito, para os dois lados não ficarem divergentes.\" }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Instancias WA": {
+      "main": [
+        [
+          {
+            "node": "Validar token do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar token do CRM": {
+      "main": [
+        [
+          {
+            "node": "Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Papel do usuario": {
+      "main": [
+        [
+          {
+            "node": "Pode gerenciar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode gerenciar?": {
+      "main": [
+        [
+          {
+            "node": "E criar?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E criar?": {
+      "main": [
+        [
+          {
+            "node": "Cota de instancias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Carregar instancia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cota de instancias": {
+      "main": [
+        [
+          {
+            "node": "Dentro da cota?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dentro da cota?": {
+      "main": [
+        [
+          {
+            "node": "uazapi criar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi criar": {
+      "main": [
+        [
+          {
+            "node": "Gravar instancia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar instancia": {
+      "main": [
+        [
+          {
+            "node": "Gravar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar token": {
+      "main": [
+        [
+          {
+            "node": "Responder criada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar instancia": {
+      "main": [
+        [
+          {
+            "node": "Instancia existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instancia existe?": {
+      "main": [
+        [
+          {
+            "node": "Acao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder nao encontrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acao": {
+      "main": [
+        [
+          {
+            "node": "uazapi conectar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "uazapi status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "uazapi desconectar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "uazapi desconectar antes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder acao invalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi conectar": {
+      "main": [
+        [
+          {
+            "node": "Marcar conectando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar conectando": {
+      "main": [
+        [
+          {
+            "node": "Responder QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi status": {
+      "main": [
+        [
+          {
+            "node": "Gravar status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar status": {
+      "main": [
+        [
+          {
+            "node": "Responder status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi desconectar": {
+      "main": [
+        [
+          {
+            "node": "Marcar desconectado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar desconectado": {
+      "main": [
+        [
+          {
+            "node": "Responder desconectado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi deletar": {
+      "main": [
+        [
+          {
+            "node": "Apagou na uazapi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar do banco": {
+      "main": [
+        [
+          {
+            "node": "Responder apagada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "uazapi desconectar antes": {
+      "main": [
+        [
+          {
+            "node": "uazapi deletar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagou na uazapi?": {
+      "main": [
+        [
+          {
+            "node": "Apagar do banco",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder falha ao apagar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

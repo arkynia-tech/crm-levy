@@ -1,0 +1,378 @@
+{
+  "name": "Acessos — Contatta (Levy)",
+  "nodes": [
+    {
+      "name": "Acessos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "unificca-admin-users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "62dc977f-4681-405e-9a31-2a12704a90d2",
+      "webhookId": "27af83ab-cf66-495b-a839-8ec033f047b6"
+    },
+    {
+      "name": "Validar login do CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueErrorOutput",
+      "position": [
+        224,
+        320
+      ],
+      "parameters": {
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcGR2ZGJsd2FzdW93amRva3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjI3ODAsImV4cCI6MjA3ODUzODc4MH0.Vhv0sGU7DCf-nCeMLwk9aX_wunq8OugSKaF0IYgwmb0"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cb19535c-38cc-4d86-91fb-c4ded0b6b8ea"
+    },
+    {
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Nao autorizado. Faca login no CRM e tente novamente.\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "0d4829f6-1be2-44b7-8f55-79fccc688610"
+    },
+    {
+      "name": "Papel do usuario",
+      "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        448,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Acessos').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45') }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "db48e9b2-bf13-4ee7-bb0d-66ddbfceb7a3"
+    },
+    {
+      "name": "Pode conceder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ['master','admin'].indexOf($json.papel) >= 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4b1d659f-778e-4e60-a70f-a6bd2b3fc7b6"
+    },
+    {
+      "name": "Responder 403",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"So master ou administrador da loja pode criar acesso.\" }",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "ffb2548b-ce71-48f3-bd91-391355701de2"
+    },
+    {
+      "name": "Criar login",
+      "notes": "Usa a credencial do Supabase, que ja manda a service key no Authorization - e o que o endpoint de admin exige.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        896,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/admin/users",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $('Acessos').first().json.body.email, password: $('Acessos').first().json.body.password, email_confirm: true }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "dc6bb0ba-2c12-4bd1-8afd-d3e2594d47d8"
+    },
+    {
+      "name": "Login criado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e375b312-8de5-4f4c-aa5a-2301770e16b2"
+    },
+    {
+      "name": "Responder erro ao criar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: (($json.msg || $json.message || ($json.error||{}).message) || 'Nao foi possivel criar o login. O e-mail ja pode estar em uso.') }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "39db3c10-ac0a-4b63-a879-fc5f506336b3"
+    },
+    {
+      "name": "Dar acesso a loja",
+      "notes": "Grava direto: crm_grant_access usa auth.uid(), que e NULO para o service_role. Quem checa permissao aqui e o no 'Pode conceder?'.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/user_clients?on_conflict=user_id,client_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.id, client_id: ($('Acessos').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), role: ($('Acessos').first().json.body.role === 'collaborator' ? 'collaborator' : 'admin') }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "25e779be-2cbc-4556-b282-d979f3727302"
+    },
+    {
+      "name": "Responder criado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        320
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, id: $('Criar login').first().json.id }) }}",
+        "options": {}
+      },
+      "id": "5a635f19-6011-498d-8397-9a9479ec6eb7"
+    }
+  ],
+  "connections": {
+    "Acessos": {
+      "main": [
+        [
+          {
+            "node": "Validar login do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar login do CRM": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Papel do usuario": {
+      "main": [
+        [
+          {
+            "node": "Pode conceder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode conceder?": {
+      "main": [
+        [
+          {
+            "node": "Criar login",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar login": {
+      "main": [
+        [
+          {
+            "node": "Login criado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login criado?": {
+      "main": [
+        [
+          {
+            "node": "Dar acesso a loja",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder erro ao criar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dar acesso a loja": {
+      "main": [
+        [
+          {
+            "node": "Responder criado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

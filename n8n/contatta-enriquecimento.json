@@ -1,0 +1,686 @@
+{
+  "name": "Enriquecimento NovaVida — Contatta (Levy)",
+  "nodes": [
+    {
+      "name": "Enriquecer",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "unificca-enrich-clientes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0d40e8ca-0b8c-43e4-9a7b-98d84ba55c20",
+      "webhookId": "297bed55-b499-400a-88e9-2195e031a7ec"
+    },
+    {
+      "name": "Validar login do CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueErrorOutput",
+      "position": [
+        224,
+        320
+      ],
+      "parameters": {
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcGR2ZGJsd2FzdW93amRva3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjI3ODAsImV4cCI6MjA3ODUzODc4MH0.Vhv0sGU7DCf-nCeMLwk9aX_wunq8OugSKaF0IYgwmb0"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8d8529c4-e24c-4872-a58d-dc8a70948f0a"
+    },
+    {
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Nao autorizado. Faca login no CRM e tente novamente.\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "82c0060c-fe2b-4f37-93d3-cddbb85198cd"
+    },
+    {
+      "name": "Papel do usuario",
+      "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        448,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45') }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "5b338315-a939-4a1a-9949-4c2ebff633ad"
+    },
+    {
+      "name": "Pode enriquecer?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.papel }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5567bd09-9e64-4ef5-b749-1d66d4bf7e23"
+    },
+    {
+      "name": "Responder 403",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Voce nao tem acesso a esta loja.\" }",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "50c553c1-74bd-445b-9902-5659fee24008"
+    },
+    {
+      "name": "Credenciais NovaVida",
+      "notes": "Credencial mora no banco, em tabela sem policy (so service_role). Nao escreva usuario/senha aqui dentro.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        896,
+        320
+      ],
+      "parameters": {
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/integration_secrets?select=value&key=eq.novavida",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "fefaa6d6-0a99-45a2-a8df-f0ebb3fa74dd"
+    },
+    {
+      "name": "Tem credencial?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.value && $json.value.usuario }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3a5746ba-fb98-467d-abb3-cb642d670c21"
+    },
+    {
+      "name": "Responder sem credencial",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Credenciais da NovaVida nao configuradas. Rode supabase/novavida-credenciais.sql.\" }",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "d4cbe0dc-9937-4149-8a7a-cd19e373587e"
+    },
+    {
+      "name": "Gerar Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wsnv.novavidati.com.br/wslocalizador.asmx/GerarTokenJson",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ credencial: { usuario: $json.value.usuario, senha: $json.value.senha, cliente: $json.value.cliente } }) }}",
+        "options": {}
+      },
+      "id": "5d4e1a1f-f641-43d3-8164-bdfcda0b7fa1"
+    },
+    {
+      "name": "Buscar pendentes",
+      "notes": "A regra de quem entra na fila mora no banco (crm_enrich_pendentes): CPF novo, ou sem telefone e consultado ha mais de 180 dias. O fluxo nao monta filtro proprio.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        1568,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_enrich_pendentes",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), p_limit: Math.min(Number($('Enriquecer').first().json.body.limit) || 10, 500) }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "9d98a9f3-2931-434c-abbf-d03e6f7ee1e4"
+    },
+    {
+      "name": "Tem pendentes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bfc0d15e-5217-4586-898a-7fa19ceebb77"
+    },
+    {
+      "name": "Responder nada a fazer",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true, \"enriquecidos\": 0, \"aviso\": \"Nenhum CPF elegivel na fila.\" }",
+        "options": {}
+      },
+      "id": "8251e359-ad5d-448b-9a46-699c2ca7493b"
+    },
+    {
+      "name": "Buscar dados atuais",
+      "notes": "Traz extra/phone/email atuais para o patch so preencher o que falta e nao apagar o que ja existe em extra.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "position": [
+        2016,
+        320
+      ],
+      "parameters": {
+        "url": "={{ (function(){\n  const ids = $('Buscar pendentes').all().map(function(i){ return i.json.id; }).filter(Boolean);\n  return 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/customers?select=id,cpf,extra,phone,email,birth_date,city,state&id=in.(' + ids.join(',') + ')';\n})() }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "5c584273-ac18-4158-8494-4d855bc291c6"
+    },
+    {
+      "name": "Consultar NovaVida",
+      "notes": "Roda uma vez por item de entrada. onError continua para um CPF ruim nao derrubar a rodada inteira.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        2240,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wsnv.novavidati.com.br/wslocalizador.asmx/NVCHECKJson",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Token",
+              "value": "={{ $('Gerar Token').first().json.d }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ nvcheck: { Documento: String($json.cpf || '').replace(/[^0-9]/g, '') } }) }}",
+        "options": {}
+      },
+      "id": "8c066901-6189-4a70-b069-8bb095f7bb51"
+    },
+    {
+      "name": "Montar patches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        320
+      ],
+      "parameters": {
+        "jsCode": "\n// Cada item de entrada e a resposta da NovaVida para o cliente de mesmo indice\n// em \"Buscar dados atuais\" - a ordem e preservada item a item.\nconst atuais = $('Buscar dados atuais').all().map(function (i) { return i.json; });\nconst respostas = $input.all().map(function (i) { return i.json; });\nconst agora = new Date().toISOString();\n\nfunction titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\\s)\\S/g, function(m){return m.toUpperCase();}); }\n\n// o servico e ASMX: as vezes devolve o objeto em .d, as vezes .d e uma string\nfunction consulta(j) {\n  if (!j) return null;\n  let d = (j.d !== undefined) ? j.d : j;\n  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return null; } }\n  if (!d || typeof d !== 'object') return null;\n  return d.CONSULTA || d.consulta || (d.NVCHECK || {}).CONSULTA || null;\n}\n\nconst vistos = new Set();\nconst rows = [];\nlet comTelefone = 0;\n\nfor (let i = 0; i < atuais.length; i++) {\n  const c = atuais[i];\n  if (!c || !c.id || vistos.has(c.id)) continue;\n  const con = consulta(respostas[i]);\n\n  const patch = { id: c.id };\n  // enriched_at marca CONSULTA FEITA, mesmo quando volta vazia. E o que\n  // impede a fila de reoferecer o mesmo CPF amanha - ver crm_enrich_pendentes.\n  const extra = Object.assign({}, c.extra || {});\n  extra.enriched_at = agora;\n  if (con) extra.novavida = { CONSULTA: con };\n  patch.extra = extra;\n\n  if (con) {\n    if (!c.phone) {\n      const tels = Array.isArray(con.TELEFONES) ? con.TELEFONES : [];\n      const t = tels.find(function (x) { return x && x.FLWHATS === 'S'; }) || tels[0];\n      if (t && t.TELEFONE) { patch.phone = '+55' + String(t.DDD || '') + String(t.TELEFONE || ''); comTelefone++; }\n    }\n    if (!c.email) {\n      const em = Array.isArray(con.EMAILS) ? con.EMAILS : [];\n      if (em[0] && em[0].EMAIL) patch.email = em[0].EMAIL;\n    }\n    if (!c.birth_date) {\n      const nasc = (con.CADASTRAIS || {}).NASC;\n      if (nasc && /^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(nasc)) {\n        const p = nasc.split('/'); patch.birth_date = p[2] + '-' + p[1] + '-' + p[0];\n      }\n    }\n    const end = Array.isArray(con.ENDERECOS) ? con.ENDERECOS : [];\n    if (!c.city && end[0] && end[0].CIDADE) patch.city = titleCase(end[0].CIDADE);\n    if (!c.state && end[0] && end[0].UF) patch.state = end[0].UF;\n  }\n\n  vistos.add(c.id);\n  rows.push(patch);\n}\n\nreturn [{ json: { total: rows.length, com_telefone: comTelefone, rows: rows } }];\n"
+      },
+      "id": "d1cd245c-1473-4379-aaea-35d63be86daa"
+    },
+    {
+      "name": "Tem o que gravar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2688,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.total }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "154f2816-bffa-4d3f-9bea-fb2449e5fc6d"
+    },
+    {
+      "name": "Responder zero",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2912,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true, \"enriquecidos\": 0, \"aviso\": \"A NovaVida nao devolveu dados novos.\" }",
+        "options": {}
+      },
+      "id": "efefb8dd-c949-4ff9-aea4-4e9a20c6be44"
+    },
+    {
+      "name": "Gravar enriquecimento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "position": [
+        2912,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/customers?on_conflict=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const b = $('Enriquecer').first().json.body || {};\n  const cid = b.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45';\n  const rows = $('Montar patches').first().json.rows || [];\n  // client_id vai junto porque o upsert do PostgREST monta um INSERT: sem ele\n  // a coluna NOT NULL derruba a chamada antes de chegar no ON CONFLICT.\n  return JSON.stringify(rows.map(function(r){ return Object.assign({ client_id: cid }, r); }));\n})() }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "6b439ece-4b00-426c-b6ef-b26c488a4cc8"
+    },
+    {
+      "name": "Responder concluido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3136,
+        320
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, enriquecidos: $('Montar patches').first().json.com_telefone, consultados: $('Montar patches').first().json.total }) }}",
+        "options": {}
+      },
+      "id": "ab41d3cf-ac7e-4b5e-a357-351fa1dd02bc"
+    }
+  ],
+  "connections": {
+    "Enriquecer": {
+      "main": [
+        [
+          {
+            "node": "Validar login do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar login do CRM": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Papel do usuario": {
+      "main": [
+        [
+          {
+            "node": "Pode enriquecer?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode enriquecer?": {
+      "main": [
+        [
+          {
+            "node": "Credenciais NovaVida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credenciais NovaVida": {
+      "main": [
+        [
+          {
+            "node": "Tem credencial?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem credencial?": {
+      "main": [
+        [
+          {
+            "node": "Gerar Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem credencial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Token": {
+      "main": [
+        [
+          {
+            "node": "Buscar pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar pendentes": {
+      "main": [
+        [
+          {
+            "node": "Tem pendentes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem pendentes?": {
+      "main": [
+        [
+          {
+            "node": "Buscar dados atuais",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder nada a fazer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar dados atuais": {
+      "main": [
+        [
+          {
+            "node": "Consultar NovaVida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar NovaVida": {
+      "main": [
+        [
+          {
+            "node": "Montar patches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar patches": {
+      "main": [
+        [
+          {
+            "node": "Tem o que gravar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem o que gravar?": {
+      "main": [
+        [
+          {
+            "node": "Gravar enriquecimento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder zero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar enriquecimento": {
+      "main": [
+        [
+          {
+            "node": "Responder concluido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

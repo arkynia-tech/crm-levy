@@ -1,0 +1,894 @@
+{
+  "name": "WA Campanhas — Contatta (Levy)",
+  "nodes": [
+    {
+      "name": "WA Campanha",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        528
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "unificca-wa-campaign",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "864b20e7-a106-4ee4-ae6c-95589d6b9cec",
+      "webhookId": "c88d386a-ee25-45c7-a7be-4dea183d2a3d"
+    },
+    {
+      "name": "Validar login do CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueErrorOutput",
+      "position": [
+        224,
+        528
+      ],
+      "parameters": {
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcGR2ZGJsd2FzdW93amRva3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjI3ODAsImV4cCI6MjA3ODUzODc4MH0.Vhv0sGU7DCf-nCeMLwk9aX_wunq8OugSKaF0IYgwmb0"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dcb20a61-d65a-450b-b721-b70fc34ea68b"
+    },
+    {
+      "name": "E disparo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        432
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('WA Campanha').first().json.body.action }}",
+              "rightValue": "start",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0cba2e14-1b26-4ebd-a4c4-af95a4ba2b58"
+    },
+    {
+      "name": "Buscar campanha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        176
+      ],
+      "parameters": {
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaigns?id=eq.' + $('WA Campanha').first().json.body.campaign_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "f7b5d88a-3220-4c08-b590-4be7c6e9fdc1"
+    },
+    {
+      "name": "Buscar instancia conectada",
+      "notes": "Token da uazapi e da INSTANCIA e muda a cada recriacao. Ler aqui e o que permite cada loja disparar pelo proprio numero.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        896,
+        176
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_envio_of",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: $('Buscar campanha').first().json.client_id }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "b11d9927-b1f0-4bee-93e9-7aa71541e364"
+    },
+    {
+      "name": "Tem numero conectado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        176
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "99a366ea-3b2a-4e5a-bfc5-587da8a03af4"
+    },
+    {
+      "name": "Responder sem numero",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        320
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Nenhum numero de WhatsApp conectado nesta loja. Va em WhatsApp, conecte o numero pelo QR Code e tente de novo.\" }",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "926a2c99-f1dd-4726-8b9c-9d719539797f"
+    },
+    {
+      "name": "Marcar enviando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        48
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaigns?id=eq.' + $('WA Campanha').first().json.body.campaign_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'sending', started_at: $now.toISO() }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "79d41d57-bead-4d8c-8272-bab31ea4165b"
+    },
+    {
+      "name": "Buscar config delay",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        1568,
+        48
+      ],
+      "parameters": {
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/app_settings?select=value&key=eq.campaign_delay&client_id=eq.' + $('Buscar campanha').first().json.client_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "b7dbd8bd-4f63-497f-95fe-d884726619e9"
+    },
+    {
+      "name": "Buscar pendentes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "position": [
+        1792,
+        48
+      ],
+      "parameters": {
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaign_recipients?campaign_id=eq.' + $('WA Campanha').first().json.body.campaign_id + '&status=eq.pending&order=id&limit=' + (Number(($('WA Campanha').first().json.body || {}).limit) || 5000) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "f49dbb76-e2ac-461b-adf8-dd21de522ffa"
+    },
+    {
+      "name": "Responder iniciada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        48
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, campaign_id: $('WA Campanha').first().json.body.campaign_id, sending: $input.all().length }) }}",
+        "options": {}
+      },
+      "id": "2cd19269-d386-4a64-9f23-2af497094658"
+    },
+    {
+      "name": "Loop de envio",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2240,
+        48
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "id": "394b891e-0b98-40fa-a2e8-afad26fc1ee2"
+    },
+    {
+      "name": "Montar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        160
+      ],
+      "parameters": {
+        "jsCode": "\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\nconst UAZ = 'https://arkyniatech.uazapi.com';\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true };\n}\nreturn [{ json: { endpoint: endpoint, payload: payload } }];\n"
+      },
+      "id": "945168f8-9dc2-4d89-8976-3f06addca7fb"
+    },
+    {
+      "name": "Enviar pela uazapi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        2688,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.endpoint }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Buscar instancia conectada').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "7a90cbee-b16e-4a0c-9131-e0f50955bf37"
+    },
+    {
+      "name": "Marcar destinatario enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2912,
+        160
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaign_recipients?id=eq.' + $('Loop de envio').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.error ? { status: 'failed', error_code: String(($json.error.message) || 'erro no envio').slice(0, 180) } : { status: 'sent', twilio_sid: ($json.id || $json.messageid || $json.messageId || null), sent_at: $now.toISO() }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "fe936734-6f70-4526-bc42-30092660ceed"
+    },
+    {
+      "name": "Ritmo de envio",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3136,
+        160
+      ],
+      "parameters": {
+        "amount": "={{ (function(){ var d={min:2,max:6}; try{ var val=$('Buscar config delay').first().json.value; if(val&&val.min!=null){ d.min=Number(val.min); d.max=Number(val.max); } }catch(e){} var lo=d.min>=0?d.min:2; var hi=d.max>lo?d.max:lo; return lo + Math.random()*(hi-lo); })() }}"
+      },
+      "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
+      "webhookId": "9d099f8e-309d-4378-b656-9645dea94586"
+    },
+    {
+      "name": "Concluir campanha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "position": [
+        2464,
+        -64
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaigns?id=eq.' + $('WA Campanha').first().json.body.campaign_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'done', finished_at: $now.toISO() }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "2bcdc9a0-08db-4228-866a-cf7912fe05f3"
+    },
+    {
+      "name": "Buscar publico",
+      "notes": "A regra de quem e alcancavel mora no banco (crm_wa_publico_of): numero valido, do cadastro ou do pedido mais recente, sem repeticao, com o opt-out marcado. Sem limite de linhas - o limit=2000 antigo escondia 2831 clientes.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        672,
+        624
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_publico_of",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){\n  const b = $('WA Campanha').first().json.body || {};\n  const a = b.audience || {};\n  let uid = null;\n  try { uid = ($('Validar login do CRM').first().json || {}).id || null; } catch (e) {}\n  // manual e test nao consultam por tipo: o manual filtra a lista completa\n  // depois, e o test usa numeros digitados\n  const tipo = (a.type === 'recent' || a.type === 'segment') ? a.type : 'all';\n  return JSON.stringify({\n    p_user_id: uid,\n    p_client_id: b.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45',\n    p_tipo: tipo,\n    p_segment: a.segment || null,\n    p_days: Number(a.days) || 90,\n    p_min_spent: Number(a.min_spent) || 300\n  });\n})() }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "17d8aea5-4504-4a8d-888c-994f6676b3f1"
+    },
+    {
+      "name": "Montar publico",
+      "notes": "Sem executeOnce de proposito: com ele ligado, $input/$() enxergam so o primeiro item e a campanha sai com 1 contato.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        624
+      ],
+      "parameters": {
+        "jsCode": "\nconst req = $('WA Campanha').first().json.body || {};\nconst aud = req.audience || {};\n\nfunction digits(s){ return String(s == null ? '' : s).replace(/[^0-9]/g, ''); }\n// so para os numeros de teste digitados na tela; o resto ja vem normalizado\n// do banco, por crm_wa_publico_of\nfunction norm(p) {\n  if (!p) return null;\n  let d = digits(p);\n  if (d.length < 10) return null;\n  if (d.indexOf('55') !== 0) { if (d.length > 11) return null; d = '55' + d; }\n  if (d.length < 12 || d.length > 13) return null;\n  return '+' + d;\n}\n\n// le o no pelo nome de proposito: $input.all() obedece ao executeOnce e ja\n// nos entregou 1 contato de 905\nfunction publicoDoBanco() {\n  try { return $('Buscar publico').all().map(function (i) { return i.json; }); }\n  catch (e) { return []; }\n}\n\nlet contatos = [];\nlet pulados = 0;\n\nif (aud.type === 'test') {\n  contatos = (aud.numbers || [])\n    .map(function (n) { return { wa_number: norm(n), name: 'Numero de teste', customer_id: null }; })\n    .filter(function (c) { return c.wa_number; });\n} else {\n  const manual = new Set((aud.customer_ids || []).map(String));\n  const publico = publicoDoBanco().filter(function (j) { return j && j.wa_number; });\n  for (const p of publico) {\n    if (aud.type === 'manual' && !manual.has(String(p.customer_id))) continue;\n    if (p.optout) { pulados++; continue; }\n    contatos.push({ wa_number: p.wa_number, name: p.nome || null, customer_id: p.customer_id });\n  }\n}\n\nconst vistos = new Set();\nconst finais = [];\nfor (const c of contatos) {\n  if (!c.wa_number || vistos.has(c.wa_number)) continue;\n  vistos.add(c.wa_number);\n  finais.push(c);\n}\n\nreturn [{ json: {\n  action: req.action, name: req.name || null, message_body: req.message_body || null,\n  audience: aud, total: finais.length, skipped_optout: pulados,\n  sample: finais.slice(0, 10), recipients: finais\n} }];\n"
+      },
+      "id": "019ae002-2e82-466d-97ba-7707c758f75c"
+    },
+    {
+      "name": "E so previa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        624
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "preview",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "25395720-839a-4ad0-bcc6-3fa2ec8154e0"
+    },
+    {
+      "name": "Responder previa",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        528
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, total: $json.total, skipped_optout: $json.skipped_optout, sample: $json.sample }) }}",
+        "options": {}
+      },
+      "id": "417c1bc5-9572-4cd0-acf1-b63836a2a27c"
+    },
+    {
+      "name": "Criar campanha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        720
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaigns",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ client_id: ($('WA Campanha').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), name: $json.name, message_body: $json.message_body, media_url: ($('WA Campanha').first().json.body.media_url || null), audience: $json.audience, status: 'draft', created_by: $('Validar login do CRM').first().json.id }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "c33e9f20-a2da-49fd-b193-85a3d0569beb"
+    },
+    {
+      "name": "Montar destinatarios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "executeOnce": true,
+      "position": [
+        1568,
+        720
+      ],
+      "parameters": {
+        "jsCode": "\nconst campanha = $input.first().json;\nconst pub = $('Montar publico').first().json;\nconst rows = (pub.recipients || []).map(r => ({\n  campaign_id: campanha.id, customer_id: r.customer_id, wa_number: r.wa_number,\n  display_name: r.name, status: 'pending'\n}));\nreturn [{ json: { campaign_id: campanha.id, total: rows.length, rows: rows } }];\n"
+      },
+      "id": "a7de51ee-5a81-48ad-a080-650dde294ce9"
+    },
+    {
+      "name": "Inserir destinatarios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1792,
+        720
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_campaign_recipients",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.rows) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "27ae2d82-60f1-4580-ab74-5d9813960f6b"
+    },
+    {
+      "name": "Responder criada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        720
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, campaign_id: $('Montar destinatarios').first().json.campaign_id, total: $('Montar destinatarios').first().json.total }) }}",
+        "options": {}
+      },
+      "id": "f50401b1-e527-4e64-9c6b-51f107640add"
+    },
+    {
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        624
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Nao autorizado. Faca login no CRM e tente novamente.\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "da614f09-6dc1-4c49-b6b6-a3d45aff04a2"
+    }
+  ],
+  "connections": {
+    "WA Campanha": {
+      "main": [
+        [
+          {
+            "node": "Validar login do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar login do CRM": {
+      "main": [
+        [
+          {
+            "node": "E disparo?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E disparo?": {
+      "main": [
+        [
+          {
+            "node": "Buscar campanha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar publico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar campanha": {
+      "main": [
+        [
+          {
+            "node": "Buscar instancia conectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar instancia conectada": {
+      "main": [
+        [
+          {
+            "node": "Tem numero conectado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem numero conectado?": {
+      "main": [
+        [
+          {
+            "node": "Marcar enviando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem numero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar enviando": {
+      "main": [
+        [
+          {
+            "node": "Buscar config delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar config delay": {
+      "main": [
+        [
+          {
+            "node": "Buscar pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar pendentes": {
+      "main": [
+        [
+          {
+            "node": "Responder iniciada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder iniciada": {
+      "main": [
+        [
+          {
+            "node": "Loop de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop de envio": {
+      "main": [
+        [
+          {
+            "node": "Concluir campanha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar pela uazapi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar pela uazapi": {
+      "main": [
+        [
+          {
+            "node": "Marcar destinatario enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar destinatario enviado": {
+      "main": [
+        [
+          {
+            "node": "Ritmo de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ritmo de envio": {
+      "main": [
+        [
+          {
+            "node": "Loop de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar publico": {
+      "main": [
+        [
+          {
+            "node": "Montar publico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar publico": {
+      "main": [
+        [
+          {
+            "node": "E so previa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E so previa?": {
+      "main": [
+        [
+          {
+            "node": "Responder previa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar campanha": {
+      "main": [
+        [
+          {
+            "node": "Montar destinatarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar destinatarios": {
+      "main": [
+        [
+          {
+            "node": "Inserir destinatarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir destinatarios": {
+      "main": [
+        [
+          {
+            "node": "Responder criada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
