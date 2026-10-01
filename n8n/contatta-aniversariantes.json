@@ -75,53 +75,6 @@
       }
     },
     {
-      "id": "eff82136-407b-4768-840b-a77c8f9bcece",
-      "name": "Buscar clientes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "executeOnce": true,
-      "position": [
-        672,
-        176
-      ],
-      "parameters": {
-        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/customers?select=id,name,phone,birth_date&client_id=eq.677c58eb-b3ec-493a-ad14-0d052d7d8a45&birth_date=not.is.null&phone=not.is.null&limit=5000",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "options": {}
-      },
-      "credentials": {
-        "supabaseApi": {
-          "id": "PRN6da97tPlcboNV",
-          "name": "Supabase CRM-Contatta"
-        }
-      }
-    },
-    {
-      "id": "ef07c338-7238-4bd6-b368-7260d78415f9",
-      "name": "Buscar optouts",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "executeOnce": true,
-      "alwaysOutputData": true,
-      "position": [
-        896,
-        192
-      ],
-      "parameters": {
-        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/wa_optouts?select=wa_number&limit=5000",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "options": {}
-      },
-      "credentials": {
-        "supabaseApi": {
-          "id": "PRN6da97tPlcboNV",
-          "name": "Supabase CRM-Contatta"
-        }
-      }
-    },
-    {
       "id": "2247c855-888e-4eea-acc8-e8e5e0cf7e2c",
       "name": "Aniversariantes de hoje",
       "type": "n8n-nodes-base.code",
@@ -131,7 +84,7 @@
         192
       ],
       "parameters": {
-        "jsCode": "\nconst clientes = $('Buscar clientes').all().map(function(i){ return i.json; });\nconst optArr = $('Buscar optouts').all().map(function(i){ return (i.json && i.json.wa_number) || ''; });\nconst optSet = new Set(optArr.filter(Boolean));\nconst cfg = ($('Ler config').first() || {}).json || {};\nconst msg = ((cfg.value || {}).message) || 'Feliz aniversario!';\nconst now = new Date();\nconst mm = ('0' + (now.getMonth() + 1)).slice(-2);\nconst dd = ('0' + now.getDate()).slice(-2);\nfunction digits(s){ return String(s == null ? '' : s).split('').filter(function(c){ return c >= '0' && c <= '9'; }).join(''); }\nfunction norm(p){ let d = digits(p); if (d.length < 10) return null; if (d.indexOf('55') !== 0) { if (d.length > 11) return null; d = '55' + d; } if (d.length < 12 || d.length > 13) return null; return '+' + d; }\nconst seen = new Set();\nconst out = [];\nfor (const c of clientes) {\n  const bd = String(c.birth_date || '');\n  if (bd.slice(5, 7) !== mm || bd.slice(8, 10) !== dd) continue;\n  const wa = norm(c.phone);\n  if (!wa || seen.has(wa) || optSet.has(wa)) continue;\n  seen.add(wa);\n  out.push({ json: { customer_id: c.id, name: c.name || null, wa_number: wa, message: msg } });\n}\nreturn out;\n"
+        "jsCode": "\n// O banco ja entregou quem e alcancavel e quem faz aniversario hoje. Aqui so\n// entra a mensagem configurada e o descarte de quem pediu para sair.\nconst cfg = ($('Ler config').first() || {}).json || {};\nconst msg = ((cfg.value || {}).message) || 'Feliz aniversario!';\nconst pessoas = $('Buscar aniversariantes').all().map(function (i) { return i.json; });\nconst out = [];\nfor (const p of pessoas) {\n  if (!p || !p.wa_number || p.optout) continue;\n  out.push({ json: { customer_id: p.customer_id, name: p.nome || null, wa_number: p.wa_number, message: msg } });\n}\nreturn out;\n"
       }
     },
     {
@@ -202,6 +155,7 @@
       }
     },
     {
+      "id": "14ece482-b441-498d-b7e3-a22e795dd94a",
       "name": "Buscar instância conectada",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -226,10 +180,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "14ece482-b441-498d-b7e3-a22e795dd94a"
+      }
     },
     {
+      "id": "055c8edd-d583-47b6-8e6d-6f5b3eddccb4",
       "name": "Tem número conectado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -259,8 +213,36 @@
           "combinator": "and"
         },
         "options": {}
+      }
+    },
+    {
+      "name": "Buscar aniversariantes",
+      "notes": "Mesma regra das campanhas: numero valido, do cadastro ou do pedido mais recente, sem repeticao, opt-out marcado. Sem limite de linhas - o limit=5000 antigo escondia 3.670 clientes.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        896,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_aniversariantes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"p_client_id\": \"677c58eb-b3ec-493a-ad14-0d052d7d8a45\"}",
+        "options": {}
       },
-      "id": "055c8edd-d583-47b6-8e6d-6f5b3eddccb4"
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "c5d9d1be-25e3-4c08-a5ce-f171104f2ba5"
     }
   ],
   "connections": {
@@ -291,28 +273,6 @@
         [
           {
             "node": "Buscar instância conectada",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar clientes": {
-      "main": [
-        [
-          {
-            "node": "Buscar optouts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar optouts": {
-      "main": [
-        [
-          {
-            "node": "Aniversariantes de hoje",
             "type": "main",
             "index": 0
           }
@@ -385,7 +345,7 @@
       "main": [
         [
           {
-            "node": "Buscar clientes",
+            "node": "Buscar aniversariantes",
             "type": "main",
             "index": 0
           }
@@ -393,6 +353,17 @@
         [
           {
             "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar aniversariantes": {
+      "main": [
+        [
+          {
+            "node": "Aniversariantes de hoje",
             "type": "main",
             "index": 0
           }
