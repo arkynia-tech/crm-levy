@@ -218,9 +218,10 @@
     {
       "id": "5d4e1a1f-f641-43d3-8164-bdfcda0b7fa1",
       "name": "Gerar Token",
-      "notes": "Token vale 24h. Uma geracao por rodada.",
+      "notes": "Token vale 24h. fullResponse+neverError porque credencial recusada volta 401 com a razao no corpo (ex.: 'USUARIO INATIVO.') - sem isso o fluxo morre com erro generico e ninguem descobre o motivo.",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
+      "alwaysOutputData": true,
       "position": [
         1344,
         320
@@ -240,7 +241,14 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ credencial: { usuario: $json.value.usuario, senha: $json.value.senha, cliente: $json.value.cliente } }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
       }
     },
     {
@@ -372,7 +380,7 @@
             },
             {
               "name": "token",
-              "value": "={{ $('Gerar Token').first().json.d }}"
+              "value": "={{ $('Gerar Token').first().json.body.d }}"
             }
           ]
         },
@@ -496,6 +504,57 @@
         "responseBody": "={{ (function(){ const p = $('Montar patches').first().json; return JSON.stringify({ ok: true, enriquecidos: p.com_telefone, consultados: p.total, sem_dado: p.sem_dado, falhas: p.falhas, motivos: p.motivos }); })() }}",
         "options": {}
       }
+    },
+    {
+      "name": "Token valido?",
+      "notes": "Token e um JWT longo; recusa vem como frase curta no mesmo campo d. O tamanho separa os dois.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1456,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String((($json.body) || {}).d || '').length > 40 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d9114865-9b17-42da-8334-789bfc3af149"
+    },
+    {
+      "name": "Responder credencial recusada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1680,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'A NovaVida recusou as credenciais: ' + String((($('Gerar Token').first().json.body) || {}).d || 'sem detalhe') + ' Atualize integration_secrets.' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "2bdc9461-745b-49f6-857d-c6b1e86931a0"
     }
   ],
   "connections": {
@@ -590,7 +649,7 @@
       "main": [
         [
           {
-            "node": "Buscar pendentes",
+            "node": "Token valido?",
             "type": "main",
             "index": 0
           }
@@ -682,6 +741,24 @@
         [
           {
             "node": "Responder concluido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valido?": {
+      "main": [
+        [
+          {
+            "node": "Buscar pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder credencial recusada",
             "type": "main",
             "index": 0
           }
