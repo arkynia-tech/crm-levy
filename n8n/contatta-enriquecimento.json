@@ -494,21 +494,6 @@
       }
     },
     {
-      "id": "ab41d3cf-ac7e-4b5e-a357-351fa1dd02bc",
-      "name": "Responder concluido",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        3808,
-        320
-      ],
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ (function(){ const t = $json; const m = Object.keys(t.motivos || {}); return JSON.stringify({ ok: t.falhas === 0, enriquecidos: t.enriquecidos, gravados: t.gravados, sem_dado: t.sem_dado, falhas: t.falhas, parcial: t.parcial, error: t.falhas > 0 ? ('A NovaVida recusou ' + t.falhas + ' consulta(s): ' + m.join('; ') + (t.gravados > 0 ? ' Os ' + t.gravados + ' anteriores foram salvos.' : '')) : undefined, motivos: t.motivos }); })() }}",
-        "options": {}
-      }
-    },
-    {
       "id": "d9114865-9b17-42da-8334-789bfc3af149",
       "name": "Token valido?",
       "notes": "Token e um JWT longo; recusa vem como frase curta no mesmo campo d. O tamanho separa os dois.",
@@ -624,6 +609,7 @@
       }
     },
     {
+      "id": "7ea4da4b-cf29-47a7-800a-b74a099e791f",
       "name": "Loja informada?",
       "notes": "Sem client_id a chamada para aqui. Antes havia um fallback para a loja do Levy: com duas lojas no ar, isso faria campanha de um cliente nascer dentro da loja de outro, em silencio.",
       "type": "n8n-nodes-base.if",
@@ -654,10 +640,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "7ea4da4b-cf29-47a7-800a-b74a099e791f"
+      }
     },
     {
+      "id": "61d4c139-6bc8-44a5-97fc-66a61173236b",
       "name": "Responder sem loja",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -671,8 +657,153 @@
           "responseCode": 400
         },
         "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
+      }
+    },
+    {
+      "name": "Sonda de saldo",
+      "notes": "Consulta 1 CPF antes de comecar. Sem endpoint de saldo na NovaVida, esta e a unica forma de descobrir se da para rodar - e evita disparar 1000 para tomar o mesmo erro mil vezes, que foi o que aconteceu em agosto.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        2016,
+        176
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wsnv.novavidati.com.br/WSLocalizador.asmx/CONSULTAR",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "consulta",
+              "value": "2429"
+            },
+            {
+              "name": "documento",
+              "value": "={{ String($('Buscar pendentes').first().json.cpf || '').replace(/[^0-9]/g, '') }}"
+            },
+            {
+              "name": "token",
+              "value": "={{ $('Gerar Token').first().json.body.d }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
       },
-      "id": "61d4c139-6bc8-44a5-97fc-66a61173236b"
+      "id": "cc74574a-f63b-4132-bdd1-0631306298d5"
+    },
+    {
+      "name": "NovaVida aceitou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        176
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ [200, 204].indexOf(Number($json.statusCode)) >= 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f7d30a80-6682-4fb7-a8d4-54c5946b0c3f"
+    },
+    {
+      "name": "Responder recusa da NovaVida",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2464,
+        32
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 402
+        },
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'A NovaVida recusou a consulta: ' + String($json.body || 'sem detalhe').trim() }) }}"
+      },
+      "id": "311aead1-0539-470e-811a-83bce0230ec3"
+    },
+    {
+      "name": "Responder iniciado",
+      "notes": "Responde antes de processar. 1000 consultas levam uns 17 minutos; esperar isso numa requisicao HTTP derruba a conexao e o usuario ve erro mesmo dando tudo certo.",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2464,
+        176
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, iniciado: true, total: $('Buscar pendentes').all().length }) }}"
+      },
+      "id": "89258ec4-b503-412d-a306-eb5ee5ead99b"
+    },
+    {
+      "name": "Registrar corrida",
+      "notes": "Quem grava o historico e o fluxo, nao a tela: ela ja recebeu a resposta e foi embora.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3808,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/enrich_runs",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){ const t = $json; const m = Object.keys(t.motivos || {}); return JSON.stringify({ client_id: $('Enriquecer').first().json.body.client_id, user_id: $('Validar login do CRM').first().json.id, solicitados: (t.pedidos || 0), enriquecidos: (t.enriquecidos || 0), creditos_gastos: (t.enriquecidos || 0), status: t.falhas > 0 ? 'erro' : 'concluido', erro: t.falhas > 0 ? m.join('; ') : null }); })() }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "4e6af2c0-6cff-4fc8-8055-504d16c80f53"
     }
   ],
   "connections": {
@@ -789,7 +920,7 @@
       "main": [
         [
           {
-            "node": "Buscar dados atuais",
+            "node": "Sonda de saldo",
             "type": "main",
             "index": 0
           }
@@ -923,7 +1054,7 @@
       "main": [
         [
           {
-            "node": "Responder concluido",
+            "node": "Registrar corrida",
             "type": "main",
             "index": 0
           }
@@ -942,6 +1073,46 @@
         [
           {
             "node": "Responder sem loja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sonda de saldo": {
+      "main": [
+        [
+          {
+            "node": "NovaVida aceitou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NovaVida aceitou?": {
+      "main": [
+        [
+          {
+            "node": "Responder iniciado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder recusa da NovaVida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder iniciado": {
+      "main": [
+        [
+          {
+            "node": "Buscar dados atuais",
             "type": "main",
             "index": 0
           }

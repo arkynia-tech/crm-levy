@@ -65,23 +65,30 @@ function EnrichControl() {
       return
     }
 
-    const n = res.enriquecidos ?? 0
+    const total = res.total ?? pedidos
     setMsg({
-      tone: n > 0 ? 'ok' : 'err',
-      text: n > 0 ? `${n} cliente(s) enriquecido(s).` : 'Nenhum cliente voltou com dado novo.',
+      tone: 'ok',
+      text: `Enriquecendo ${total} cliente(s) em segundo plano. Pode fechar esta tela — os números`
+        + ` abaixo vão subindo conforme a NovaVida responde.`,
     })
-    // Registrar a tentativa que voltou vazia importa tanto quanto a que deu
-    // certo: é ela que explica crédito gasto sem resultado na tela.
-    if (activeClient) {
-      void registrarEnriquecimento({
-        clientId: activeClient.id,
-        solicitados: pedidos,
-        enriquecidos: n,
-      }).then(() => queryClient.invalidateQueries({ queryKey: ['enrich-runs'] }))
+
+    // Quem registra o histórico agora é o fluxo: ele é o único que sabe o
+    // resultado final. A tela só acompanha os contadores, que recarregam a
+    // cada 10s enquanto a rodada acontece.
+    const atualizar = () => {
+      void queryClient.invalidateQueries({ queryKey: ['customers'] })
+      void queryClient.invalidateQueries({ queryKey: ['outreach-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['customer-situacoes'] })
+      void queryClient.invalidateQueries({ queryKey: ['enrich-pendentes'] })
+      void queryClient.invalidateQueries({ queryKey: ['enrich-runs'] })
     }
-    void queryClient.invalidateQueries({ queryKey: ['customers'] })
-    void queryClient.invalidateQueries({ queryKey: ['outreach-stats'] })
-    void queryClient.invalidateQueries({ queryKey: ['customer-situacoes'] })
+    // ~1s por consulta, com folga: acompanha até o fim da rodada pedida
+    const ate = Date.now() + Math.min(total * 1500 + 30_000, 30 * 60_000)
+    const t = setInterval(() => {
+      atualizar()
+      if (Date.now() > ate) clearInterval(t)
+    }, 10_000)
+    atualizar()
   }
 
   return (

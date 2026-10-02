@@ -2,11 +2,18 @@ import { supabase } from '../lib/supabase'
 
 const ENRICH_URL = import.meta.env.VITE_N8N_ENRICH_URL as string | undefined
 
-/** Dispara o enriquecimento NovaVida para até `limit` clientes ainda não processados. */
+/**
+ * Dispara o enriquecimento e volta assim que o fluxo confirma que começou.
+ *
+ * Ele NÃO espera terminar: mil consultas levam uns 17 minutos, e segurar uma
+ * requisição HTTP por esse tempo derruba a conexão — o usuário veria erro com
+ * tudo dando certo no servidor. O fluxo responde após sondar o saldo e segue
+ * trabalhando; a tela acompanha pelos contadores.
+ */
 export async function enrichCustomers(
   limit: number,
   clientId?: string,
-): Promise<{ ok: boolean; enriquecidos?: number; error?: string }> {
+): Promise<{ ok: boolean; iniciado?: boolean; total?: number; enriquecidos?: number; error?: string }> {
   if (!ENRICH_URL) return { ok: false, error: 'VITE_N8N_ENRICH_URL não está configurada no .env.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -17,9 +24,11 @@ export async function enrichCustomers(
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ limit, client_id: clientId }),
     })
-    const json = (await res.json().catch(() => null)) as { ok?: boolean; enriquecidos?: number; error?: string } | null
+    const json = (await res.json().catch(() => null)) as
+      | { ok?: boolean; iniciado?: boolean; total?: number; enriquecidos?: number; error?: string }
+      | null
     if (!res.ok || !json?.ok) return { ok: false, error: json?.error ?? `Falha (HTTP ${res.status}).` }
-    return { ok: true, enriquecidos: json.enriquecidos ?? 0 }
+    return { ok: true, iniciado: json.iniciado, total: json.total, enriquecidos: json.enriquecidos ?? 0 }
   } catch {
     return { ok: false, error: 'Não foi possível falar com o serviço de enriquecimento.' }
   }
@@ -45,7 +54,13 @@ export interface EnrichRun {
   created_at: string
 }
 
-/** Grava a corrida. Nunca lança: falhar o registro não pode derrubar a tela. */
+/**
+ * Grava a corrida. Nunca lança: falhar o registro não pode derrubar a tela.
+ *
+ * Só para o caso de ERRO antes de começar (sem saldo, sem credencial). Quando
+ * o enriquecimento chega a rodar, quem registra é o fluxo — a tela já recebeu
+ * a resposta e foi embora antes do resultado existir.
+ */
 export async function registrarEnriquecimento(input: {
   clientId: string
   solicitados: number
