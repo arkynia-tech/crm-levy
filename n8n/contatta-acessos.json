@@ -2,7 +2,9 @@
   "name": "Acessos — Contatta (Levy)",
   "nodes": [
     {
+      "id": "62dc977f-4681-405e-9a31-2a12704a90d2",
       "name": "Acessos",
+      "webhookId": "27af83ab-cf66-495b-a839-8ec033f047b6",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -14,11 +16,10 @@
         "path": "unificca-admin-users",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "id": "62dc977f-4681-405e-9a31-2a12704a90d2",
-      "webhookId": "27af83ab-cf66-495b-a839-8ec033f047b6"
+      }
     },
     {
+      "id": "cb19535c-38cc-4d86-91fb-c4ded0b6b8ea",
       "name": "Validar login do CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -43,10 +44,10 @@
           ]
         },
         "options": {}
-      },
-      "id": "cb19535c-38cc-4d86-91fb-c4ded0b6b8ea"
+      }
     },
     {
+      "id": "0d4829f6-1be2-44b7-8f55-79fccc688610",
       "name": "Responder 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -60,10 +61,10 @@
         "options": {
           "responseCode": 401
         }
-      },
-      "id": "0d4829f6-1be2-44b7-8f55-79fccc688610"
+      }
     },
     {
+      "id": "db48e9b2-bf13-4ee7-bb0d-66ddbfceb7a3",
       "name": "Papel do usuario",
       "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
       "type": "n8n-nodes-base.httpRequest",
@@ -78,7 +79,7 @@
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Acessos').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45') }) }}",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Acessos').first().json.body.client_id) }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -88,10 +89,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "db48e9b2-bf13-4ee7-bb0d-66ddbfceb7a3"
+      }
     },
     {
+      "id": "4b1d659f-778e-4e60-a70f-a6bd2b3fc7b6",
       "name": "Pode conceder?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -121,10 +122,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "4b1d659f-778e-4e60-a70f-a6bd2b3fc7b6"
+      }
     },
     {
+      "id": "ffb2548b-ce71-48f3-bd91-391355701de2",
       "name": "Responder 403",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -138,10 +139,10 @@
         "options": {
           "responseCode": 403
         }
-      },
-      "id": "ffb2548b-ce71-48f3-bd91-391355701de2"
+      }
     },
     {
+      "id": "dc6bb0ba-2c12-4bd1-8afd-d3e2594d47d8",
       "name": "Criar login",
       "notes": "Usa a credencial do Supabase, que ja manda a service key no Authorization - e o que o endpoint de admin exige.",
       "type": "n8n-nodes-base.httpRequest",
@@ -167,10 +168,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "dc6bb0ba-2c12-4bd1-8afd-d3e2594d47d8"
+      }
     },
     {
+      "id": "e375b312-8de5-4f4c-aa5a-2301770e16b2",
       "name": "Login criado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -200,10 +201,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "e375b312-8de5-4f4c-aa5a-2301770e16b2"
+      }
     },
     {
+      "id": "39db3c10-ac0a-4b63-a879-fc5f506336b3",
       "name": "Responder erro ao criar",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -217,10 +218,10 @@
         "options": {
           "responseCode": 422
         }
-      },
-      "id": "39db3c10-ac0a-4b63-a879-fc5f506336b3"
+      }
     },
     {
+      "id": "25e779be-2cbc-4556-b282-d979f3727302",
       "name": "Dar acesso a loja",
       "notes": "Grava direto: crm_grant_access usa auth.uid(), que e NULO para o service_role. Quem checa permissao aqui e o no 'Pode conceder?'.",
       "type": "n8n-nodes-base.httpRequest",
@@ -243,7 +244,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ user_id: $json.id, client_id: ($('Acessos').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), role: ($('Acessos').first().json.body.role === 'collaborator' ? 'collaborator' : 'admin') }) }}",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.id, client_id: ($('Acessos').first().json.body.client_id), role: ($('Acessos').first().json.body.role === 'collaborator' ? 'collaborator' : 'admin') }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -253,10 +254,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "25e779be-2cbc-4556-b282-d979f3727302"
+      }
     },
     {
+      "id": "5a635f19-6011-498d-8397-9a9479ec6eb7",
       "name": "Responder criado",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -268,8 +269,58 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, id: $('Criar login').first().json.id }) }}",
         "options": {}
+      }
+    },
+    {
+      "name": "Loja informada?",
+      "notes": "Sem client_id a chamada para aqui. Antes havia um fallback para a loja do Levy: com duas lojas no ar, isso faria campanha de um cliente nascer dentro da loja de outro, em silencio.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        224
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Acessos').first().json.body.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "5a635f19-6011-498d-8397-9a9479ec6eb7"
+      "id": "742e7630-4e8e-4971-a74e-8b523791cd0a"
+    },
+    {
+      "name": "Responder sem loja",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        336,
+        512
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 400
+        },
+        "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
+      },
+      "id": "b10f8f54-ce73-42f3-938a-bf99637dd4d6"
     }
   ],
   "connections": {
@@ -288,7 +339,7 @@
       "main": [
         [
           {
-            "node": "Papel do usuario",
+            "node": "Loja informada?",
             "type": "main",
             "index": 0
           }
@@ -365,6 +416,24 @@
         [
           {
             "node": "Responder criado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loja informada?": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem loja",
             "type": "main",
             "index": 0
           }

@@ -2,7 +2,9 @@
   "name": "WA Campanhas — Contatta (Levy)",
   "nodes": [
     {
+      "id": "864b20e7-a106-4ee4-ae6c-95589d6b9cec",
       "name": "WA Campanha",
+      "webhookId": "c88d386a-ee25-45c7-a7be-4dea183d2a3d",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -14,11 +16,10 @@
         "path": "unificca-wa-campaign",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "id": "864b20e7-a106-4ee4-ae6c-95589d6b9cec",
-      "webhookId": "c88d386a-ee25-45c7-a7be-4dea183d2a3d"
+      }
     },
     {
+      "id": "dcb20a61-d65a-450b-b721-b70fc34ea68b",
       "name": "Validar login do CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -43,10 +44,10 @@
           ]
         },
         "options": {}
-      },
-      "id": "dcb20a61-d65a-450b-b721-b70fc34ea68b"
+      }
     },
     {
+      "id": "0cba2e14-1b26-4ebd-a4c4-af95a4ba2b58",
       "name": "E disparo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -75,10 +76,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "0cba2e14-1b26-4ebd-a4c4-af95a4ba2b58"
+      }
     },
     {
+      "id": "f7b5d88a-3220-4c08-b590-4be7c6e9fdc1",
       "name": "Buscar campanha",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -97,10 +98,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "f7b5d88a-3220-4c08-b590-4be7c6e9fdc1"
+      }
     },
     {
+      "id": "b11d9927-b1f0-4bee-93e9-7aa71541e364",
       "name": "Buscar instancia conectada",
       "notes": "Token da uazapi e da INSTANCIA e muda a cada recriacao. Ler aqui e o que permite cada loja disparar pelo proprio numero.",
       "type": "n8n-nodes-base.httpRequest",
@@ -126,10 +127,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "b11d9927-b1f0-4bee-93e9-7aa71541e364"
+      }
     },
     {
+      "id": "99a366ea-3b2a-4e5a-bfc5-587da8a03af4",
       "name": "Tem numero conectado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -159,10 +160,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "99a366ea-3b2a-4e5a-bfc5-587da8a03af4"
+      }
     },
     {
+      "id": "926a2c99-f1dd-4726-8b9c-9d719539797f",
       "name": "Responder sem numero",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -176,10 +177,10 @@
         "options": {
           "responseCode": 409
         }
-      },
-      "id": "926a2c99-f1dd-4726-8b9c-9d719539797f"
+      }
     },
     {
+      "id": "79d41d57-bead-4d8c-8272-bab31ea4165b",
       "name": "Marcar enviando",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -211,10 +212,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "79d41d57-bead-4d8c-8272-bab31ea4165b"
+      }
     },
     {
+      "id": "b7dbd8bd-4f63-497f-95fe-d884726619e9",
       "name": "Buscar config delay",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -234,10 +235,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "b7dbd8bd-4f63-497f-95fe-d884726619e9"
+      }
     },
     {
+      "id": "f49dbb76-e2ac-461b-adf8-dd21de522ffa",
       "name": "Buscar pendentes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -257,10 +258,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "f49dbb76-e2ac-461b-adf8-dd21de522ffa"
+      }
     },
     {
+      "id": "2cd19269-d386-4a64-9f23-2af497094658",
       "name": "Responder iniciada",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -272,10 +273,10 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, campaign_id: $('WA Campanha').first().json.body.campaign_id, sending: $input.all().length }) }}",
         "options": {}
-      },
-      "id": "2cd19269-d386-4a64-9f23-2af497094658"
+      }
     },
     {
+      "id": "394b891e-0b98-40fa-a2e8-afad26fc1ee2",
       "name": "Loop de envio",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
@@ -285,10 +286,10 @@
       ],
       "parameters": {
         "options": {}
-      },
-      "id": "394b891e-0b98-40fa-a2e8-afad26fc1ee2"
+      }
     },
     {
+      "id": "945168f8-9dc2-4d89-8976-3f06addca7fb",
       "name": "Montar envio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -298,10 +299,10 @@
       ],
       "parameters": {
         "jsCode": "\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\nconst UAZ = 'https://arkyniatech.uazapi.com';\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true };\n}\nreturn [{ json: { endpoint: endpoint, payload: payload } }];\n"
-      },
-      "id": "945168f8-9dc2-4d89-8976-3f06addca7fb"
+      }
     },
     {
+      "id": "7a90cbee-b16e-4a0c-9131-e0f50955bf37",
       "name": "Enviar pela uazapi",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -326,10 +327,10 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {}
-      },
-      "id": "7a90cbee-b16e-4a0c-9131-e0f50955bf37"
+      }
     },
     {
+      "id": "fe936734-6f70-4526-bc42-30092660ceed",
       "name": "Marcar destinatario enviado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -361,11 +362,12 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "fe936734-6f70-4526-bc42-30092660ceed"
+      }
     },
     {
+      "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
       "name": "Ritmo de envio",
+      "webhookId": "9d099f8e-309d-4378-b656-9645dea94586",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -374,11 +376,10 @@
       ],
       "parameters": {
         "amount": "={{ (function(){ var d={min:2,max:6}; try{ var val=$('Buscar config delay').first().json.value; if(val&&val.min!=null){ d.min=Number(val.min); d.max=Number(val.max); } }catch(e){} var lo=d.min>=0?d.min:2; var hi=d.max>lo?d.max:lo; return lo + Math.random()*(hi-lo); })() }}"
-      },
-      "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
-      "webhookId": "9d099f8e-309d-4378-b656-9645dea94586"
+      }
     },
     {
+      "id": "2bcdc9a0-08db-4228-866a-cf7912fe05f3",
       "name": "Concluir campanha",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -411,10 +412,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "2bcdc9a0-08db-4228-866a-cf7912fe05f3"
+      }
     },
     {
+      "id": "17d8aea5-4504-4a8d-888c-994f6676b3f1",
       "name": "Buscar publico",
       "notes": "A regra de quem e alcancavel mora no banco (crm_wa_publico_of): numero valido, do cadastro ou do pedido mais recente, sem repeticao, com o opt-out marcado. Sem limite de linhas - o limit=2000 antigo escondia 2831 clientes.",
       "type": "n8n-nodes-base.httpRequest",
@@ -429,7 +430,7 @@
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_publico_of",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (function(){\n  const b = $('WA Campanha').first().json.body || {};\n  const a = b.audience || {};\n  let uid = null;\n  try { uid = ($('Validar login do CRM').first().json || {}).id || null; } catch (e) {}\n  // manual e test nao consultam por tipo: o manual filtra a lista completa\n  // depois, e o test usa numeros digitados\n  const tipo = (a.type === 'recent' || a.type === 'segment') ? a.type : 'all';\n  return JSON.stringify({\n    p_user_id: uid,\n    p_client_id: b.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45',\n    p_tipo: tipo,\n    p_segment: a.segment || null,\n    p_days: Number(a.days) || 90,\n    p_min_spent: Number(a.min_spent) || 300\n  });\n})() }}",
+        "jsonBody": "={{ (function(){\n  const b = $('WA Campanha').first().json.body || {};\n  const a = b.audience || {};\n  let uid = null;\n  try { uid = ($('Validar login do CRM').first().json || {}).id || null; } catch (e) {}\n  // manual e test nao consultam por tipo: o manual filtra a lista completa\n  // depois, e o test usa numeros digitados\n  const tipo = (a.type === 'recent' || a.type === 'segment') ? a.type : 'all';\n  return JSON.stringify({\n    p_user_id: uid,\n    p_client_id: b.client_id,\n    p_tipo: tipo,\n    p_segment: a.segment || null,\n    p_days: Number(a.days) || 90,\n    p_min_spent: Number(a.min_spent) || 300\n  });\n})() }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -439,10 +440,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "17d8aea5-4504-4a8d-888c-994f6676b3f1"
+      }
     },
     {
+      "id": "019ae002-2e82-466d-97ba-7707c758f75c",
       "name": "Montar publico",
       "notes": "Sem executeOnce de proposito: com ele ligado, $input/$() enxergam so o primeiro item e a campanha sai com 1 contato.",
       "type": "n8n-nodes-base.code",
@@ -453,10 +454,10 @@
       ],
       "parameters": {
         "jsCode": "\nconst req = $('WA Campanha').first().json.body || {};\nconst aud = req.audience || {};\n\nfunction digits(s){ return String(s == null ? '' : s).replace(/[^0-9]/g, ''); }\n// so para os numeros de teste digitados na tela; o resto ja vem normalizado\n// do banco, por crm_wa_publico_of\nfunction norm(p) {\n  if (!p) return null;\n  let d = digits(p);\n  if (d.length < 10) return null;\n  if (d.indexOf('55') !== 0) { if (d.length > 11) return null; d = '55' + d; }\n  if (d.length < 12 || d.length > 13) return null;\n  return '+' + d;\n}\n\n// le o no pelo nome de proposito: $input.all() obedece ao executeOnce e ja\n// nos entregou 1 contato de 905\nfunction publicoDoBanco() {\n  try { return $('Buscar publico').all().map(function (i) { return i.json; }); }\n  catch (e) { return []; }\n}\n\nlet contatos = [];\nlet pulados = 0;\n\nif (aud.type === 'test') {\n  contatos = (aud.numbers || [])\n    .map(function (n) { return { wa_number: norm(n), name: 'Numero de teste', customer_id: null }; })\n    .filter(function (c) { return c.wa_number; });\n} else {\n  const manual = new Set((aud.customer_ids || []).map(String));\n  const publico = publicoDoBanco().filter(function (j) { return j && j.wa_number; });\n  for (const p of publico) {\n    if (aud.type === 'manual' && !manual.has(String(p.customer_id))) continue;\n    if (p.optout) { pulados++; continue; }\n    contatos.push({ wa_number: p.wa_number, name: p.nome || null, customer_id: p.customer_id });\n  }\n}\n\nconst vistos = new Set();\nconst finais = [];\nfor (const c of contatos) {\n  if (!c.wa_number || vistos.has(c.wa_number)) continue;\n  vistos.add(c.wa_number);\n  finais.push(c);\n}\n\nreturn [{ json: {\n  action: req.action, name: req.name || null, message_body: req.message_body || null,\n  audience: aud, total: finais.length, skipped_optout: pulados,\n  sample: finais.slice(0, 10), recipients: finais\n} }];\n"
-      },
-      "id": "019ae002-2e82-466d-97ba-7707c758f75c"
+      }
     },
     {
+      "id": "25395720-839a-4ad0-bcc6-3fa2ec8154e0",
       "name": "E so previa?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -485,10 +486,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "25395720-839a-4ad0-bcc6-3fa2ec8154e0"
+      }
     },
     {
+      "id": "417c1bc5-9572-4cd0-acf1-b63836a2a27c",
       "name": "Responder previa",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -500,10 +501,10 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, total: $json.total, skipped_optout: $json.skipped_optout, sample: $json.sample }) }}",
         "options": {}
-      },
-      "id": "417c1bc5-9572-4cd0-acf1-b63836a2a27c"
+      }
     },
     {
+      "id": "c33e9f20-a2da-49fd-b193-85a3d0569beb",
       "name": "Criar campanha",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -525,7 +526,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ client_id: ($('WA Campanha').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), name: $json.name, message_body: $json.message_body, media_url: ($('WA Campanha').first().json.body.media_url || null), audience: $json.audience, status: 'draft', created_by: $('Validar login do CRM').first().json.id }) }}",
+        "jsonBody": "={{ JSON.stringify({ client_id: ($('WA Campanha').first().json.body.client_id), name: $json.name, message_body: $json.message_body, media_url: ($('WA Campanha').first().json.body.media_url || null), audience: $json.audience, status: 'draft', created_by: $('Validar login do CRM').first().json.id }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -535,10 +536,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "c33e9f20-a2da-49fd-b193-85a3d0569beb"
+      }
     },
     {
+      "id": "a7de51ee-5a81-48ad-a080-650dde294ce9",
       "name": "Montar destinatarios",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -549,10 +550,10 @@
       ],
       "parameters": {
         "jsCode": "\nconst campanha = $input.first().json;\nconst pub = $('Montar publico').first().json;\nconst rows = (pub.recipients || []).map(r => ({\n  campaign_id: campanha.id, customer_id: r.customer_id, wa_number: r.wa_number,\n  display_name: r.name, status: 'pending'\n}));\nreturn [{ json: { campaign_id: campanha.id, total: rows.length, rows: rows } }];\n"
-      },
-      "id": "a7de51ee-5a81-48ad-a080-650dde294ce9"
+      }
     },
     {
+      "id": "27ae2d82-60f1-4580-ab74-5d9813960f6b",
       "name": "Inserir destinatarios",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -584,10 +585,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "27ae2d82-60f1-4580-ab74-5d9813960f6b"
+      }
     },
     {
+      "id": "f50401b1-e527-4e64-9c6b-51f107640add",
       "name": "Responder criada",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -599,10 +600,10 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, campaign_id: $('Montar destinatarios').first().json.campaign_id, total: $('Montar destinatarios').first().json.total }) }}",
         "options": {}
-      },
-      "id": "f50401b1-e527-4e64-9c6b-51f107640add"
+      }
     },
     {
+      "id": "da614f09-6dc1-4c49-b6b6-a3d45aff04a2",
       "name": "Responder 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -616,8 +617,58 @@
         "options": {
           "responseCode": 401
         }
+      }
+    },
+    {
+      "name": "Loja informada?",
+      "notes": "Sem client_id a chamada para aqui. Antes havia um fallback para a loja do Levy: com duas lojas no ar, isso faria campanha de um cliente nascer dentro da loja de outro, em silencio.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        432
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('WA Campanha').first().json.body.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "da614f09-6dc1-4c49-b6b6-a3d45aff04a2"
+      "id": "f70f5b08-6b5e-4454-a738-266c792650bf"
+    },
+    {
+      "name": "Responder sem loja",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        336,
+        720
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 400
+        },
+        "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
+      },
+      "id": "293318b1-139d-4551-80c7-1ff38aa12af8"
     }
   ],
   "connections": {
@@ -636,7 +687,7 @@
       "main": [
         [
           {
-            "node": "E disparo?",
+            "node": "Loja informada?",
             "type": "main",
             "index": 0
           }
@@ -881,6 +932,24 @@
         [
           {
             "node": "Responder criada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loja informada?": {
+      "main": [
+        [
+          {
+            "node": "E disparo?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem loja",
             "type": "main",
             "index": 0
           }

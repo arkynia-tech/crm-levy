@@ -1,5 +1,5 @@
 {
-  "name": "Aniversariantes — Contatta (Levy)",
+  "name": "Aniversariantes — Contatta (todas as lojas)",
   "nodes": [
     {
       "id": "c9d172bb-b19b-4ef9-83d5-d3b0fc405d12",
@@ -21,70 +21,17 @@
       }
     },
     {
-      "id": "ac55bfbb-bea5-440e-8791-223e5d6fd181",
-      "name": "Ler config",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        224,
-        192
-      ],
-      "parameters": {
-        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/app_settings?select=value&key=eq.birthday_campaign&client_id=eq.677c58eb-b3ec-493a-ad14-0d052d7d8a45",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "options": {}
-      },
-      "credentials": {
-        "supabaseApi": {
-          "id": "PRN6da97tPlcboNV",
-          "name": "Supabase CRM-Contatta"
-        }
-      }
-    },
-    {
-      "id": "008ace6c-faeb-4b2c-966f-dbfd4c46ef39",
-      "name": "Ativado?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        448,
-        192
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.value.enabled }}",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
       "id": "2247c855-888e-4eea-acc8-e8e5e0cf7e2c",
       "name": "Aniversariantes de hoje",
+      "notes": "Mensagem e token vem da loja corrente, nao de constante.",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1120,
-        192
+        288
       ],
       "parameters": {
-        "jsCode": "\n// O banco ja entregou quem e alcancavel e quem faz aniversario hoje. Aqui so\n// entra a mensagem configurada e o descarte de quem pediu para sair.\nconst cfg = ($('Ler config').first() || {}).json || {};\nconst msg = ((cfg.value || {}).message) || 'Feliz aniversario!';\nconst pessoas = $('Buscar aniversariantes').all().map(function (i) { return i.json; });\nconst out = [];\nfor (const p of pessoas) {\n  if (!p || !p.wa_number || p.optout) continue;\n  out.push({ json: { customer_id: p.customer_id, name: p.nome || null, wa_number: p.wa_number, message: msg } });\n}\nreturn out;\n"
+        "jsCode": "\n// A loja corrente ja traz mensagem e token; aqui so entra quem e alcancavel e\n// nao pediu para sair.\nconst loja = $('Uma loja por vez').first().json;\nconst pessoas = $('Aniversariantes da loja').all().map(function (i) { return i.json; });\nconst out = [];\nfor (const p of pessoas) {\n  if (!p || !p.wa_number || p.optout) continue;\n  out.push({ json: {\n    client_id: loja.client_id,\n    token: loja.token,\n    customer_id: p.customer_id,\n    name: p.nome || null,\n    wa_number: p.wa_number,\n    message: loja.mensagem || 'Feliz aniversario!'\n  } });\n}\nreturn out;\n"
       }
     },
     {
@@ -93,21 +40,21 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1568,
-        0
+        1120,
+        96
       ],
       "parameters": {}
     },
     {
       "id": "935831a3-f435-4af6-8f59-b7a962926138",
       "name": "Enviar uazapi",
-      "notes": "Token da uazapi e da INSTANCIA e muda a cada recriacao. Vem de crm_wa_envio_of.",
+      "notes": "Token da instancia daquela loja, carregado junto com ela. Cada cliente dispara pelo proprio numero.",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "onError": "continueRegularOutput",
       "position": [
         1568,
-        192
+        288
       ],
       "parameters": {
         "method": "POST",
@@ -117,7 +64,7 @@
           "parameters": [
             {
               "name": "token",
-              "value": "={{ $('Buscar instância conectada').first().json.token }}"
+              "value": "={{ $json.token }}"
             }
           ]
         },
@@ -135,7 +82,7 @@
       "typeVersion": 1.1,
       "position": [
         1792,
-        272
+        288
       ],
       "parameters": {
         "amount": "={{ 3 + Math.floor(Math.random() * 5) }}"
@@ -148,31 +95,27 @@
       "typeVersion": 3,
       "position": [
         1344,
-        192
+        288
       ],
       "parameters": {
         "options": {}
       }
     },
     {
-      "id": "14ece482-b441-498d-b7e3-a22e795dd94a",
-      "name": "Buscar instância conectada",
+      "name": "Lojas com aniversario hoje",
+      "notes": "Uma chamada devolve toda loja que tem a campanha ligada, numero conectado e aniversariante hoje - com o token dela junto. Antes o client_id do Levy estava escrito em tres nos, e so ele receberia.",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "executeOnce": true,
       "alwaysOutputData": true,
       "position": [
-        560,
-        320
+        224,
+        192
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_envio_of",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_aniversario_lojas",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"p_client_id\": \"677c58eb-b3ec-493a-ad14-0d052d7d8a45\"}",
         "options": {}
       },
       "credentials": {
@@ -180,16 +123,16 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      }
+      },
+      "id": "bf0975db-be36-4570-a78c-36e97d416f91"
     },
     {
-      "id": "055c8edd-d583-47b6-8e6d-6f5b3eddccb4",
-      "name": "Tem número conectado?",
+      "name": "Tem loja para disparar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        672,
-        320
+        448,
+        192
       ],
       "parameters": {
         "conditions": {
@@ -197,11 +140,11 @@
             "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "loose",
-            "version": 1
+            "version": 2
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.token }}",
+              "leftValue": "={{ $json.client_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -213,18 +156,32 @@
           "combinator": "and"
         },
         "options": {}
-      }
+      },
+      "id": "2ab8f113-8e05-4796-b117-53a80680a6a3"
     },
     {
-      "name": "Buscar aniversariantes",
-      "notes": "Mesma regra das campanhas: numero valido, do cadastro ou do pedido mais recente, sem repeticao, opt-out marcado. Sem limite de linhas - o limit=5000 antigo escondia 3.670 clientes.",
+      "name": "Uma loja por vez",
+      "notes": "Uma loja por vez: cada uma tem seu proprio token e sua propria mensagem.",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        192
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "fa0d9df4-b658-4587-ac66-c7cc381cf375"
+    },
+    {
+      "name": "Aniversariantes da loja",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "executeOnce": true,
       "alwaysOutputData": true,
       "position": [
         896,
-        192
+        288
       ],
       "parameters": {
         "method": "POST",
@@ -233,7 +190,7 @@
         "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"p_client_id\": \"677c58eb-b3ec-493a-ad14-0d052d7d8a45\"}",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: $('Uma loja por vez').first().json.client_id }) }}",
         "options": {}
       },
       "credentials": {
@@ -242,7 +199,7 @@
           "name": "Supabase CRM-Contatta"
         }
       },
-      "id": "c5d9d1be-25e3-4c08-a5ce-f171104f2ba5"
+      "id": "6332f65f-990c-497c-98a2-7bac0d82cccb"
     }
   ],
   "connections": {
@@ -250,29 +207,65 @@
       "main": [
         [
           {
-            "node": "Ler config",
+            "node": "Lojas com aniversario hoje",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Ler config": {
+    "Lojas com aniversario hoje": {
       "main": [
         [
           {
-            "node": "Ativado?",
+            "node": "Tem loja para disparar?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Ativado?": {
+    "Tem loja para disparar?": {
       "main": [
         [
           {
-            "node": "Buscar instância conectada",
+            "node": "Uma loja por vez",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uma loja por vez": {
+      "main": [
+        [
+          {
+            "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aniversariantes da loja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aniversariantes da loja": {
+      "main": [
+        [
+          {
+            "node": "Aniversariantes de hoje",
             "type": "main",
             "index": 0
           }
@@ -284,6 +277,24 @@
         [
           {
             "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Uma loja por vez",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar uazapi",
             "type": "main",
             "index": 0
           }
@@ -306,64 +317,6 @@
         [
           {
             "node": "Loop",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Loop": {
-      "main": [
-        [
-          {
-            "node": "Fim",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Enviar uazapi",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar instância conectada": {
-      "main": [
-        [
-          {
-            "node": "Tem número conectado?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tem número conectado?": {
-      "main": [
-        [
-          {
-            "node": "Buscar aniversariantes",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Fim",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar aniversariantes": {
-      "main": [
-        [
-          {
-            "node": "Aniversariantes de hoje",
             "type": "main",
             "index": 0
           }

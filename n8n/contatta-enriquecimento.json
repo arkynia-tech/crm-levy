@@ -77,11 +77,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45') }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $json.id, p_client_id: ($('Enriquecer').first().json.body.client_id) }) }}",
         "options": {}
       },
       "credentials": {
@@ -266,11 +266,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_enrich_pendentes",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), p_limit: Math.min(Number($('Enriquecer').first().json.body.limit) || 10, 1000) }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: ($('Enriquecer').first().json.body.client_id), p_limit: Math.min(Number($('Enriquecer').first().json.body.limit) || 10, 1000) }) }}",
         "options": {}
       },
       "credentials": {
@@ -470,6 +470,8 @@
       "parameters": {
         "method": "POST",
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/customers?on_conflict=id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -481,9 +483,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (function(){\n  const b = $('Enriquecer').first().json.body || {};\n  const cid = b.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45';\n  const rows = $('Montar patches').first().json.rows || [];\n  // client_id vai junto porque o upsert do PostgREST monta um INSERT: sem ele\n  // a coluna NOT NULL derruba a chamada antes de chegar no ON CONFLICT.\n  return JSON.stringify(rows.map(function(r){ return Object.assign({ client_id: cid }, r); }));\n})() }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
+        "jsonBody": "={{ (function(){\n  const b = $('Enriquecer').first().json.body || {};\n  const cid = b.client_id;\n  const rows = $('Montar patches').first().json.rows || [];\n  // client_id vai junto porque o upsert do PostgREST monta um INSERT: sem ele\n  // a coluna NOT NULL derruba a chamada antes de chegar no ON CONFLICT.\n  return JSON.stringify(rows.map(function(r){ return Object.assign({ client_id: cid }, r); }));\n})() }}",
         "options": {}
       },
       "credentials": {
@@ -589,8 +589,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
+            "typeValidation": "strict",
+            "version": 3
           },
           "conditions": [
             {
@@ -600,7 +600,8 @@
                 "type": "boolean",
                 "operation": "true",
                 "singleValue": true
-              }
+              },
+              "id": "705ab02e-d951-43b7-83b2-ee5e8757ec75"
             }
           ],
           "combinator": "and"
@@ -621,6 +622,57 @@
       "parameters": {
         "jsCode": "\nconst tot = { gravados: 0, enriquecidos: 0, sem_dado: 0, falhas: 0, lotes: 0 };\nconst motivos = {};\nfor (let k = 0; ; k++) {\n  let itens;\n  try { itens = $('Montar patches').all(0, k); } catch (e) { break; }\n  if (!itens || !itens.length) break;\n  const j = itens[0].json || {};\n  tot.lotes += 1;\n  tot.gravados += j.total || 0;\n  tot.enriquecidos += j.com_telefone || 0;\n  tot.sem_dado += j.sem_dado || 0;\n  tot.falhas += j.falhas || 0;\n  for (const m of Object.keys(j.motivos || {})) motivos[m] = (motivos[m] || 0) + j.motivos[m];\n}\ntot.motivos = motivos;\n// quantos foram pedidos, para a tela mostrar se parou no meio\ntry { tot.pedidos = $('Buscar dados atuais').all().length; } catch (e) { tot.pedidos = null; }\ntot.parcial = (tot.pedidos != null) && (tot.gravados + tot.falhas < tot.pedidos);\nreturn [{ json: tot }];\n"
       }
+    },
+    {
+      "name": "Loja informada?",
+      "notes": "Sem client_id a chamada para aqui. Antes havia um fallback para a loja do Levy: com duas lojas no ar, isso faria campanha de um cliente nascer dentro da loja de outro, em silencio.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        224
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Enriquecer').first().json.body.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7ea4da4b-cf29-47a7-800a-b74a099e791f"
+    },
+    {
+      "name": "Responder sem loja",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        336,
+        512
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 400
+        },
+        "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
+      },
+      "id": "61d4c139-6bc8-44a5-97fc-66a61173236b"
     }
   ],
   "connections": {
@@ -639,7 +691,7 @@
       "main": [
         [
           {
-            "node": "Papel do usuario",
+            "node": "Loja informada?",
             "type": "main",
             "index": 0
           }
@@ -877,9 +929,28 @@
           }
         ]
       ]
+    },
+    "Loja informada?": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem loja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
