@@ -8,8 +8,7 @@ import {
   CUSTOMERS_PAGE_SIZE,
   useAddCustomer,
   useCustomers,
-  useOutreachStats,
-  type ContactFilter,
+  useCustomerSituacoes,
   type EnrichFilter,
 } from '../hooks/queries'
 import { enrichCustomers, registrarEnriquecimento } from '../hooks/enrich'
@@ -18,12 +17,16 @@ import { useCompany } from '../context/CompanyContext'
 import { formatCurrency, formatDate, formatDateTime, formatPhone, maskCpf, toE164 } from '../lib/format'
 import { EmptyState, ErrorState, LoadingRows, PageHeader, Pagination, StatusBadge } from '../components/ui'
 
-type CustTab = EnrichFilter | 'no_phone'
+type CustTab = EnrichFilter
 
-const TABS: { key: CustTab; label: string }[] = [
-  { key: 'pending', label: 'Pendentes' },
-  { key: 'enriched', label: 'Enriquecidos' },
-  { key: 'no_phone', label: 'Sem telefone' },
+// Três situações que não se sobrepõem e cobrem a base inteira. As abas antigas
+// (Pendentes / Enriquecidos / Sem telefone) respondiam duas perguntas ao mesmo
+// tempo — "foi consultado?" e "tem telefone?" — então somavam mais que a base e
+// havia gente sem telefone dentro de "Enriquecidos".
+const TABS: { key: CustTab; label: string; title: string }[] = [
+  { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido — dá para mandar WhatsApp hoje' },
+  { key: 'na_fila', label: 'Na fila', title: 'Sem número e vale consultar: nunca consultado, ou consultado há mais de 180 dias' },
+  { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, a NovaVida não achou telefone. Voltam para a fila depois de 180 dias' },
 ]
 
 /** Teto do que se pede por vez — o enriquecimento não consome mais crédito. */
@@ -74,6 +77,7 @@ function EnrichControl() {
     }
     void queryClient.invalidateQueries({ queryKey: ['customers'] })
     void queryClient.invalidateQueries({ queryKey: ['outreach-stats'] })
+    void queryClient.invalidateQueries({ queryKey: ['customer-situacoes'] })
   }
 
   return (
@@ -312,25 +316,19 @@ export default function Customers() {
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
-  const [tab, setTab] = useState<CustTab>('pending')
+  const [tab, setTab] = useState<CustTab>('alcancavel')
   const [tabTouched, setTabTouched] = useState(false)
-  const [contact, setContact] = useState<ContactFilter>('all')
   const [showAdd, setShowAdd] = useState(false)
   const navigate = useNavigate()
-  // A aba "Sem telefone" é um atalho: mostra todos (qualquer status) só sem telefone.
-  const isNoPhone = tab === 'no_phone'
-  const queryTab: EnrichFilter = isNoPhone ? 'all' : (tab as EnrichFilter)
-  const queryContact: ContactFilter = isNoPhone ? 'without_phone' : contact
-  const { data, isLoading, error, isFetching } = useCustomers(search, page, queryTab, queryContact)
-  const { data: stats } = useOutreachStats()
-  const pendingCount = stats ? Math.max(0, stats.total - stats.enriched) : null
-  const enrichedCount = stats?.enriched ?? null
-  const noPhoneCount = stats ? Math.max(0, stats.total - stats.withPhone) : null
+  const { data, isLoading, error, isFetching } = useCustomers(search, page, tab)
+  // Os contadores vêm da mesma classificação que filtra a lista, e não de
+  // contas feitas aqui a partir de outros totais.
+  const { data: situacoes } = useCustomerSituacoes()
   const counts: Record<CustTab, number | null> = {
-    all: stats?.total ?? null,
-    pending: pendingCount,
-    enriched: enrichedCount,
-    no_phone: noPhoneCount,
+    all: situacoes?.total ?? null,
+    alcancavel: situacoes?.alcancavel ?? null,
+    na_fila: situacoes?.na_fila ?? null,
+    sem_retorno: situacoes?.sem_retorno ?? null,
   }
 
   // debounce da busca
@@ -342,12 +340,12 @@ export default function Customers() {
     return () => clearTimeout(t)
   }, [input])
 
-  // Se não houver pendentes, abre já na aba com clientes (evita tela vazia)
+  // Sem ninguém na fila, abre direto em quem dá para contatar (evita tela vazia)
   useEffect(() => {
-    if (!tabTouched && stats && pendingCount === 0 && (enrichedCount ?? 0) > 0) {
-      setTab('enriched')
+    if (!tabTouched && situacoes && situacoes.na_fila === 0 && situacoes.alcancavel > 0) {
+      setTab('alcancavel')
     }
-  }, [stats, tabTouched, pendingCount, enrichedCount])
+  }, [situacoes, tabTouched])
 
   return (
     <div>
@@ -384,6 +382,7 @@ export default function Customers() {
             <button
               key={t.key}
               type="button"
+              title={t.title}
               onClick={() => {
                 setTab(t.key)
                 setTabTouched(true)
@@ -400,22 +399,6 @@ export default function Customers() {
             </button>
           ))}
         </div>
-        {!isNoPhone && (
-          <select
-            value={contact}
-            onChange={(e) => {
-              setContact(e.target.value as ContactFilter)
-              setPage(0)
-            }}
-            className="input mb-1.5 w-auto py-1.5 text-sm"
-            aria-label="Filtrar por telefone"
-            title="Filtrar clientes por telefone"
-          >
-            <option value="all">Telefone: todos</option>
-            <option value="with_phone">Só com telefone</option>
-            <option value="without_phone">Só sem telefone</option>
-          </select>
-        )}
       </div>
 
       <div className={`card overflow-hidden ${isFetching && !isLoading ? 'opacity-70' : ''}`}>
@@ -508,17 +491,17 @@ export default function Customers() {
             title={
               search
                 ? `Nenhum cliente encontrado para "${search}"`
-                : tab === 'pending'
-                  ? 'Nenhum cliente pendente'
-                  : tab === 'enriched'
-                    ? 'Nenhum cliente enriquecido ainda'
-                    : 'Nenhum cliente ainda'
+                : tab === 'alcancavel'
+                  ? 'Ninguém com telefone ainda'
+                  : tab === 'na_fila'
+                    ? 'Nenhum cliente na fila de consulta'
+                    : 'Nenhum cliente nessa situação'
             }
             hint={
               search
                 ? 'Tente outro nome, CPF ou cidade.'
-                : tab === 'enriched'
-                  ? 'Use "Enriquecer dados" para buscar telefone, e-mail e endereço na NovaVida.'
+                : tab === 'alcancavel'
+                  ? 'Use "Enriquecer dados" para buscar telefone na NovaVida.'
                   : 'Os clientes aparecem aqui conforme as NF-e são importadas.'
             }
           />

@@ -282,10 +282,49 @@ export function useOutreachStats() {
 
 export const CUSTOMERS_PAGE_SIZE = 25
 
-/** Filtro de enriquecimento usado nas abas da tela Clientes */
-export type EnrichFilter = 'all' | 'pending' | 'enriched'
+/**
+ * Situação do cliente — as abas da tela Clientes.
+ *
+ * As três não se sobrepõem e cobrem a base inteira. Quem classifica é o banco
+ * (view customers_classificados), porque as abas antigas misturavam "foi
+ * consultado?" com "tem telefone?" e por isso somavam mais que a base.
+ *
+ *   alcancavel   número válido — dá para mandar WhatsApp hoje
+ *   na_fila      sem número e vale consultar (novo, ou consultado há +180 dias)
+ *   sem_retorno  sem número, consultado, a NovaVida não achou
+ */
+export type EnrichFilter = 'all' | 'alcancavel' | 'na_fila' | 'sem_retorno'
 /** Filtro por telefone na tela Clientes */
 export type ContactFilter = 'all' | 'with_phone' | 'without_phone'
+
+export interface CustomerSituacoes {
+  alcancavel: number
+  na_fila: number
+  sem_retorno: number
+  total: number
+}
+
+/** Os números das abas, numa chamada só. */
+export function useCustomerSituacoes() {
+  const { activeClient } = useCompany()
+  return useQuery({
+    queryKey: ['customer-situacoes', activeClient?.id],
+    enabled: Boolean(activeClient),
+    queryFn: async (): Promise<CustomerSituacoes> => {
+      const { data, error } = await supabase.rpc('crm_customer_situacoes', {
+        p_client_id: activeClient!.id,
+      })
+      if (error) throw new Error(error.message)
+      const r = (Array.isArray(data) ? data[0] : data) ?? {}
+      return {
+        alcancavel: Number(r.alcancavel) || 0,
+        na_fila: Number(r.na_fila) || 0,
+        sem_retorno: Number(r.sem_retorno) || 0,
+        total: Number(r.total) || 0,
+      }
+    },
+  })
+}
 
 export function useCustomers(
   search: string,
@@ -300,15 +339,16 @@ export function useCustomers(
     placeholderData: (prev) => prev,
     queryFn: async () => {
       const from = page * CUSTOMERS_PAGE_SIZE
+      // A view carrega a coluna `situacao`; filtrar por ela é o que mantém a
+      // aba e o contador contando a mesma coisa. Montar o filtro aqui na mão
+      // foi exatamente o que criou três definições divergentes.
       let q = supabase
-        .from('customers')
+        .from('customers_classificados')
         .select('*', { count: 'exact' })
         .eq('client_id', activeClient!.id)
         .order('created_at', { ascending: false })
         .range(from, from + CUSTOMERS_PAGE_SIZE - 1)
-      // Abas: pendente = ainda sem enriched_at; enriquecido = já processado
-      if (enrichFilter === 'pending') q = q.filter('extra->>enriched_at', 'is', null)
-      else if (enrichFilter === 'enriched') q = q.not('extra->>enriched_at', 'is', null)
+      if (enrichFilter !== 'all') q = q.eq('situacao', enrichFilter)
       // Filtro de telefone
       if (contactFilter === 'with_phone') q = q.not('phone', 'is', null)
       else if (contactFilter === 'without_phone') q = q.is('phone', null)
