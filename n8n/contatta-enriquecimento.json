@@ -2,7 +2,9 @@
   "name": "Enriquecimento NovaVida — Contatta (Levy)",
   "nodes": [
     {
+      "id": "0d40e8ca-0b8c-43e4-9a7b-98d84ba55c20",
       "name": "Enriquecer",
+      "webhookId": "297bed55-b499-400a-88e9-2195e031a7ec",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -14,11 +16,10 @@
         "path": "unificca-enrich-clientes",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "id": "0d40e8ca-0b8c-43e4-9a7b-98d84ba55c20",
-      "webhookId": "297bed55-b499-400a-88e9-2195e031a7ec"
+      }
     },
     {
+      "id": "8d8529c4-e24c-4872-a58d-dc8a70948f0a",
       "name": "Validar login do CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -43,10 +44,10 @@
           ]
         },
         "options": {}
-      },
-      "id": "8d8529c4-e24c-4872-a58d-dc8a70948f0a"
+      }
     },
     {
+      "id": "82c0060c-fe2b-4f37-93d3-cddbb85198cd",
       "name": "Responder 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -60,10 +61,10 @@
         "options": {
           "responseCode": 401
         }
-      },
-      "id": "82c0060c-fe2b-4f37-93d3-cddbb85198cd"
+      }
     },
     {
+      "id": "5b338315-a939-4a1a-9949-4c2ebff633ad",
       "name": "Papel do usuario",
       "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
       "type": "n8n-nodes-base.httpRequest",
@@ -88,10 +89,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "5b338315-a939-4a1a-9949-4c2ebff633ad"
+      }
     },
     {
+      "id": "5567bd09-9e64-4ef5-b749-1d66d4bf7e23",
       "name": "Pode enriquecer?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -121,10 +122,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "5567bd09-9e64-4ef5-b749-1d66d4bf7e23"
+      }
     },
     {
+      "id": "50c553c1-74bd-445b-9902-5659fee24008",
       "name": "Responder 403",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -138,10 +139,10 @@
         "options": {
           "responseCode": 403
         }
-      },
-      "id": "50c553c1-74bd-445b-9902-5659fee24008"
+      }
     },
     {
+      "id": "fefaa6d6-0a99-45a2-a8df-f0ebb3fa74dd",
       "name": "Credenciais NovaVida",
       "notes": "Credencial mora no banco, em tabela sem policy (so service_role). Nao escreva usuario/senha aqui dentro.",
       "type": "n8n-nodes-base.httpRequest",
@@ -162,10 +163,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "fefaa6d6-0a99-45a2-a8df-f0ebb3fa74dd"
+      }
     },
     {
+      "id": "3a5746ba-fb98-467d-abb3-cb642d670c21",
       "name": "Tem credencial?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -195,10 +196,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "3a5746ba-fb98-467d-abb3-cb642d670c21"
+      }
     },
     {
+      "id": "d4cbe0dc-9937-4149-8a7a-cd19e373587e",
       "name": "Responder sem credencial",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -212,11 +213,12 @@
         "options": {
           "responseCode": 409
         }
-      },
-      "id": "d4cbe0dc-9937-4149-8a7a-cd19e373587e"
+      }
     },
     {
+      "id": "5d4e1a1f-f641-43d3-8164-bdfcda0b7fa1",
       "name": "Gerar Token",
+      "notes": "Token vale 24h. Uma geracao por rodada.",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
@@ -239,10 +241,10 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ credencial: { usuario: $json.value.usuario, senha: $json.value.senha, cliente: $json.value.cliente } }) }}",
         "options": {}
-      },
-      "id": "5d4e1a1f-f641-43d3-8164-bdfcda0b7fa1"
+      }
     },
     {
+      "id": "9d98a9f3-2931-434c-abbf-d03e6f7ee1e4",
       "name": "Buscar pendentes",
       "notes": "A regra de quem entra na fila mora no banco (crm_enrich_pendentes): CPF novo, ou sem telefone e consultado ha mais de 180 dias. O fluxo nao monta filtro proprio.",
       "type": "n8n-nodes-base.httpRequest",
@@ -268,10 +270,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "9d98a9f3-2931-434c-abbf-d03e6f7ee1e4"
+      }
     },
     {
+      "id": "bfc0d15e-5217-4586-898a-7fa19ceebb77",
       "name": "Tem pendentes?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -301,10 +303,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "bfc0d15e-5217-4586-898a-7fa19ceebb77"
+      }
     },
     {
+      "id": "8251e359-ad5d-448b-9a46-699c2ca7493b",
       "name": "Responder nada a fazer",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -316,10 +318,10 @@
         "respondWith": "json",
         "responseBody": "{ \"ok\": true, \"enriquecidos\": 0, \"aviso\": \"Nenhum CPF elegivel na fila.\" }",
         "options": {}
-      },
-      "id": "8251e359-ad5d-448b-9a46-699c2ca7493b"
+      }
     },
     {
+      "id": "5c584273-ac18-4158-8494-4d855bc291c6",
       "name": "Buscar dados atuais",
       "notes": "Traz extra/phone/email atuais para o patch so preencher o que falta e nao apagar o que ja existe em extra.",
       "type": "n8n-nodes-base.httpRequest",
@@ -340,44 +342,52 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "5c584273-ac18-4158-8494-4d855bc291c6"
+      }
     },
     {
+      "id": "8c066901-6189-4a70-b069-8bb095f7bb51",
       "name": "Consultar NovaVida",
-      "notes": "Roda uma vez por item de entrada. onError continua para um CPF ruim nao derrubar a rodada inteira.",
+      "notes": "NVBOOK_PF, consulta 2429: form-urlencoded, token no CORPO (nao no header). fullResponse + neverError para distinguir 204 'nada consta' de 403 saldo e 429 limite - sem isso os tres deixam o mesmo rastro, que foi o que travou 2.896 CPFs.",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "alwaysOutputData": true,
-      "onError": "continueRegularOutput",
       "position": [
         2240,
         320
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://wsnv.novavidati.com.br/wslocalizador.asmx/NVCHECKJson",
-        "sendHeaders": true,
-        "headerParameters": {
+        "url": "https://wsnv.novavidati.com.br/WSLocalizador.asmx/CONSULTAR",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
           "parameters": [
             {
-              "name": "Token",
-              "value": "={{ $('Gerar Token').first().json.d }}"
+              "name": "consulta",
+              "value": "2429"
             },
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "documento",
+              "value": "={{ String($json.cpf || '').replace(/[^0-9]/g, '') }}"
+            },
+            {
+              "name": "token",
+              "value": "={{ $('Gerar Token').first().json.d }}"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ nvcheck: { Documento: String($json.cpf || '').replace(/[^0-9]/g, '') } }) }}",
-        "options": {}
-      },
-      "id": "8c066901-6189-4a70-b069-8bb095f7bb51"
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      }
     },
     {
+      "id": "d1cd245c-1473-4379-aaea-35d63be86daa",
       "name": "Montar patches",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -386,11 +396,11 @@
         320
       ],
       "parameters": {
-        "jsCode": "\n// Cada item de entrada e a resposta da NovaVida para o cliente de mesmo indice\n// em \"Buscar dados atuais\" - a ordem e preservada item a item.\nconst atuais = $('Buscar dados atuais').all().map(function (i) { return i.json; });\nconst respostas = $input.all().map(function (i) { return i.json; });\nconst agora = new Date().toISOString();\n\nfunction titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\\s)\\S/g, function(m){return m.toUpperCase();}); }\n\n// o servico e ASMX: as vezes devolve o objeto em .d, as vezes .d e uma string\nfunction consulta(j) {\n  if (!j) return null;\n  let d = (j.d !== undefined) ? j.d : j;\n  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return null; } }\n  if (!d || typeof d !== 'object') return null;\n  return d.CONSULTA || d.consulta || (d.NVCHECK || {}).CONSULTA || null;\n}\n\nconst vistos = new Set();\nconst rows = [];\nlet comTelefone = 0;\n\nfor (let i = 0; i < atuais.length; i++) {\n  const c = atuais[i];\n  if (!c || !c.id || vistos.has(c.id)) continue;\n  const con = consulta(respostas[i]);\n\n  const patch = { id: c.id };\n  // enriched_at marca CONSULTA FEITA, mesmo quando volta vazia. E o que\n  // impede a fila de reoferecer o mesmo CPF amanha - ver crm_enrich_pendentes.\n  const extra = Object.assign({}, c.extra || {});\n  extra.enriched_at = agora;\n  if (con) extra.novavida = { CONSULTA: con };\n  patch.extra = extra;\n\n  if (con) {\n    if (!c.phone) {\n      const tels = Array.isArray(con.TELEFONES) ? con.TELEFONES : [];\n      const t = tels.find(function (x) { return x && x.FLWHATS === 'S'; }) || tels[0];\n      if (t && t.TELEFONE) { patch.phone = '+55' + String(t.DDD || '') + String(t.TELEFONE || ''); comTelefone++; }\n    }\n    if (!c.email) {\n      const em = Array.isArray(con.EMAILS) ? con.EMAILS : [];\n      if (em[0] && em[0].EMAIL) patch.email = em[0].EMAIL;\n    }\n    if (!c.birth_date) {\n      const nasc = (con.CADASTRAIS || {}).NASC;\n      if (nasc && /^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(nasc)) {\n        const p = nasc.split('/'); patch.birth_date = p[2] + '-' + p[1] + '-' + p[0];\n      }\n    }\n    const end = Array.isArray(con.ENDERECOS) ? con.ENDERECOS : [];\n    if (!c.city && end[0] && end[0].CIDADE) patch.city = titleCase(end[0].CIDADE);\n    if (!c.state && end[0] && end[0].UF) patch.state = end[0].UF;\n  }\n\n  vistos.add(c.id);\n  rows.push(patch);\n}\n\nreturn [{ json: { total: rows.length, com_telefone: comTelefone, rows: rows } }];\n"
-      },
-      "id": "d1cd245c-1473-4379-aaea-35d63be86daa"
+        "jsCode": "\n// Cada item de entrada e a resposta da 2429 para o cliente de mesmo indice em\n// \"Buscar dados atuais\" - a ordem e preservada item a item.\nconst atuais = $('Buscar dados atuais').all().map(function (i) { return i.json; });\nconst respostas = $input.all().map(function (i) { return i.json; });\nconst agora = new Date().toISOString();\n\nfunction titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\\s)\\S/g, function(m){return m.toUpperCase();}); }\n\n// fullResponse esta ligado: cada item vem {body, statusCode, headers}. E o que\n// permite distinguir \"a NovaVida respondeu que nao tem\" de \"a chamada falhou\" -\n// distincao que nao existia antes e travou 2.896 CPFs.\nfunction abrir(r) {\n  if (!r) return { status: null, dados: null };\n  const status = (r.statusCode != null) ? Number(r.statusCode) : null;\n  let b = (r.body !== undefined) ? r.body : r;\n  if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }\n  // o doc mostra o objeto na raiz, mas na pratica vem [{...}]; e o NVCHECK\n  // antigo embrulhava em \"d\". Aceita os tres.\n  if (b && typeof b === 'object' && b.d !== undefined) {\n    let d = b.d;\n    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }\n    b = d;\n  }\n  if (Array.isArray(b)) b = b[0] || null;\n  if (b && typeof b === 'object' && Object.keys(b).length === 0) b = null;\n  return { status: status, dados: (b && typeof b === 'object') ? b : null };\n}\n\n// Ate 4 celulares. Prefere o marcado como WhatsApp; nao havendo, o primeiro.\nfunction telefone(t) {\n  if (!t) return null;\n  for (let passo = 0; passo < 2; passo++) {\n    for (let i = 1; i <= 4; i++) {\n      const ddd = t['DDDCEL' + i], cel = t['CEL' + i], wa = t['FLWHATSAPPCEL' + i];\n      if (!ddd || !cel) continue;\n      if (passo === 0 && wa !== 'S') continue;   // primeira passada: so WhatsApp\n      return String(ddd) + String(cel);\n    }\n  }\n  return null;\n}\n\n// a 2429 manda AAAAMMDD; o NVCHECK mandava DD/MM/AAAA\nfunction nascimento(s) {\n  const v = String(s || '').trim();\n  if (/^\\d{8}$/.test(v)) return v.slice(0,4) + '-' + v.slice(4,6) + '-' + v.slice(6,8);\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(v)) { const p = v.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; }\n  return null;\n}\n\nconst vistos = new Set();\nconst rows = [];\nlet comTelefone = 0, semDado = 0, falhas = 0;\nconst motivos = {};\n\nfor (let i = 0; i < atuais.length; i++) {\n  const c = atuais[i];\n  if (!c || !c.id || vistos.has(c.id)) continue;\n  vistos.add(c.id);\n\n  const r = abrir(respostas[i]);\n  const st = r.status;\n\n  // 403 saldo/permissao, 429 limite, 5xx erro deles: a pergunta NAO foi\n  // respondida. Nao marcar enriched_at - marcar foi exatamente o que tirou\n  // 2.896 CPFs da fila sem ninguem ter perguntado por eles.\n  if (st !== null && st !== 200 && st !== 204) {\n    falhas++;\n    motivos['HTTP ' + st] = (motivos['HTTP ' + st] || 0) + 1;\n    continue;\n  }\n\n  const d = r.dados;\n  const patch = { id: c.id };\n  const extra = Object.assign({}, c.extra || {});\n  // enriched_at so entra aqui: 200 com dado, ou 204 \"nada consta\". Nos dois\n  // casos a NovaVida respondeu.\n  extra.enriched_at = agora;\n  extra.novavida = { fonte: 'nvbook_pf_2429', http: st, resposta: d };\n  patch.extra = extra;\n\n  if (d) {\n    if (!c.phone) {\n      const bruto = telefone(d.TELEFONES);\n      if (bruto) { patch.phone = '+55' + bruto; comTelefone++; }\n    }\n    if (!c.email) {\n      const em = d.EMAILS || {};\n      if (em.EMAIL1) patch.email = em.EMAIL1;\n    }\n    if (!c.birth_date) {\n      const nasc = nascimento((d.IDENTIFICACAO || {}).NASC);\n      if (nasc) patch.birth_date = nasc;\n    }\n    const end = d.ENDERECO || {};\n    if (!c.city && end.CIDADE) patch.city = titleCase(end.CIDADE);\n    if (!c.state && end.UF) patch.state = end.UF;\n  } else {\n    semDado++;\n  }\n\n  rows.push(patch);\n}\n\nreturn [{ json: {\n  total: rows.length, com_telefone: comTelefone, sem_dado: semDado,\n  falhas: falhas, motivos: motivos, rows: rows\n} }];\n"
+      }
     },
     {
+      "id": "154f2816-bffa-4d3f-9bea-fb2449e5fc6d",
       "name": "Tem o que gravar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -419,10 +429,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "154f2816-bffa-4d3f-9bea-fb2449e5fc6d"
+      }
     },
     {
+      "id": "efefb8dd-c949-4ff9-aea4-4e9a20c6be44",
       "name": "Responder zero",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -434,10 +444,10 @@
         "respondWith": "json",
         "responseBody": "{ \"ok\": true, \"enriquecidos\": 0, \"aviso\": \"A NovaVida nao devolveu dados novos.\" }",
         "options": {}
-      },
-      "id": "efefb8dd-c949-4ff9-aea4-4e9a20c6be44"
+      }
     },
     {
+      "id": "6b439ece-4b00-426c-b6ef-b26c488a4cc8",
       "name": "Gravar enriquecimento",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -470,10 +480,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "6b439ece-4b00-426c-b6ef-b26c488a4cc8"
+      }
     },
     {
+      "id": "ab41d3cf-ac7e-4b5e-a357-351fa1dd02bc",
       "name": "Responder concluido",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -483,10 +493,9 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, enriquecidos: $('Montar patches').first().json.com_telefone, consultados: $('Montar patches').first().json.total }) }}",
+        "responseBody": "={{ (function(){ const p = $('Montar patches').first().json; return JSON.stringify({ ok: true, enriquecidos: p.com_telefone, consultados: p.total, sem_dado: p.sem_dado, falhas: p.falhas, motivos: p.motivos }); })() }}",
         "options": {}
-      },
-      "id": "ab41d3cf-ac7e-4b5e-a357-351fa1dd02bc"
+      }
     }
   ],
   "connections": {
