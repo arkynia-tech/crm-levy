@@ -560,8 +560,9 @@
       }
     },
     {
+      "id": "78b368bf-2bd4-4038-abda-fa2d84c18dd9",
       "name": "Loop em lotes",
-      "notes": "25 por vez. Cada lote consulta e GRAVA antes do proximo, entao uma falha no lote 21 nao desfaz os 20 que ja entraram.",
+      "notes": "5 por vez. O tamanho do lote agrupa so a GRAVACAO - a NovaVida e consultada um CPF por vez de qualquer jeito. Quebrou no lote 101, os 500 anteriores ja estao no banco. Nao baixar para 1: o n8n guarda entrada e saida de cada no em cada iteracao, e mil iteracoes incham o registro de execucao.",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
@@ -569,12 +570,12 @@
         320
       ],
       "parameters": {
-        "batchSize": 25,
+        "batchSize": 5,
         "options": {}
-      },
-      "id": "78b368bf-2bd4-4038-abda-fa2d84c18dd9"
+      }
     },
     {
+      "id": "92d58246-500e-4090-a67f-43ce89dedf05",
       "name": "Continuar?",
       "notes": "Qualquer recusa da NovaVida (saldo, limite) para o loop na hora, em vez de disparar os lotes restantes para tomar o mesmo erro.",
       "type": "n8n-nodes-base.if",
@@ -605,10 +606,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "92d58246-500e-4090-a67f-43ce89dedf05"
+      }
     },
     {
+      "id": "b81a5c46-c5d9-4873-a45f-4d6fd7ddda7c",
       "name": "Somar resultado",
       "notes": "Soma TODAS as rodadas do loop. Sem isso o total mostraria so o ultimo lote.",
       "type": "n8n-nodes-base.code",
@@ -619,8 +620,7 @@
       ],
       "parameters": {
         "jsCode": "\nconst tot = { gravados: 0, enriquecidos: 0, sem_dado: 0, falhas: 0, lotes: 0 };\nconst motivos = {};\nfor (let k = 0; ; k++) {\n  let itens;\n  try { itens = $('Montar patches').all(0, k); } catch (e) { break; }\n  if (!itens || !itens.length) break;\n  const j = itens[0].json || {};\n  tot.lotes += 1;\n  tot.gravados += j.total || 0;\n  tot.enriquecidos += j.com_telefone || 0;\n  tot.sem_dado += j.sem_dado || 0;\n  tot.falhas += j.falhas || 0;\n  for (const m of Object.keys(j.motivos || {})) motivos[m] = (motivos[m] || 0) + j.motivos[m];\n}\ntot.motivos = motivos;\n// quantos foram pedidos, para a tela mostrar se parou no meio\ntry { tot.pedidos = $('Buscar dados atuais').all().length; } catch (e) { tot.pedidos = null; }\ntot.parcial = (tot.pedidos != null) && (tot.gravados + tot.falhas < tot.pedidos);\nreturn [{ json: tot }];\n"
-      },
-      "id": "b81a5c46-c5d9-4873-a45f-4d6fd7ddda7c"
+      }
     }
   ],
   "connections": {
