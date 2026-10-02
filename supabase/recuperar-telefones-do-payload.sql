@@ -10,7 +10,15 @@
 --   4.033 CPFs consultados
 --   1.137 com payload guardado
 --     905 com telefone na coluna
---     232 com telefone no payload e coluna vazia   <- é o que este arquivo resolve
+--     232 com um registro de telefone VAZIO no payload
+--
+-- CORRIGIDO EM 02/10: aqueles 232 não eram telefones. A NovaVida devolve
+-- [{"DDD": null, "TELEFONE": null, ...}] para dizer "não achei" — um array de
+-- tamanho 1 sem nada dentro. A contagem original usava jsonb_array_length > 0 e
+-- tomou o registro fantasma por telefone. O filtro agora olha o conteúdo.
+--
+-- Com isso este arquivo provavelmente atualiza ZERO linhas, e 905 é o teto real
+-- da base. Fica no repo porque a verificação é barata e a regra, correta.
 --
 -- As outras 2.896 consultas não guardaram payload nenhum, então não há o que
 -- recuperar delas. (O fluxo de enriquecimento novo sempre grava a resposta.)
@@ -44,12 +52,12 @@ where client_id = '677c58eb-b3ec-493a-ad14-0d052d7d8a45';
 with candidatos as (
   select c.id,
          coalesce(
-           (select (t->>'DDD') || (t->>'TELEFONE')
+           (select concat(t->>'DDD', t->>'TELEFONE')
               from jsonb_array_elements(c.extra->'novavida'->'CONSULTA'->'TELEFONES') t
              where t->>'FLWHATS' = 'S'
                and coalesce(t->>'TELEFONE', '') <> ''
              limit 1),
-           (select (t->>'DDD') || (t->>'TELEFONE')
+           (select concat(t->>'DDD', t->>'TELEFONE')
               from jsonb_array_elements(c.extra->'novavida'->'CONSULTA'->'TELEFONES') t
              where coalesce(t->>'TELEFONE', '') <> ''
              limit 1)
@@ -58,7 +66,12 @@ with candidatos as (
    where c.client_id = '677c58eb-b3ec-493a-ad14-0d052d7d8a45'
      and coalesce(btrim(c.phone), '') = ''
      and jsonb_typeof(c.extra->'novavida'->'CONSULTA'->'TELEFONES') = 'array'
-     and jsonb_array_length(c.extra->'novavida'->'CONSULTA'->'TELEFONES') > 0
+     -- conteudo, nao tamanho: a NovaVida devolve [{todos os campos null}] para
+     -- dizer "nao achei", e isso tem length 1
+     and exists (
+       select 1 from jsonb_array_elements(c.extra->'novavida'->'CONSULTA'->'TELEFONES') t
+        where coalesce(t->>'TELEFONE', '') <> ''
+     )
 )
 update public.customers c
    set phone = public.crm_wa_numero(cand.bruto),
