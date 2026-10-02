@@ -268,7 +268,7 @@
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_enrich_pendentes",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), p_limit: Math.min(Number($('Enriquecer').first().json.body.limit) || 10, 500) }) }}",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: ($('Enriquecer').first().json.body.client_id || '677c58eb-b3ec-493a-ad14-0d052d7d8a45'), p_limit: Math.min(Number($('Enriquecer').first().json.body.limit) || 10, 1000) }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -360,7 +360,7 @@
       "typeVersion": 4.4,
       "alwaysOutputData": true,
       "position": [
-        2240,
+        2464,
         320
       ],
       "parameters": {
@@ -399,15 +399,15 @@
     {
       "id": "d1cd245c-1473-4379-aaea-35d63be86daa",
       "name": "Montar patches",
-      "notes": "Todas as linhas saem com o mesmo conjunto de chaves: o insert em lote do PostgREST recusa o array se um objeto tiver uma chave a menos. Campo sem dado novo e regravado com o valor atual, nunca anulado.",
+      "notes": "Opera sobre o lote corrente ($('Loop em lotes').all()), nao sobre a lista inteira. E o que permite gravar de 25 em 25: quebrou no lote 21, os 20 anteriores ja estao no banco.",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
+        2688,
         320
       ],
       "parameters": {
-        "jsCode": "\n// Cada item de entrada e a resposta da 2429 para o cliente de mesmo indice em\n// \"Buscar dados atuais\" - a ordem e preservada item a item.\nconst atuais = $('Buscar dados atuais').all().map(function (i) { return i.json; });\nconst respostas = $input.all().map(function (i) { return i.json; });\nconst agora = new Date().toISOString();\n\nfunction titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\\s)\\S/g, function(m){return m.toUpperCase();}); }\n\n// fullResponse esta ligado: cada item vem {body, statusCode, headers}. E o que\n// permite distinguir \"a NovaVida respondeu que nao tem\" de \"a chamada falhou\" -\n// distincao que nao existia antes e travou 2.896 CPFs.\nfunction abrir(r) {\n  if (!r) return { status: null, dados: null };\n  const status = (r.statusCode != null) ? Number(r.statusCode) : null;\n  let b = (r.body !== undefined) ? r.body : r;\n  if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }\n  // o doc mostra o objeto na raiz, mas na pratica vem [{...}]; e o NVCHECK\n  // antigo embrulhava em \"d\". Aceita os tres.\n  if (b && typeof b === 'object' && b.d !== undefined) {\n    let d = b.d;\n    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }\n    b = d;\n  }\n  if (Array.isArray(b)) b = b[0] || null;\n  if (b && typeof b === 'object' && Object.keys(b).length === 0) b = null;\n  return { status: status, dados: (b && typeof b === 'object') ? b : null };\n}\n\n// Ate 4 celulares. Prefere o marcado como WhatsApp; nao havendo, o primeiro.\nfunction telefone(t) {\n  if (!t) return null;\n  for (let passo = 0; passo < 2; passo++) {\n    for (let i = 1; i <= 4; i++) {\n      const ddd = t['DDDCEL' + i], cel = t['CEL' + i], wa = t['FLWHATSAPPCEL' + i];\n      if (!ddd || !cel) continue;\n      if (passo === 0 && wa !== 'S') continue;   // primeira passada: so WhatsApp\n      return String(ddd) + String(cel);\n    }\n  }\n  return null;\n}\n\n// a 2429 manda AAAAMMDD; o NVCHECK mandava DD/MM/AAAA\nfunction nascimento(s) {\n  const v = String(s || '').trim();\n  if (/^\\d{8}$/.test(v)) return v.slice(0,4) + '-' + v.slice(4,6) + '-' + v.slice(6,8);\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(v)) { const p = v.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; }\n  return null;\n}\n\nconst vistos = new Set();\nconst rows = [];\nlet comTelefone = 0, semDado = 0, falhas = 0;\nconst motivos = {};\n\nfor (let i = 0; i < atuais.length; i++) {\n  const c = atuais[i];\n  if (!c || !c.id || vistos.has(c.id)) continue;\n  vistos.add(c.id);\n\n  const r = abrir(respostas[i]);\n  const st = r.status;\n\n  // 403 saldo/permissao, 429 limite, 5xx erro deles: a pergunta NAO foi\n  // respondida. Nao marcar enriched_at - marcar foi exatamente o que tirou\n  // 2.896 CPFs da fila sem ninguem ter perguntado por eles.\n  if (st !== null && st !== 200 && st !== 204) {\n    falhas++;\n    // a razao vem em texto puro no corpo (ex.: 'SALDO PRE PAGO INSUFICIENTE!').\n    // O doc promete 403 para saldo, mas na pratica vem 400 - por isso vale a\n    // mensagem, nao o codigo.\n    let razao = '';\n    const cru = (respostas[i] || {}).body;\n    if (typeof cru === 'string') razao = cru.trim().slice(0, 120);\n    else if (cru && typeof cru === 'object') razao = String(cru.d || cru.message || '').slice(0, 120);\n    const chave = razao || ('HTTP ' + st);\n    motivos[chave] = (motivos[chave] || 0) + 1;\n    continue;\n  }\n\n  const d = r.dados;\n  const extra = Object.assign({}, c.extra || {});\n  // enriched_at so entra aqui: 200 com dado, ou 204 \"nada consta\". Nos dois\n  // casos a NovaVida respondeu.\n  extra.enriched_at = agora;\n  extra.novavida = { fonte: 'nvbook_pf_2429', http: st, resposta: d };\n\n  // TODAS as linhas levam AS MESMAS CHAVES: o insert em lote do PostgREST\n  // recusa o array inteiro se um objeto tiver uma chave a menos (\"All object\n  // keys must match\"). O valor atual entra como padrao, entao campo sem dado\n  // novo e regravado igual em vez de virar nulo.\n  const row = {\n    id: c.id,\n    extra: extra,\n    phone: c.phone || null,\n    email: c.email || null,\n    birth_date: c.birth_date || null,\n    city: c.city || null,\n    state: c.state || null,\n  };\n\n  if (d) {\n    if (!c.phone) {\n      const bruto = telefone(d.TELEFONES);\n      if (bruto) { row.phone = '+55' + bruto; comTelefone++; }\n    }\n    if (!c.email) {\n      const em = d.EMAILS || {};\n      if (em.EMAIL1) row.email = em.EMAIL1;\n    }\n    if (!c.birth_date) {\n      const nasc = nascimento((d.IDENTIFICACAO || {}).NASC);\n      if (nasc) row.birth_date = nasc;\n    }\n    const end = d.ENDERECO || {};\n    if (!c.city && end.CIDADE) row.city = titleCase(end.CIDADE);\n    if (!c.state && end.UF) row.state = end.UF;\n  } else {\n    semDado++;\n  }\n\n  rows.push(row);\n}\n\nreturn [{ json: {\n  total: rows.length, com_telefone: comTelefone, sem_dado: semDado,\n  falhas: falhas, motivos: motivos, rows: rows\n} }];\n"
+        "jsCode": "\n// Trabalha sobre o lote corrente do loop, nao sobre a lista inteira: e isso\n// que permite gravar de 25 em 25 e nao perder tudo se quebrar no meio.\nconst atuais = $('Loop em lotes').all().map(function (i) { return i.json; });\nconst respostas = $input.all().map(function (i) { return i.json; });\nconst agora = new Date().toISOString();\n\nfunction titleCase(s){ return String(s||'').toLowerCase().replace(/(^|\\s)\\S/g, function(m){return m.toUpperCase();}); }\n\nfunction abrir(r) {\n  if (!r) return { status: null, dados: null };\n  const status = (r.statusCode != null) ? Number(r.statusCode) : null;\n  let b = (r.body !== undefined) ? r.body : r;\n  if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }\n  if (b && typeof b === 'object' && b.d !== undefined) {\n    let d = b.d;\n    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = null; } }\n    b = d;\n  }\n  if (Array.isArray(b)) b = b[0] || null;\n  if (b && typeof b === 'object' && Object.keys(b).length === 0) b = null;\n  return { status: status, dados: (b && typeof b === 'object') ? b : null };\n}\n\n// Ate 4 celulares. Prefere o marcado como WhatsApp; nao havendo, o primeiro.\nfunction telefone(t) {\n  if (!t) return null;\n  for (let passo = 0; passo < 2; passo++) {\n    for (let i = 1; i <= 4; i++) {\n      const ddd = t['DDDCEL' + i], cel = t['CEL' + i], wa = t['FLWHATSAPPCEL' + i];\n      if (!ddd || !cel) continue;\n      if (passo === 0 && wa !== 'S') continue;\n      return String(ddd) + String(cel);\n    }\n  }\n  return null;\n}\n\n// a 2429 manda AAAAMMDD; o NVCHECK mandava DD/MM/AAAA\nfunction nascimento(s) {\n  const v = String(s || '').trim();\n  if (/^\\d{8}$/.test(v)) return v.slice(0,4) + '-' + v.slice(4,6) + '-' + v.slice(6,8);\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(v)) { const p = v.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; }\n  return null;\n}\n\nconst rows = [];\nlet comTelefone = 0, semDado = 0, falhas = 0;\nconst motivos = {};\n\nfor (let i = 0; i < atuais.length; i++) {\n  const c = atuais[i];\n  if (!c || !c.id) continue;\n\n  const r = abrir(respostas[i]);\n  const st = r.status;\n\n  // Resposta que nao e 200 nem 204 significa pergunta NAO respondida: nao\n  // marcar enriched_at. Marcar foi o que tirou 2.896 CPFs da fila em agosto,\n  // quando o saldo acabou e ninguem viu.\n  if (st !== null && st !== 200 && st !== 204) {\n    falhas++;\n    // a razao vem em texto puro (ex.: 'SALDO PRE PAGO INSUFICIENTE!'). O doc\n    // promete 403 para saldo, a API devolve 400 - por isso agrupa pela\n    // mensagem, nao pelo codigo.\n    let razao = '';\n    const cru = (respostas[i] || {}).body;\n    if (typeof cru === 'string') razao = cru.trim().slice(0, 120);\n    else if (cru && typeof cru === 'object') razao = String(cru.d || cru.message || '').slice(0, 120);\n    const chave = razao || ('HTTP ' + st);\n    motivos[chave] = (motivos[chave] || 0) + 1;\n    continue;\n  }\n\n  const d = r.dados;\n  const extra = Object.assign({}, c.extra || {});\n  extra.enriched_at = agora;\n  extra.novavida = { fonte: 'nvbook_pf_2429', http: st, resposta: d };\n\n  // Todas as linhas com AS MESMAS CHAVES: o insert em lote do PostgREST recusa\n  // o array se um objeto tiver uma chave a menos. O valor atual entra como\n  // padrao, entao campo sem dado novo e regravado igual, nunca anulado.\n  const row = {\n    id: c.id, extra: extra,\n    phone: c.phone || null, email: c.email || null,\n    birth_date: c.birth_date || null, city: c.city || null, state: c.state || null,\n  };\n\n  if (d) {\n    if (!c.phone) {\n      const bruto = telefone(d.TELEFONES);\n      if (bruto) { row.phone = '+55' + bruto; comTelefone++; }\n    }\n    if (!c.email) { const em = d.EMAILS || {}; if (em.EMAIL1) row.email = em.EMAIL1; }\n    if (!c.birth_date) { const n = nascimento((d.IDENTIFICACAO || {}).NASC); if (n) row.birth_date = n; }\n    const end = d.ENDERECO || {};\n    if (!c.city && end.CIDADE) row.city = titleCase(end.CIDADE);\n    if (!c.state && end.UF) row.state = end.UF;\n  } else {\n    semDado++;\n  }\n  rows.push(row);\n}\n\nreturn [{ json: {\n  total: rows.length, com_telefone: comTelefone, sem_dado: semDado,\n  falhas: falhas, motivos: motivos, rows: rows\n} }];\n"
       }
     },
     {
@@ -416,7 +416,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2688,
+        2912,
         320
       ],
       "parameters": {
@@ -449,7 +449,7 @@
       "typeVersion": 1.5,
       "position": [
         2912,
-        480
+        560
       ],
       "parameters": {
         "respondWith": "json",
@@ -464,7 +464,7 @@
       "typeVersion": 4.4,
       "executeOnce": true,
       "position": [
-        2912,
+        3136,
         320
       ],
       "parameters": {
@@ -499,12 +499,12 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        3136,
+        3808,
         320
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ (function(){ const p = $('Montar patches').first().json; const m = Object.keys(p.motivos || {}); return JSON.stringify({ ok: p.falhas === 0, enriquecidos: p.com_telefone, consultados: p.total, sem_dado: p.sem_dado, falhas: p.falhas, error: p.falhas > 0 ? ('A NovaVida recusou ' + p.falhas + ' consulta(s): ' + m.join('; ')) : undefined, motivos: p.motivos }); })() }}",
+        "responseBody": "={{ (function(){ const t = $json; const m = Object.keys(t.motivos || {}); return JSON.stringify({ ok: t.falhas === 0, enriquecidos: t.enriquecidos, gravados: t.gravados, sem_dado: t.sem_dado, falhas: t.falhas, parcial: t.parcial, error: t.falhas > 0 ? ('A NovaVida recusou ' + t.falhas + ' consulta(s): ' + m.join('; ') + (t.gravados > 0 ? ' Os ' + t.gravados + ' anteriores foram salvos.' : '')) : undefined, motivos: t.motivos }); })() }}",
         "options": {}
       }
     },
@@ -558,6 +558,69 @@
           "responseCode": 401
         }
       }
+    },
+    {
+      "name": "Loop em lotes",
+      "notes": "25 por vez. Cada lote consulta e GRAVA antes do proximo, entao uma falha no lote 21 nao desfaz os 20 que ja entraram.",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2240,
+        320
+      ],
+      "parameters": {
+        "batchSize": 25,
+        "options": {}
+      },
+      "id": "78b368bf-2bd4-4038-abda-fa2d84c18dd9"
+    },
+    {
+      "name": "Continuar?",
+      "notes": "Qualquer recusa da NovaVida (saldo, limite) para o loop na hora, em vez de disparar os lotes restantes para tomar o mesmo erro.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3360,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Montar patches').first().json.falhas === 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "92d58246-500e-4090-a67f-43ce89dedf05"
+    },
+    {
+      "name": "Somar resultado",
+      "notes": "Soma TODAS as rodadas do loop. Sem isso o total mostraria so o ultimo lote.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        320
+      ],
+      "parameters": {
+        "jsCode": "\nconst tot = { gravados: 0, enriquecidos: 0, sem_dado: 0, falhas: 0, lotes: 0 };\nconst motivos = {};\nfor (let k = 0; ; k++) {\n  let itens;\n  try { itens = $('Montar patches').all(0, k); } catch (e) { break; }\n  if (!itens || !itens.length) break;\n  const j = itens[0].json || {};\n  tot.lotes += 1;\n  tot.gravados += j.total || 0;\n  tot.enriquecidos += j.com_telefone || 0;\n  tot.sem_dado += j.sem_dado || 0;\n  tot.falhas += j.falhas || 0;\n  for (const m of Object.keys(j.motivos || {})) motivos[m] = (motivos[m] || 0) + j.motivos[m];\n}\ntot.motivos = motivos;\n// quantos foram pedidos, para a tela mostrar se parou no meio\ntry { tot.pedidos = $('Buscar dados atuais').all().length; } catch (e) { tot.pedidos = null; }\ntot.parcial = (tot.pedidos != null) && (tot.gravados + tot.falhas < tot.pedidos);\nreturn [{ json: tot }];\n"
+      },
+      "id": "b81a5c46-c5d9-4873-a45f-4d6fd7ddda7c"
     }
   ],
   "connections": {
@@ -692,7 +755,7 @@
       "main": [
         [
           {
-            "node": "Consultar NovaVida",
+            "node": "Loop em lotes",
             "type": "main",
             "index": 0
           }
@@ -732,7 +795,7 @@
         ],
         [
           {
-            "node": "Responder zero",
+            "node": "Continuar?",
             "type": "main",
             "index": 0
           }
@@ -743,7 +806,7 @@
       "main": [
         [
           {
-            "node": "Responder concluido",
+            "node": "Continuar?",
             "type": "main",
             "index": 0
           }
@@ -762,6 +825,53 @@
         [
           {
             "node": "Responder credencial recusada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop em lotes": {
+      "main": [
+        [
+          {
+            "node": "Somar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consultar NovaVida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continuar?": {
+      "main": [
+        [
+          {
+            "node": "Loop em lotes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Somar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Somar resultado": {
+      "main": [
+        [
+          {
+            "node": "Responder concluido",
             "type": "main",
             "index": 0
           }

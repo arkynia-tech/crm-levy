@@ -29,8 +29,12 @@ const TABS: { key: CustTab; label: string; title: string }[] = [
   { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, a NovaVida não achou telefone. Voltam para a fila depois de 180 dias' },
 ]
 
-/** Teto do que se pede por vez — o enriquecimento não consome mais crédito. */
-const ENRIQUECER_MAX = 100
+/**
+ * Teto do que se pede por vez. O fluxo grava de 25 em 25, então pedir muito não
+ * arrisca perder o lote inteiro: quebrou no 501, os 500 anteriores já estão no
+ * banco. O crédito é da NovaVida e é cobrado por consulta.
+ */
+const ENRIQUECER_MAX = 1000
 
 function EnrichControl() {
   const { data: pendentes } = useEnrichPendentes()
