@@ -240,6 +240,11 @@ function BirthdayCard() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
+        <span className="mt-1 block text-xs text-gray-500">
+          Vale o mesmo: <code className="rounded bg-gray-100 px-1">{'{'}parabéns|felicidades{'}'}</code>{' '}
+          sorteia a variação e <code className="rounded bg-gray-100 px-1">{'{{'}nome{'}}'}</code> vira o
+          primeiro nome.
+        </span>
       </label>
       <div className="mt-2 flex items-center gap-2">
         <button type="button" className="btn-primary !py-1.5" onClick={() => void saveMessage()} disabled={busy}>
@@ -462,6 +467,12 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
+        <span className="mt-1 block text-xs text-gray-500">
+          Use <code className="rounded bg-gray-100 px-1">{'{'}oi|olá|e aí{'}'}</code> para variar o texto e{' '}
+          <code className="rounded bg-gray-100 px-1">{'{{'}nome{'}}'}</code> para chamar a pessoa pelo
+          primeiro nome. Cada contato recebe uma combinação sorteada — mandar o mesmo texto para
+          centenas de números é o que faz o WhatsApp restringir a conta.
+        </span>
         <span className="mt-1 block text-xs text-gray-500">
           A mensagem sai pelo número de WhatsApp conectado no uazapi, como texto normal.
         </span>

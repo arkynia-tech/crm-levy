@@ -291,6 +291,7 @@
     {
       "id": "945168f8-9dc2-4d89-8976-3f06addca7fb",
       "name": "Montar envio",
+      "notes": "Variacoes {a|b|c} e {{nome}} resolvidas POR DESTINATARIO: texto identico para centenas de numeros e o padrao que o WhatsApp usa para flagrar disparo em massa. O `delay` no corpo faz a uazapi digitar antes de enviar.",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -298,7 +299,7 @@
         160
       ],
       "parameters": {
-        "jsCode": "\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\nconst UAZ = 'https://arkyniatech.uazapi.com';\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true };\n}\nreturn [{ json: { endpoint: endpoint, payload: payload } }];\n"
+        "jsCode": "\n// {a|b|c} vira uma das opcoes, sorteada por destinatario. Aninhado funciona:\n// {Oi|Olá}{, tudo bem?|!} da 4 combinacoes.\nfunction variar(txt) {\n  let s = String(txt || '');\n  for (let voltas = 0; voltas < 10; voltas++) {\n    const antes = s;\n    s = s.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function (_, dentro) {\n      const ops = dentro.split('|');\n      return ops[Math.floor(Math.random() * ops.length)];\n    });\n    if (s === antes) break;\n  }\n  return s;\n}\n\n// {{nome}} vira o primeiro nome. Sem nome, some junto com o espaco que sobra.\nfunction personalizar(txt, nome) {\n  const primeiro = String(nome || '').trim().split(/\\s+/)[0] || '';\n  const bonito = primeiro\n    ? primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase()\n    : '';\n  return String(txt || '')\n    .replace(/\\s*\\{\\{\\s*nome\\s*\\}\\}/gi, bonito ? ' ' + bonito : '')\n    .replace(/  +/g, ' ')\n    .trim();\n}\n\n// A uazapi aceita `delay` em ms: ela \"digita\" antes de mandar. E diferente da\n// pausa ENTRE destinatarios - esta acontece dentro da mesma conversa, e e o\n// que faz a mensagem chegar como gente e nao como robo.\nfunction tempoDigitando(txt) {\n  const n = String(txt || '').length;\n  return Math.min(15000, Math.max(1500, Math.round(n * 55 + Math.random() * 1200)));\n}\n\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\nconst UAZ = 'https://arkyniatech.uazapi.com';\n\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\ntext = personalizar(variar(text), rec.display_name);\n\nconst espera = tempoDigitando(text);\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text, delay: espera };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true, delay: espera };\n}\nreturn [{ json: { endpoint: endpoint, payload: payload, texto: text } }];\n"
       }
     },
     {
@@ -620,6 +621,7 @@
       }
     },
     {
+      "id": "f70f5b08-6b5e-4454-a738-266c792650bf",
       "name": "Loja informada?",
       "notes": "Sem client_id a chamada para aqui. Antes havia um fallback para a loja do Levy: com duas lojas no ar, isso faria campanha de um cliente nascer dentro da loja de outro, em silencio.",
       "type": "n8n-nodes-base.if",
@@ -650,10 +652,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "f70f5b08-6b5e-4454-a738-266c792650bf"
+      }
     },
     {
+      "id": "293318b1-139d-4551-80c7-1ff38aa12af8",
       "name": "Responder sem loja",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -667,8 +669,7 @@
           "responseCode": 400
         },
         "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
-      },
-      "id": "293318b1-139d-4551-80c7-1ff38aa12af8"
+      }
     }
   ],
   "connections": {

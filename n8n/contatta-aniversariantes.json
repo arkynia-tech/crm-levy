@@ -23,7 +23,7 @@
     {
       "id": "2247c855-888e-4eea-acc8-e8e5e0cf7e2c",
       "name": "Aniversariantes de hoje",
-      "notes": "Mensagem e token vem da loja corrente, nao de constante.",
+      "notes": "Variacoes {a|b|c} e {{nome}} resolvidas POR DESTINATARIO: texto identico para centenas de numeros e o padrao que o WhatsApp usa para flagrar disparo em massa. O `delay` no corpo faz a uazapi digitar antes de enviar.",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -31,7 +31,7 @@
         288
       ],
       "parameters": {
-        "jsCode": "\n// A loja corrente ja traz mensagem e token; aqui so entra quem e alcancavel e\n// nao pediu para sair.\nconst loja = $('Uma loja por vez').first().json;\nconst pessoas = $('Aniversariantes da loja').all().map(function (i) { return i.json; });\nconst out = [];\nfor (const p of pessoas) {\n  if (!p || !p.wa_number || p.optout) continue;\n  out.push({ json: {\n    client_id: loja.client_id,\n    token: loja.token,\n    customer_id: p.customer_id,\n    name: p.nome || null,\n    wa_number: p.wa_number,\n    message: loja.mensagem || 'Feliz aniversario!'\n  } });\n}\nreturn out;\n"
+        "jsCode": "\n// {a|b|c} vira uma das opcoes, sorteada por destinatario. Aninhado funciona:\n// {Oi|Olá}{, tudo bem?|!} da 4 combinacoes.\nfunction variar(txt) {\n  let s = String(txt || '');\n  for (let voltas = 0; voltas < 10; voltas++) {\n    const antes = s;\n    s = s.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function (_, dentro) {\n      const ops = dentro.split('|');\n      return ops[Math.floor(Math.random() * ops.length)];\n    });\n    if (s === antes) break;\n  }\n  return s;\n}\n\n// {{nome}} vira o primeiro nome. Sem nome, some junto com o espaco que sobra.\nfunction personalizar(txt, nome) {\n  const primeiro = String(nome || '').trim().split(/\\s+/)[0] || '';\n  const bonito = primeiro\n    ? primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase()\n    : '';\n  return String(txt || '')\n    .replace(/\\s*\\{\\{\\s*nome\\s*\\}\\}/gi, bonito ? ' ' + bonito : '')\n    .replace(/  +/g, ' ')\n    .trim();\n}\n\n// A uazapi aceita `delay` em ms: ela \"digita\" antes de mandar. E diferente da\n// pausa ENTRE destinatarios - esta acontece dentro da mesma conversa, e e o\n// que faz a mensagem chegar como gente e nao como robo.\nfunction tempoDigitando(txt) {\n  const n = String(txt || '').length;\n  return Math.min(15000, Math.max(1500, Math.round(n * 55 + Math.random() * 1200)));\n}\n\n// A loja corrente ja traz mensagem e token; aqui so entra quem e alcancavel e\n// nao pediu para sair.\nconst loja = $('Uma loja por vez').first().json;\nconst pessoas = $('Aniversariantes da loja').all().map(function (i) { return i.json; });\nconst out = [];\nfor (const p of pessoas) {\n  if (!p || !p.wa_number || p.optout) continue;\n  const texto = personalizar(variar(loja.mensagem || 'Feliz aniversario!'), p.nome);\n  out.push({ json: {\n    client_id: loja.client_id,\n    token: loja.token,\n    customer_id: p.customer_id,\n    name: p.nome || null,\n    wa_number: p.wa_number,\n    message: texto,\n    delay: tempoDigitando(texto)\n  } });\n}\nreturn out;\n"
       }
     },
     {
@@ -70,7 +70,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $json.wa_number.replace('+',''), text: $json.message }) }}",
+        "jsonBody": "={{ JSON.stringify({ number: $json.wa_number.replace('+',''), text: $json.message, delay: $json.delay }) }}",
         "options": {}
       }
     },
@@ -102,6 +102,7 @@
       }
     },
     {
+      "id": "bf0975db-be36-4570-a78c-36e97d416f91",
       "name": "Lojas com aniversario hoje",
       "notes": "Uma chamada devolve toda loja que tem a campanha ligada, numero conectado e aniversariante hoje - com o token dela junto. Antes o client_id do Levy estava escrito em tres nos, e so ele receberia.",
       "type": "n8n-nodes-base.httpRequest",
@@ -123,10 +124,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "bf0975db-be36-4570-a78c-36e97d416f91"
+      }
     },
     {
+      "id": "2ab8f113-8e05-4796-b117-53a80680a6a3",
       "name": "Tem loja para disparar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -156,10 +157,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "2ab8f113-8e05-4796-b117-53a80680a6a3"
+      }
     },
     {
+      "id": "fa0d9df4-b658-4587-ac66-c7cc381cf375",
       "name": "Uma loja por vez",
       "notes": "Uma loja por vez: cada uma tem seu proprio token e sua propria mensagem.",
       "type": "n8n-nodes-base.splitInBatches",
@@ -171,10 +172,10 @@
       "parameters": {
         "batchSize": 1,
         "options": {}
-      },
-      "id": "fa0d9df4-b658-4587-ac66-c7cc381cf375"
+      }
     },
     {
+      "id": "6332f65f-990c-497c-98a2-7bac0d82cccb",
       "name": "Aniversariantes da loja",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -198,8 +199,7 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "6332f65f-990c-497c-98a2-7bac0d82cccb"
+      }
     }
   ],
   "connections": {
