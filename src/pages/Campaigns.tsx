@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Cake, CheckCheck, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
+import { Cake, CheckCheck, Sparkles, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
 import { useBirthdaySettings, useCan, useSaveBirthdaySettings } from '../hooks/settings'
 import {
+  gerarVariacoes,
   useCampaignAction,
   campaignCounts,
   deleteCampaign,
@@ -17,6 +18,7 @@ import { useCustomerSearch, type CustomerLite } from '../hooks/queries'
 import { SEGMENTS, segmentLabel } from '../lib/segments'
 import { formatDateTime, formatPhone, maskCpf } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
+import { useCompany } from '../context/CompanyContext'
 
 const STATUS_LABEL: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' }> = {
   draft: { label: 'Rascunho', tone: 'neutral' },
@@ -263,6 +265,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
   // na mão e nada de amostra com nome/telefone na prévia.
   const canSeeCustomers = useCan('customerData')
   const campaignAction = useCampaignAction()
+  const { activeClient } = useCompany()
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const [choice, setChoice] = useState<AudienceChoice>('test')
@@ -274,6 +277,8 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
   const [uploadingImg, setUploadingImg] = useState(false)
   const [preview, setPreview] = useState<{ total: number; skipped: number; sample: string[] } | null>(null)
   const [busy, setBusy] = useState<'preview' | 'create' | null>(null)
+  const [variando, setVariando] = useState(false)
+  const [avisoVar, setAvisoVar] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleImage = async (file: File | undefined) => {
@@ -314,6 +319,27 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
     if (choice === 'manual') return { type: 'manual', customer_ids: selected.map((s) => s.id) }
     // segmentos
     return { type: 'segment', segment: choice, days, min_spent: minSpent }
+  }
+
+  // Preenche o campo e devolve o controle: a pessoa lê e ajusta antes de salvar.
+  // Reescrever calado ao salvar esconderia um preço trocado até a campanha sair.
+  const handleVariar = async () => {
+    if (!message.trim()) {
+      setError('Escreva a mensagem antes de gerar as variações.')
+      return
+    }
+    setVariando(true)
+    setError(null)
+    setAvisoVar(null)
+    const res = await gerarVariacoes(message.trim(), activeClient?.id)
+    setVariando(false)
+    if (!res.ok) {
+      setError(res.error ?? 'Falha ao gerar as variações.')
+      return
+    }
+    if (res.message) setMessage(res.message)
+    setAvisoVar(res.aviso ?? null)
+    setPreview(null)
   }
 
   const handlePreview = async () => {
@@ -476,6 +502,19 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
         <span className="mt-1 block text-xs text-gray-500">
           A mensagem sai pelo número de WhatsApp conectado no uazapi, como texto normal.
         </span>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => void handleVariar()}
+            disabled={variando || !message.trim()}
+            title="A IA marca as variações no seu texto. Você revisa antes de salvar."
+          >
+            <Sparkles className="h-3.5 w-3.5 text-brand-600" aria-hidden />
+            {variando ? 'Gerando…' : 'Gerar variações com IA'}
+          </button>
+          {avisoVar && <span className="text-xs text-amber-700">{avisoVar}</span>}
+        </div>
       </label>
 
       <div className="mt-3">

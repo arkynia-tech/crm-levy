@@ -1,0 +1,424 @@
+{
+  "name": "Variacoes de mensagem — Contatta",
+  "nodes": [
+    {
+      "name": "Variar mensagem",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "unificca-variar-mensagem",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ab404d29-8561-41a4-bd9e-f3e0180c87ad",
+      "webhookId": "d90a06cc-58ec-4843-b255-17ff61da44b3"
+    },
+    {
+      "name": "Validar login do CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "onError": "continueErrorOutput",
+      "position": [
+        224,
+        320
+      ],
+      "parameters": {
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvcGR2ZGJsd2FzdW93amRva3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjI3ODAsImV4cCI6MjA3ODUzODc4MH0.Vhv0sGU7DCf-nCeMLwk9aX_wunq8OugSKaF0IYgwmb0"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b32e6a79-9b07-4d1f-bab4-c36636e58d14"
+    },
+    {
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Nao autorizado. Faca login no CRM e tente novamente.\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "5ef64969-ab19-4209-b287-2ec409974f14"
+    },
+    {
+      "name": "Loja informada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Variar mensagem').first().json.body.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3f7e628d-cdda-4e83-867a-01f164002def"
+    },
+    {
+      "name": "Responder sem loja",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela.\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "79bbc87f-fd09-401a-8223-eadc3ea5eae2"
+    },
+    {
+      "name": "Papel do usuario",
+      "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "position": [
+        672,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_role_check",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_user_id: $('Validar login do CRM').first().json.id, p_client_id: $('Variar mensagem').first().json.body.client_id }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "id": "21a775cb-f7d2-4bed-8697-189dc34d9771"
+    },
+    {
+      "name": "Pode usar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.papel }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "935720ef-86b8-4596-a9ea-4bd851489bf5"
+    },
+    {
+      "name": "Responder 403",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Voce nao tem acesso a esta loja.\" }",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "fa2135c6-d559-49c6-bae3-5fafd36a84c2"
+    },
+    {
+      "name": "Tem mensagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($('Variar mensagem').first().json.body.message || '').trim().length > 10 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "be04c480-af8e-48b9-a376-fbcf553b60d7"
+    },
+    {
+      "name": "Responder sem texto",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"error\": \"Escreva a mensagem antes de gerar as variacoes.\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ede2bf09-1fc0-48f9-af70-aaa40e69e288"
+    },
+    {
+      "name": "Gerar variacoes",
+      "notes": "A chave da OpenAI fica aqui, nunca no navegador: o build e estatico e publico. onError para a tela receber a mensagem original em vez de um erro.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        1344,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.8, messages: [ { role: 'system', content: \"Voce recebe uma mensagem de campanha de WhatsApp em portugues do Brasil e devolve a MESMA mensagem com marcacoes de variacao.\\n\\nSINTAXE\\n- {a|b|c} sorteia uma das opcoes por destinatario.\\n- {{nome}} vira o primeiro nome da pessoa. Use no maximo uma vez, colado na saudacao, e so se a mensagem tiver saudacao.\\n\\nO QUE VARIAR\\n- saudacao, conectivos, verbos neutros, adjetivos e fechamento.\\n- 3 a 6 grupos de variacao, com 2 ou 3 opcoes cada. Todas as opcoes do mesmo grupo precisam caber na frase sem quebrar a concordancia.\\n\\nO QUE NAO TOCAR - regra dura\\n- Nao altere preco, percentual, prazo, cupom, condicao ou link. Copie exatamente como veio.\\n- Nao invente desconto, garantia, urgencia ou qualquer fato que nao esteja no original.\\n- Nao mude o sentido, o tom nem o tamanho. Nao acrescente emoji que nao exista no original.\\n- Nao use colchetes, asteriscos nem markdown.\\n\\nResponda SOMENTE com a mensagem marcada, sem aspas, sem explicacao.\" }, { role: 'user', content: String($('Variar mensagem').first().json.body.message || '') } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "5sEZ6uQ4tJ5e1ror",
+          "name": "open-arkynia"
+        }
+      },
+      "id": "86a5e839-9763-4092-8dbd-4bebd9c4e668"
+    },
+    {
+      "name": "Conferir antes de devolver",
+      "notes": "Compara numeros e links com o original. Divergiu, devolve o original - um preco trocado indo para centenas de pessoas e pior do que nenhuma variacao.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        320
+      ],
+      "parameters": {
+        "jsCode": "\n// A IA erra. Antes de devolver, confere o que nao pode mudar: numero, link e\n// tamanho. Falhou a conferencia, devolve o texto ORIGINAL - melhor sem\n// variacao do que com um preco trocado indo para centenas de pessoas.\nconst original = String($('Variar mensagem').first().json.body.message || '');\nlet saida = '';\ntry {\n  const r = $input.first().json;\n  saida = String((((r.choices || [])[0] || {}).message || {}).content || r.content || '').trim();\n} catch (e) { saida = ''; }\n\n// tira aspas e cercas que o modelo as vezes adiciona\nsaida = saida.replace(/^```[a-z]*\\s*/i, '').replace(/```$/, '').trim();\nif (saida.length > 1 && saida[0] === '\"' && saida[saida.length - 1] === '\"') saida = saida.slice(1, -1).trim();\n\nfunction numeros(s){ return (String(s).match(/\\d[\\d.,]*/g) || []).map(function(x){ return x.replace(/[.,]$/,''); }).sort(); }\nfunction links(s){ return (String(s).match(/https?:\\/\\/\\S+/gi) || []).sort(); }\n// resolve as variacoes para medir o texto como ele vai chegar\nfunction umaVersao(s){\n  let t = String(s);\n  for (let i = 0; i < 10; i++) {\n    const a = t;\n    t = t.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function(_, d){ return d.split('|')[0]; });\n    if (t === a) break;\n  }\n  return t.replace(/\\{\\{\\s*nome\\s*\\}\\}/gi, '');\n}\n\nconst motivos = [];\nif (!saida) motivos.push('a IA nao respondeu');\nif (saida && saida.indexOf('|') < 0) motivos.push('nenhuma variacao foi criada');\nif (saida) {\n  const amostra = umaVersao(saida);\n  if (JSON.stringify(numeros(amostra)) !== JSON.stringify(numeros(original))) motivos.push('mexeu em algum numero');\n  if (JSON.stringify(links(amostra)) !== JSON.stringify(links(original))) motivos.push('mexeu em algum link');\n  if (amostra.length > original.length * 1.6) motivos.push('ficou longa demais');\n}\n\nconst ok = motivos.length === 0;\nreturn [{ json: {\n  ok: true,\n  variou: ok,\n  message: ok ? saida : original,\n  aviso: ok ? null : ('Mantive a mensagem original: ' + motivos.join('; ') + '.')\n} }];\n"
+      },
+      "id": "d494532f-303e-4e9c-9287-c6e356549e7d"
+    },
+    {
+      "name": "Responder variacoes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1792,
+        320
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, variou: $json.variou, message: $json.message, aviso: $json.aviso }) }}",
+        "options": {}
+      },
+      "id": "1a68d25e-044a-4557-9308-e25fdbe53dcf"
+    }
+  ],
+  "connections": {
+    "Variar mensagem": {
+      "main": [
+        [
+          {
+            "node": "Validar login do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar login do CRM": {
+      "main": [
+        [
+          {
+            "node": "Loja informada?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loja informada?": {
+      "main": [
+        [
+          {
+            "node": "Papel do usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem loja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Papel do usuario": {
+      "main": [
+        [
+          {
+            "node": "Pode usar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode usar?": {
+      "main": [
+        [
+          {
+            "node": "Tem mensagem?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem mensagem?": {
+      "main": [
+        [
+          {
+            "node": "Gerar variacoes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sem texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar variacoes": {
+      "main": [
+        [
+          {
+            "node": "Conferir antes de devolver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir antes de devolver": {
+      "main": [
+        [
+          {
+            "node": "Responder variacoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

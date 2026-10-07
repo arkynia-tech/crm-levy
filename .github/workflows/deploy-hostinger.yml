@@ -40,6 +40,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_N8N_NFE_WEBHOOK_URL: ${{ secrets.VITE_N8N_NFE_WEBHOOK_URL }}
           VITE_N8N_WA_CAMPAIGN_URL: ${{ secrets.VITE_N8N_WA_CAMPAIGN_URL }}
+          VITE_N8N_VARIAR_URL: ${{ secrets.VITE_N8N_VARIAR_URL }}
           VITE_N8N_ENRICH_URL: ${{ secrets.VITE_N8N_ENRICH_URL }}
           VITE_N8N_ADMIN_USERS_URL: ${{ secrets.VITE_N8N_ADMIN_USERS_URL }}
           VITE_N8N_WA_INSTANCE_URL: ${{ secrets.VITE_N8N_WA_INSTANCE_URL }}

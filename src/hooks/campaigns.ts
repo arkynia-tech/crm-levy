@@ -197,3 +197,43 @@ export function useCampaignAction() {
   return (payload: Omit<CampaignActionPayload, 'client_id'>) =>
     campaignAction({ ...payload, client_id: activeClient?.id })
 }
+
+/* ---------------------------------------------------------------------------
+ * Variações de mensagem geradas por IA.
+ *
+ * Preenche o campo e devolve o controle para quem escreveu, em vez de
+ * reescrever calado ao salvar: a IA pode mexer num preço ou numa condição, e
+ * isso só apareceria depois de centenas de pessoas receberem. O fluxo confere
+ * números e links contra o original e, divergindo, devolve o texto original
+ * com um aviso.
+ * ------------------------------------------------------------------------- */
+
+const VARIAR_URL = import.meta.env.VITE_N8N_VARIAR_URL as string | undefined
+
+export interface VariacoesResposta {
+  ok: boolean
+  /** false quando a IA falhou ou errou a conferência — `message` volta igual */
+  variou?: boolean
+  message?: string
+  aviso?: string | null
+  error?: string
+}
+
+export async function gerarVariacoes(message: string, clientId?: string): Promise<VariacoesResposta> {
+  if (!VARIAR_URL) return { ok: false, error: 'VITE_N8N_VARIAR_URL não está configurada no .env.' }
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }
+  try {
+    const res = await fetch(VARIAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ message, client_id: clientId }),
+    })
+    const json = (await res.json().catch(() => null)) as VariacoesResposta | null
+    if (!res.ok || !json?.ok) return { ok: false, error: json?.error ?? `Falha (HTTP ${res.status}).` }
+    return json
+  } catch {
+    return { ok: false, error: 'Não foi possível falar com o serviço de variações.' }
+  }
+}
