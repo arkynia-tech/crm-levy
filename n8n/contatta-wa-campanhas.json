@@ -369,6 +369,7 @@
       "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
       "name": "Ritmo de envio",
       "webhookId": "9d099f8e-309d-4378-b656-9645dea94586",
+      "notes": "Padrao 45-90s. Era 2-6 e o numero foi restringido em outubro de 2026 nesse ritmo. O valor real vem de app_settings/campaign_delay; este e so o fallback de quando a config nao existe.",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -376,7 +377,7 @@
         160
       ],
       "parameters": {
-        "amount": "={{ (function(){ var d={min:2,max:6}; try{ var val=$('Buscar config delay').first().json.value; if(val&&val.min!=null){ d.min=Number(val.min); d.max=Number(val.max); } }catch(e){} var lo=d.min>=0?d.min:2; var hi=d.max>lo?d.max:lo; return lo + Math.random()*(hi-lo); })() }}"
+        "amount": "={{ (function(){ var d={min:45,max:90}; try{ var val=$('Buscar config delay').first().json.value; if(val&&val.min!=null){ d.min=Number(val.min); d.max=Number(val.max); } }catch(e){} var lo=d.min>=0?d.min:45; var hi=d.max>lo?d.max:lo; return lo + Math.random()*(hi-lo); })() }}"
       }
     },
     {

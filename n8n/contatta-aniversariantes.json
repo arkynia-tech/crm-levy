@@ -78,6 +78,7 @@
       "id": "a40a8b1f-7309-4a77-8993-95113fdb9c45",
       "name": "Ritmo",
       "webhookId": "4284676c-018c-456e-b816-63a5733b673a",
+      "notes": "45-90s, igual as campanhas. Era 3-8s.",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -85,7 +86,7 @@
         288
       ],
       "parameters": {
-        "amount": "={{ 3 + Math.floor(Math.random() * 5) }}"
+        "amount": "={{ 45 + Math.random() * 45 }}"
       }
     },
     {

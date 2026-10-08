@@ -55,7 +55,12 @@ export interface CampaignDelay {
   max: number
 }
 
-const DEFAULT_DELAY: CampaignDelay = { min: 2, max: 6 }
+/**
+ * 45 a 90 segundos. O padrão era 2 a 6 e o número do Levy foi restringido em
+ * outubro de 2026 disparando nesse ritmo. É o mesmo intervalo que o projeto
+ * LF-LITE usa há mais tempo, sem incidente.
+ */
+const DEFAULT_DELAY: CampaignDelay = { min: 45, max: 90 }
 
 export function useCampaignDelay() {
   const { activeClient } = useCompany()

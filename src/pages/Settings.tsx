@@ -326,8 +326,8 @@ function AdminCreditsSection() {
 function CampaignDelaySection() {
   const { data: delay, isLoading } = useCampaignDelay()
   const save = useSaveCampaignDelay()
-  const [min, setMin] = useState(2)
-  const [max, setMax] = useState(6)
+  const [min, setMin] = useState(45)
+  const [max, setMax] = useState(90)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
 
@@ -347,7 +347,16 @@ function CampaignDelaySection() {
     setMsg(null)
     const res = await save({ min, max })
     setSaving(false)
-    setMsg(res.ok ? { tone: 'ok', text: 'Salvo.' } : { tone: 'err', text: res.error ?? 'Falha ao salvar.' })
+    if (!res.ok) {
+      setMsg({ tone: 'err', text: res.error ?? 'Falha ao salvar.' })
+      return
+    }
+    // avisa, mas não impede: pode haver motivo para acelerar num teste pequeno
+    setMsg(
+      min < 20
+        ? { tone: 'err', text: `Salvo — mas ${min}s é arriscado. Abaixo de 20s o WhatsApp costuma restringir o número.` }
+        : { tone: 'ok', text: 'Salvo.' },
+    )
   }
 
   return (
@@ -357,8 +366,13 @@ function CampaignDelaySection() {
         <h2 className="font-display text-sm font-semibold text-gray-900">Ritmo de disparo das campanhas</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        Intervalo aleatório entre cada mensagem, em segundos. Valores mais altos protegem melhor o número
-        contra bloqueio; valores baixos disparam mais rápido.
+        Intervalo aleatório entre cada mensagem, em segundos. O recomendado é <strong>45 a 90</strong>:
+        abaixo disso o WhatsApp identifica o padrão e restringe o número — foi o que aconteceu em
+        outubro de 2026, disparando a cada 2 a 10 segundos.
+      </p>
+      <p className="mt-1 text-sm text-gray-500">
+        A 45–90s, mil contatos levam cerca de 19 horas. Prefira quebrar em blocos pelo campo
+        &ldquo;por vez&rdquo; da campanha a acelerar o ritmo.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
