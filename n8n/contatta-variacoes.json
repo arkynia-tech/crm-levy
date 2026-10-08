@@ -2,7 +2,9 @@
   "name": "Variacoes de mensagem — Contatta",
   "nodes": [
     {
+      "id": "ab404d29-8561-41a4-bd9e-f3e0180c87ad",
       "name": "Variar mensagem",
+      "webhookId": "d90a06cc-58ec-4843-b255-17ff61da44b3",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -14,11 +16,10 @@
         "path": "unificca-variar-mensagem",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "id": "ab404d29-8561-41a4-bd9e-f3e0180c87ad",
-      "webhookId": "d90a06cc-58ec-4843-b255-17ff61da44b3"
+      }
     },
     {
+      "id": "b32e6a79-9b07-4d1f-bab4-c36636e58d14",
       "name": "Validar login do CRM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -43,10 +44,10 @@
           ]
         },
         "options": {}
-      },
-      "id": "b32e6a79-9b07-4d1f-bab4-c36636e58d14"
+      }
     },
     {
+      "id": "5ef64969-ab19-4209-b287-2ec409974f14",
       "name": "Responder 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -60,10 +61,10 @@
         "options": {
           "responseCode": 401
         }
-      },
-      "id": "5ef64969-ab19-4209-b287-2ec409974f14"
+      }
     },
     {
+      "id": "3f7e628d-cdda-4e83-867a-01f164002def",
       "name": "Loja informada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -93,10 +94,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "3f7e628d-cdda-4e83-867a-01f164002def"
+      }
     },
     {
+      "id": "79bbc87f-fd09-401a-8223-eadc3ea5eae2",
       "name": "Responder sem loja",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -110,10 +111,10 @@
         "options": {
           "responseCode": 400
         }
-      },
-      "id": "79bbc87f-fd09-401a-8223-eadc3ea5eae2"
+      }
     },
     {
+      "id": "21a775cb-f7d2-4bed-8697-189dc34d9771",
       "name": "Papel do usuario",
       "notes": "crm_role_check devolve TABELA de proposito: funcao escalar vira JSON solto e o n8n recusa.",
       "type": "n8n-nodes-base.httpRequest",
@@ -138,10 +139,10 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      },
-      "id": "21a775cb-f7d2-4bed-8697-189dc34d9771"
+      }
     },
     {
+      "id": "935720ef-86b8-4596-a9ea-4bd851489bf5",
       "name": "Pode usar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -171,10 +172,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "935720ef-86b8-4596-a9ea-4bd851489bf5"
+      }
     },
     {
+      "id": "fa2135c6-d559-49c6-bae3-5fafd36a84c2",
       "name": "Responder 403",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -188,10 +189,10 @@
         "options": {
           "responseCode": 403
         }
-      },
-      "id": "fa2135c6-d559-49c6-bae3-5fafd36a84c2"
+      }
     },
     {
+      "id": "be04c480-af8e-48b9-a376-fbcf553b60d7",
       "name": "Tem mensagem?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -221,10 +222,10 @@
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "be04c480-af8e-48b9-a376-fbcf553b60d7"
+      }
     },
     {
+      "id": "ede2bf09-1fc0-48f9-af70-aaa40e69e288",
       "name": "Responder sem texto",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -238,10 +239,10 @@
         "options": {
           "responseCode": 400
         }
-      },
-      "id": "ede2bf09-1fc0-48f9-af70-aaa40e69e288"
+      }
     },
     {
+      "id": "86a5e839-9763-4092-8dbd-4bebd9c4e668",
       "name": "Gerar variacoes",
       "notes": "A chave da OpenAI fica aqui, nunca no navegador: o build e estatico e publico. onError para a tela receber a mensagem original em vez de um erro.",
       "type": "n8n-nodes-base.httpRequest",
@@ -249,8 +250,8 @@
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
       "position": [
-        1344,
-        320
+        1568,
+        192
       ],
       "parameters": {
         "method": "POST",
@@ -259,7 +260,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.8, messages: [ { role: 'system', content: \"Voce recebe uma mensagem de campanha de WhatsApp em portugues do Brasil e devolve a MESMA mensagem com marcacoes de variacao.\\n\\nSINTAXE\\n- {a|b|c} sorteia uma das opcoes por destinatario.\\n- {{nome}} vira o primeiro nome da pessoa. Use no maximo uma vez, colado na saudacao, e so se a mensagem tiver saudacao.\\n\\nO QUE VARIAR\\n- saudacao, conectivos, verbos neutros, adjetivos e fechamento.\\n- 3 a 6 grupos de variacao, com 2 ou 3 opcoes cada. Todas as opcoes do mesmo grupo precisam caber na frase sem quebrar a concordancia.\\n\\nO QUE NAO TOCAR - regra dura\\n- Nao altere preco, percentual, prazo, cupom, condicao ou link. Copie exatamente como veio.\\n- Nao invente desconto, garantia, urgencia ou qualquer fato que nao esteja no original.\\n- Nao mude o sentido, o tom nem o tamanho. Nao acrescente emoji que nao exista no original.\\n- Nao use colchetes, asteriscos nem markdown.\\n\\nResponda SOMENTE com a mensagem marcada, sem aspas, sem explicacao.\" }, { role: 'user', content: String($('Variar mensagem').first().json.body.message || '') } ] }) }}",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {}
       },
       "credentials": {
@@ -267,37 +268,50 @@
           "id": "5sEZ6uQ4tJ5e1ror",
           "name": "open-arkynia"
         }
-      },
-      "id": "86a5e839-9763-4092-8dbd-4bebd9c4e668"
+      }
     },
     {
+      "id": "d494532f-303e-4e9c-9287-c6e356549e7d",
       "name": "Conferir antes de devolver",
       "notes": "Compara numeros e links com o original. Divergiu, devolve o original - um preco trocado indo para centenas de pessoas e pior do que nenhuma variacao.",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        320
+        1792,
+        192
       ],
       "parameters": {
         "jsCode": "\n// A IA erra. Antes de devolver, confere o que nao pode mudar: numero, link e\n// tamanho. Falhou a conferencia, devolve o texto ORIGINAL - melhor sem\n// variacao do que com um preco trocado indo para centenas de pessoas.\nconst original = String($('Variar mensagem').first().json.body.message || '');\nlet saida = '';\ntry {\n  const r = $input.first().json;\n  saida = String((((r.choices || [])[0] || {}).message || {}).content || r.content || '').trim();\n} catch (e) { saida = ''; }\n\n// tira aspas e cercas que o modelo as vezes adiciona\nsaida = saida.replace(/^```[a-z]*\\s*/i, '').replace(/```$/, '').trim();\nif (saida.length > 1 && saida[0] === '\"' && saida[saida.length - 1] === '\"') saida = saida.slice(1, -1).trim();\n\nfunction numeros(s){ return (String(s).match(/\\d[\\d.,]*/g) || []).map(function(x){ return x.replace(/[.,]$/,''); }).sort(); }\nfunction links(s){ return (String(s).match(/https?:\\/\\/\\S+/gi) || []).sort(); }\n// resolve as variacoes para medir o texto como ele vai chegar\nfunction umaVersao(s){\n  let t = String(s);\n  for (let i = 0; i < 10; i++) {\n    const a = t;\n    t = t.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function(_, d){ return d.split('|')[0]; });\n    if (t === a) break;\n  }\n  return t.replace(/\\{\\{\\s*nome\\s*\\}\\}/gi, '');\n}\n\nconst motivos = [];\nif (!saida) motivos.push('a IA nao respondeu');\nif (saida && saida.indexOf('|') < 0) motivos.push('nenhuma variacao foi criada');\nif (saida) {\n  const amostra = umaVersao(saida);\n  if (JSON.stringify(numeros(amostra)) !== JSON.stringify(numeros(original))) motivos.push('mexeu em algum numero');\n  if (JSON.stringify(links(amostra)) !== JSON.stringify(links(original))) motivos.push('mexeu em algum link');\n  if (amostra.length > original.length * 1.6) motivos.push('ficou longa demais');\n}\n\nconst ok = motivos.length === 0;\nreturn [{ json: {\n  ok: true,\n  variou: ok,\n  message: ok ? saida : original,\n  aviso: ok ? null : ('Mantive a mensagem original: ' + motivos.join('; ') + '.')\n} }];\n"
-      },
-      "id": "d494532f-303e-4e9c-9287-c6e356549e7d"
+      }
     },
     {
+      "id": "1a68d25e-044a-4557-9308-e25fdbe53dcf",
       "name": "Responder variacoes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1792,
-        320
+        2016,
+        192
       ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, variou: $json.variou, message: $json.message, aviso: $json.aviso }) }}",
         "options": {}
+      }
+    },
+    {
+      "name": "Montar pedido da IA",
+      "notes": "O prompt mora aqui porque contem chaves literais ({{nome}} e os grupos de variacao). Dentro de uma expressao ={{ }} o n8n le essas chaves como delimitador e falha com 'invalid syntax'.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        192
+      ],
+      "parameters": {
+        "jsCode": "\nconst INSTRUCOES = [\n  'Voce recebe uma mensagem de campanha de WhatsApp em portugues do Brasil e devolve a MESMA mensagem com marcacoes de variacao.',\n  '',\n  'SINTAXE',\n  '- Chaves com barras sorteiam uma opcao por destinatario. Exemplo de grupo: abre chave, \"oi|ola|e ai\", fecha chave.',\n  '- O marcador de nome e: abre duas chaves, a palavra nome, fecha duas chaves. Use no maximo uma vez, colado na saudacao, e so se a mensagem tiver saudacao.',\n  '',\n  'O QUE VARIAR',\n  '- saudacao, conectivos, verbos neutros, adjetivos e fechamento.',\n  '- 3 a 6 grupos de variacao, com 2 ou 3 opcoes cada. Todas as opcoes do mesmo grupo precisam caber na frase sem quebrar a concordancia.',\n  '',\n  'O QUE NAO TOCAR - regra dura',\n  '- Nao altere preco, percentual, prazo, cupom, condicao ou link. Copie exatamente como veio.',\n  '- Nao invente desconto, garantia, urgencia ou qualquer fato que nao esteja no original.',\n  '- Nao mude o sentido, o tom nem o tamanho. Nao acrescente emoji que nao exista no original.',\n  '- Nao use colchetes, asteriscos nem markdown.',\n  '',\n  'Responda SOMENTE com a mensagem marcada, sem aspas, sem explicacao.'\n].join('\\n');\n\nconst texto = String(($('Variar mensagem').first().json.body || {}).message || '');\n\nreturn [{ json: { payload: {\n  model: 'gpt-4o-mini',\n  temperature: 0.8,\n  messages: [\n    { role: 'system', content: INSTRUCOES },\n    { role: 'user', content: texto }\n  ]\n} } }];\n"
       },
-      "id": "1a68d25e-044a-4557-9308-e25fdbe53dcf"
+      "id": "1da9e1bb-77b9-4d4b-a859-f0a8cba999f2"
     }
   ],
   "connections": {
@@ -381,7 +395,7 @@
       "main": [
         [
           {
-            "node": "Gerar variacoes",
+            "node": "Montar pedido da IA",
             "type": "main",
             "index": 0
           }
@@ -411,6 +425,17 @@
         [
           {
             "node": "Responder variacoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido da IA": {
+      "main": [
+        [
+          {
+            "node": "Gerar variacoes",
             "type": "main",
             "index": 0
           }
