@@ -484,8 +484,26 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
       )}
       {choice === 'manual' && canSeeCustomers && <CustomerPicker selected={selected} onChange={setSelected} />}
 
-      <label className="mt-3 block">
-        <span className="text-sm font-medium text-gray-700">Mensagem</span>
+      <div className="mt-3">
+        {/* O botão fica na linha do rótulo, ao lado do campo que ele altera:
+            embaixo da ajuda ninguém via, e o recurso existia sem ser usado. */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium text-gray-700">Mensagem</span>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => void handleVariar()}
+            disabled={variando || !message.trim()}
+            title={
+              message.trim()
+                ? 'A IA marca as variações no seu texto. Você revisa antes de salvar.'
+                : 'Escreva a mensagem primeiro'
+            }
+          >
+            <Sparkles className={`h-4 w-4 ${variando ? 'animate-pulse' : ''}`} aria-hidden />
+            {variando ? 'Gerando variações…' : 'Gerar variações com IA'}
+          </button>
+        </div>
         <textarea
           className="input mt-1"
           rows={4}
@@ -493,29 +511,18 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
-        <span className="mt-1 block text-xs text-gray-500">
-          Use <code className="rounded bg-gray-100 px-1">{'{'}oi|olá|e aí{'}'}</code> para variar o texto e{' '}
-          <code className="rounded bg-gray-100 px-1">{'{{'}nome{'}}'}</code> para chamar a pessoa pelo
-          primeiro nome. Cada contato recebe uma combinação sorteada — mandar o mesmo texto para
-          centenas de números é o que faz o WhatsApp restringir a conta.
-        </span>
-        <span className="mt-1 block text-xs text-gray-500">
-          A mensagem sai pelo número de WhatsApp conectado no uazapi, como texto normal.
-        </span>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            onClick={() => void handleVariar()}
-            disabled={variando || !message.trim()}
-            title="A IA marca as variações no seu texto. Você revisa antes de salvar."
-          >
-            <Sparkles className="h-3.5 w-3.5 text-brand-600" aria-hidden />
-            {variando ? 'Gerando…' : 'Gerar variações com IA'}
-          </button>
-          {avisoVar && <span className="text-xs text-amber-700">{avisoVar}</span>}
-        </div>
-      </label>
+        {avisoVar && <p className="mt-1 text-xs text-amber-700">{avisoVar}</p>}
+        <p className="mt-1 text-xs text-gray-500">
+          Escreva normal e clique em <strong>Gerar variações com IA</strong>: cada contato recebe uma
+          combinação diferente. Mandar o mesmo texto para centenas de números é o que faz o WhatsApp
+          restringir a conta.
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Dá para escrever na mão também: <code className="rounded bg-gray-100 px-1">{'{'}oi|olá|e aí{'}'}</code>{' '}
+          sorteia uma opção e <code className="rounded bg-gray-100 px-1">{'{{'}nome{'}}'}</code> vira o
+          primeiro nome. A mensagem sai pelo número conectado no uazapi, como texto normal.
+        </p>
+      </div>
 
       <div className="mt-3">
         <span className="text-sm font-medium text-gray-700">Imagem (opcional)</span>
