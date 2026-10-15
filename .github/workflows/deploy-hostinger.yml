@@ -2,7 +2,6 @@
 #
 #   public_html/          ← landing (contatta.pro)
 #   public_html/app/      ← CRM     (app.contatta.pro, cujo docroot é esta pasta)
-#   public_html/lp/       ← LP de prospecção (lp.contatta.pro, docroot nesta pasta)
 #
 # Vai tudo junto porque o plano da Hostinger só permite UMA implantação de Git
 # por site. Por isso o diretório raiz da implantação tem que estar EM BRANCO
@@ -49,10 +48,9 @@ jobs:
       - name: Montar a árvore do domínio
         run: |
           rm -rf site
-          mkdir -p site/app site/lp
+          mkdir -p site/app
           cp -r landing/. site/
           cp -r dist/. site/app/
-          cp -r lp/. site/lp/
           echo "--- o que vai para a Hostinger ---"
           find site -maxdepth 2 | sort
 
