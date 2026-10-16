@@ -11,6 +11,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [esqueci, setEsqueci] = useState(false)
+  const [enviado, setEnviado] = useState(false)
 
   if (!loading && session) {
     const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -27,9 +29,26 @@ export default function Login() {
       setError(
         error.message.toLowerCase().includes('invalid')
           ? 'Email ou senha incorretos. Confira e tente de novo.'
-          : `Não foi possível entrar: ${error.message}`,
+          : 'Não foi possível entrar agora. Tente de novo em instantes.',
       )
     }
+  }
+
+  const pedirLink = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    // Volta para a raiz do app: de lá o próprio app leva para "definir senha"
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin + import.meta.env.BASE_URL,
+    })
+    setSubmitting(false)
+    if (error && error.message.toLowerCase().includes('rate')) {
+      setError('Muitos pedidos seguidos. Espere um minuto e tente de novo.')
+      return
+    }
+    // Mesma resposta com ou sem conta: a tela não revela quem tem acesso
+    setEnviado(true)
   }
 
   return (
@@ -42,6 +61,52 @@ export default function Login() {
         </div>
       </div>
 
+      {esqueci ? (
+        <form onSubmit={pedirLink} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+          <h1 className="font-display text-base font-semibold text-gray-900">Esqueci a senha</h1>
+          {enviado ? (
+            <p className="mt-2 text-sm text-gray-600">
+              Se esse e-mail tiver acesso, chega em instantes um link para criar uma senha nova. Confira também o
+              spam.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-gray-500">Mandamos um link para você criar uma senha nova.</p>
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-gray-700">Email</span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  autoFocus
+                  className="input mt-1"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+              {error && (
+                <p role="alert" className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
+              <button type="submit" className="btn-primary mt-4 w-full" disabled={submitting}>
+                {submitting ? 'Enviando…' : 'Enviar link'}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="mt-3 w-full text-center text-sm text-gray-500 hover:text-gray-700"
+            onClick={() => {
+              setEsqueci(false)
+              setEnviado(false)
+              setError(null)
+            }}
+          >
+            Voltar para a entrada
+          </button>
+        </form>
+      ) : (
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
         <h1 className="font-display text-base font-semibold text-gray-900">Entrar</h1>
 
@@ -78,7 +143,18 @@ export default function Login() {
         <button type="submit" className="btn-primary mt-4 w-full" disabled={submitting}>
           {submitting ? 'Entrando…' : 'Entrar'}
         </button>
+        <button
+          type="button"
+          className="mt-3 w-full text-center text-sm text-gray-500 hover:text-gray-700"
+          onClick={() => {
+            setEsqueci(true)
+            setError(null)
+          }}
+        >
+          Esqueci a senha
+        </button>
       </form>
+      )}
 
       <p className="mt-6 text-xs text-slate-500">Acesso restrito. Usuários são criados pelo administrador.</p>
     </div>

@@ -4,9 +4,10 @@ import { useAuth } from './context/AuthContext'
 import { useCompany } from './context/CompanyContext'
 import { useUserRole } from './hooks/settings'
 import { can, homeRouteFor, type Permission } from './lib/permissions'
-import { isSupabaseConfigured } from './lib/supabase'
+import { isSupabaseConfigured, linkDeAcessoPendente } from './lib/supabase'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import DefinirSenha from './pages/DefinirSenha'
 import Dashboard from './pages/Dashboard'
 import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
@@ -104,9 +105,20 @@ export default function App() {
     )
   }
 
+  return <Rotas />
+}
+
+function Rotas() {
+  const location = useLocation()
+  // Veio de um link de convite ou de recuperação: primeiro define a senha
+  if (linkDeAcessoPendente() && location.pathname !== '/definir-senha') {
+    return <Navigate to="/definir-senha" replace />
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/definir-senha" element={<DefinirSenha />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"
