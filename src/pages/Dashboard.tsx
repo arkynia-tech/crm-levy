@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Users, UserPlus, Repeat, Wallet, Sparkles, Phone, Megaphone, Send } from 'lucide-react'
+import { Users, UserPlus, Repeat, Wallet, Phone, Megaphone, Send, TrendingUp, ArrowRight } from 'lucide-react'
 import { useDashboard, useOutreachStats, type Period } from '../hooks/queries'
 import { formatCurrency, formatDateTime, marketplaceLabel } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, PageHeader } from '../components/ui'
+import { SEGMENTS } from '../lib/segments'
+
+const inactiveDef = SEGMENTS.find((s) => s.key === 'inactive')
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '30d', label: 'Últimos 30 dias' },
@@ -15,6 +18,7 @@ const PERIODS: { value: Period; label: string }[] = [
 const MP_COLORS: Record<string, string> = {
   shopee: '#ee4d2d',
   mercado_livre: '#e6c700',
+  amazon: '#ff9900',
   tiktok_shop: '#111827',
 }
 
@@ -45,7 +49,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<Period>('30d')
   const { data, isLoading, error } = useDashboard(period)
   const { data: stats } = useOutreachStats()
-  const enrichedPct = stats && stats.total > 0 ? Math.round((stats.enriched / stats.total) * 100) : 0
+  const reachPct = stats && stats.total > 0 ? Math.round((stats.withPhone / stats.total) * 100) : 0
 
   return (
     <div>
@@ -92,35 +96,63 @@ export default function Dashboard() {
           icon={Wallet}
           label="Receita"
           value={isLoading ? '…' : formatCurrency(data?.revenue ?? 0)}
-          hint={`${data?.orderCount ?? 0} pedidos no período (sem cancelados)`}
+          hint={isLoading ? undefined : `${data?.orderCount ?? 0} pedidos no período, sem cancelados`}
         />
       </div>
+
+      {data && data.dormant.count > 0 && (
+        <div className="mt-4 flex flex-col gap-4 rounded-xl bg-ink-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <TrendingUp className="mt-1 h-5 w-5 shrink-0 text-brand-100" aria-hidden />
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-white/60">
+                Receita parada em clientes sumidos
+              </p>
+              <p className="mt-1 font-display text-3xl font-semibold tabular-nums">
+                {formatCurrency(data.dormant.potential)}
+              </p>
+              <p className="mt-1 text-sm text-white/70">
+                Estimativa: {data.dormant.count} clientes sem comprar há mais de 90 dias × ticket médio de{' '}
+                {formatCurrency(data.dormant.avgTicket)}, se cada um voltar uma vez.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/campanhas"
+            state={{
+              presetName: `Campanha ${inactiveDef?.label ?? 'Sumidos'}`,
+              presetMessage: inactiveDef?.suggestedMessage ?? '',
+              presetAudience: { type: 'segment', segment: 'inactive' },
+            }}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-white px-4 py-2 text-sm font-medium text-ink-900 transition-transform hover:bg-gray-100 active:scale-[0.97]"
+          >
+            Criar campanha <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+      )}
 
       <h2 className="mb-2 mt-6 font-display text-sm font-semibold text-gray-900">Base &amp; WhatsApp</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="card p-4">
           <div className="flex items-center gap-2 text-gray-500">
-            <Sparkles className="h-4 w-4" aria-hidden />
-            <span className="text-xs font-medium uppercase tracking-wide">CPFs consultados</span>
+            <Phone className="h-4 w-4" aria-hidden />
+            <span className="text-xs font-medium uppercase tracking-wide">Base com WhatsApp</span>
           </div>
           <p className="mt-2 font-display text-2xl font-semibold tabular-nums text-gray-900">
-            {stats ? `${enrichedPct}%` : '…'}
+            {stats ? `${reachPct}%` : '…'}
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${enrichedPct}%` }} />
+            <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${reachPct}%` }} />
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            {stats?.enriched ?? 0} de {stats?.total ?? 0} clientes
-          </p>
-          <p className="mt-1 text-xs text-gray-400">
-            consulta feita — boa parte volta sem telefone
+            {stats?.withPhone ?? 0} de {stats?.total ?? 0} clientes prontos pra receber mensagem
           </p>
         </div>
         <Kpi
-          icon={Phone}
-          label="Alcançáveis no WhatsApp"
-          value={stats ? String(stats.withPhone) : '…'}
-          hint="número válido, sem opt-out e sem repetir"
+          icon={Repeat}
+          label="Taxa de resposta"
+          value={stats ? (stats.messagesSent > 0 ? `${Math.round((stats.replied / stats.messagesSent) * 100)}%` : '—') : '…'}
+          hint="de quem recebeu campanha"
         />
         <Kpi icon={Megaphone} label="Campanhas" value={stats ? String(stats.campaigns) : '…'} />
         <Kpi

@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, FileArchive, FileCode2, Loader2, UploadCloud } from 'lucide-react'
 import { formatDate, formatDateTime } from '../lib/format'
-import { EmptyState, ErrorState, LoadingRows, PageHeader } from '../components/ui'
+import { EmptyState, ErrorState, LoadingBlock, PageHeader } from '../components/ui'
 import { useCompany } from '../context/CompanyContext'
 import { useNfeImportLog } from '../hooks/nfeImports'
 import { lerArquivo } from '../lib/nfe/zip'
@@ -23,7 +23,7 @@ function Resultado({ r, arquivo }: { r: ResultadoImportacao; arquivo: string }) 
       <div className="flex items-center gap-2">
         <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
         <h2 className="font-display text-base font-semibold text-gray-900">
-          {arquivo} — importação concluída
+          {arquivo}: importação concluída
         </h2>
       </div>
 
@@ -82,7 +82,7 @@ function Resultado({ r, arquivo }: { r: ResultadoImportacao; arquivo: string }) 
 
       {nada && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <strong>Nada de novo entrou.</strong> Todas as notas deste arquivo já estavam no sistema —
+          <strong>Nada de novo entrou.</strong> Todas as notas deste arquivo já estavam no sistema:
           foram regravadas por cima, sem criar venda nem cliente. Se você esperava novidades,
           provavelmente é o arquivo errado.
         </div>
@@ -95,13 +95,13 @@ function HistoricoImportacoes() {
   const { data: linhas, isLoading, error } = useNfeImportLog()
 
   if (error) return <ErrorState message={(error as Error).message} />
-  if (isLoading) return <LoadingRows cols={6} />
+  if (isLoading) return <LoadingBlock />
   if (!linhas || linhas.length === 0) {
     return (
       <div className="card">
         <EmptyState
           title="Nenhuma importação registrada"
-          hint="O histórico começa a partir da primeira importação depois que o fluxo passou a registrar o resultado."
+          hint="Cada importação feita aparece aqui, com quantas notas eram novas."
         />
       </div>
     )
@@ -265,7 +265,7 @@ export default function ImportNfe() {
             <span className="font-medium text-gray-800">Descontar do estoque</span>
             <span className="block text-gray-500">
               Marcado, cada item da nota baixa o estoque do produto (por SKU). Para importar{' '}
-              <strong>notas antigas</strong> só para cadastrar clientes, desmarque — assim o estoque
+              <strong>notas antigas</strong> só para cadastrar clientes, desmarque, assim o estoque
               não é mexido. Nota já baixada não desconta de novo.
             </span>
           </span>
@@ -333,7 +333,7 @@ export default function ImportNfe() {
               />
             </div>
             <p className="mt-2 text-xs text-gray-600">
-              O processamento acontece nesta aba — não feche até terminar.
+              O processamento acontece nesta aba. Não feche até terminar.
             </p>
           </div>
         )}

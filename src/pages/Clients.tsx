@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Building2, ChevronDown, ChevronRight, Plus, Store as StoreIcon } from 'lucide-react'
+import { Building2, ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import {
   useClientsOverview,
   useClientStores,
@@ -10,9 +10,9 @@ import {
   type ClientOverview,
 } from '../hooks/admin'
 import { formatCnpj, formatDate, marketplaceLabel, storeStatusLabel } from '../lib/format'
-import { EmptyState, ErrorState, LoadingRows, MarketplaceBadge, PageHeader, StatusBadge } from '../components/ui'
+import { EmptyState, ErrorState, LoadingBlock, MarketplaceBadge, PageHeader, StatusBadge } from '../components/ui'
 
-const MARKETPLACES = ['shopee', 'mercado_livre', 'tiktok_shop'] as const
+const MARKETPLACES = ['shopee', 'mercado_livre', 'amazon', 'tiktok_shop'] as const
 
 function somenteDigitos(v: string): string {
   return v.replace(/\D/g, '')
@@ -35,7 +35,7 @@ function NovoCliente() {
     }
     const cnpj = somenteDigitos(document)
     if (cnpj && cnpj.length !== 14) {
-      setErro('O CNPJ precisa ter 14 dígitos — ou deixe em branco.')
+      setErro('O CNPJ precisa ter 14 dígitos, ou deixe em branco.')
       return
     }
     try {
@@ -126,7 +126,7 @@ function DadosDoCliente({ c }: { c: ClientOverview }) {
     }
     const cnpj = somenteDigitos(document)
     if (cnpj && cnpj.length !== 14) {
-      setErro('O CNPJ precisa ter 14 dígitos — ou deixe em branco.')
+      setErro('O CNPJ precisa ter 14 dígitos, ou deixe em branco.')
       return
     }
     const limite = Number(waLimite)
@@ -220,7 +220,7 @@ function LojasDoCliente({ clientId }: { clientId: string }) {
   }
 
   if (error) return <ErrorState message={(error as Error).message} />
-  if (isLoading) return <LoadingRows cols={4} rows={2} />
+  if (isLoading) return <LoadingBlock rows={2} />
 
   return (
     <div className="pb-4">
@@ -374,7 +374,7 @@ export default function Clients() {
       {error && <ErrorState message={(error as Error).message} />}
 
       {isLoading ? (
-        <LoadingRows cols={4} />
+        <LoadingBlock />
       ) : !clientes || clientes.length === 0 ? (
         <div className="card">
           <EmptyState title="Nenhum cliente cadastrado" hint="Comece criando o primeiro." />
@@ -386,16 +386,6 @@ export default function Clients() {
           ))}
         </div>
       )}
-
-      <div className="mt-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <StoreIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <p>
-          O cliente novo já fica isolado na leitura — quem for admin dele só enxerga os dados dele. Mas os
-          fluxos n8n ainda gravam com o cliente do Levy fixo no código, então importação de NF-e e campanhas
-          desse cliente novo vão cair na base errada até esses fluxos lerem o <code>client_id</code> que o
-          CRM manda.
-        </p>
-      </div>
     </div>
   )
 }

@@ -26,12 +26,15 @@ export interface ResultadoImportacao {
 const MP_POR_CNPJ: Record<string, string> = {
   '35635824000112': 'shopee',
   '03361252000134': 'mercado_livre',
+  '15436940000103': 'amazon', // Amazon Serviços de Varejo do Brasil
 }
 
 const ROTULO_MP: Record<string, string> = {
   shopee: 'Shopee',
   mercado_livre: 'Mercado Livre',
+  amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  outro: 'Outro canal',
 }
 
 function pedacos<T>(lista: T[], tamanho: number): T[][] {
@@ -41,7 +44,9 @@ function pedacos<T>(lista: T[], tamanho: number): T[][] {
 }
 
 function lojaDaNota(n: NotaLida): { marketplace: string; shopId: string; nome: string } {
-  const marketplace = MP_POR_CNPJ[n.inter_cnpj] || 'shopee'
+  // Sem intermediador na nota: era o caso das notas da Shopee, por isso o padrão.
+  // Intermediador que não conhecemos não vira Shopee: entra como "outro".
+  const marketplace = n.inter_cnpj ? MP_POR_CNPJ[n.inter_cnpj] ?? 'outro' : 'shopee'
   const shopId = n.inter_handle.trim() || `emit:${n.emit_cnpj}`
   return { marketplace, shopId, nome: `${ROTULO_MP[marketplace] ?? marketplace} · ${shopId}` }
 }

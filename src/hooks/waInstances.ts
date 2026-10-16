@@ -50,7 +50,7 @@ interface WaActionResponse {
  */
 async function acao(payload: Record<string, unknown>): Promise<WaActionResponse> {
   if (!INSTANCE_URL) {
-    return { ok: false, error: 'VITE_N8N_WA_INSTANCE_URL não está configurada no .env.' }
+    return { ok: false, error: 'Conexão com o WhatsApp indisponível no momento.' }
   }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -67,7 +67,7 @@ async function acao(payload: Record<string, unknown>): Promise<WaActionResponse>
       // "Falha (HTTP 200)" não dizia nada; isto manda olhar no lugar certo.
       return {
         ok: false,
-        error: 'O fluxo do WhatsApp não respondeu. Veja a última execução no n8n — ela parou antes do fim.',
+        error: 'O WhatsApp não respondeu agora. Tente de novo em alguns segundos.',
       }
     }
     if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `Falha (HTTP ${res.status}).` }
@@ -175,12 +175,12 @@ export const STATUS_TONE: Record<WaStatus, 'ok' | 'warn' | 'bad' | 'neutral'> = 
 
 /** O que cada estado significa na prática, para a tela explicar sem jargão. */
 export const STATUS_HINT: Record<WaStatus, string> = {
-  creating: 'A instância está sendo criada na uazapi.',
+  creating: 'O número está sendo preparado.',
   disconnected: 'Sem sessão ativa. Clique em Conectar para ler o QR Code.',
   connecting: 'Abra o WhatsApp no celular, vá em Aparelhos conectados e leia o código.',
   connected: 'Número pronto para disparar campanhas.',
-  hibernated: 'Sessão pausada, mas as credenciais foram preservadas — reconectar não pede QR novo.',
-  registering: 'Registro do número em andamento na uazapi.',
+  hibernated: 'Sessão pausada, mas a conexão foi preservada. Reconectar não pede QR novo.',
+  registering: 'Registro do número em andamento.',
   registration_conflict:
     'Esse número já tem um registro ativo em outro lugar. Desconecte-o de lá antes de tentar de novo.',
 }

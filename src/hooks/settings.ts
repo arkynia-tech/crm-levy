@@ -56,7 +56,7 @@ export interface CampaignDelay {
 }
 
 /**
- * 45 a 90 segundos. O padrão era 2 a 6 e o número do Levy foi restringido em
+ * 45 a 90 segundos. O padrão era 2 a 6 e o número do primeiro cliente foi restringido em
  * outubro de 2026 disparando nesse ritmo. É o mesmo intervalo que o projeto
  * LF-LITE usa há mais tempo, sem incidente.
  */
@@ -120,7 +120,7 @@ export interface BirthdaySettings {
 const DEFAULT_BIRTHDAY: BirthdaySettings = {
   enabled: false,
   message:
-    'Feliz aniversário! 🎉 Passando pra te desejar um dia incrível — e preparamos um mimo especial só pra hoje. 🎁',
+    'Feliz aniversário! 🎉 Passando pra te desejar um dia incrível, e preparamos um mimo especial só pra hoje. 🎁',
 }
 
 export function useBirthdaySettings() {

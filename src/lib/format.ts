@@ -67,7 +67,9 @@ export function formatCnpj(doc: string | null | undefined): string {
 export const MARKETPLACE_LABEL: Record<string, string> = {
   shopee: 'Shopee',
   mercado_livre: 'Mercado Livre',
+  amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  outro: 'Outro canal',
 }
 
 export function marketplaceLabel(mp: string | null | undefined): string {
@@ -77,6 +79,8 @@ export function marketplaceLabel(mp: string | null | undefined): string {
 
 const STATUS_LABEL: Record<string, string> = {
   connected: 'Conectada',
+  active: 'Ativa',
+  inactive: 'Inativa',
   disconnected: 'Desconectada',
   expired: 'Expirada',
 }
@@ -84,6 +88,23 @@ const STATUS_LABEL: Record<string, string> = {
 export function storeStatusLabel(status: string | null | undefined): string {
   if (!status) return 'Desconhecido'
   return STATUS_LABEL[status.toLowerCase()] ?? status
+}
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  importado_nfe: 'Faturado (NF-e)',
+  cancelado: 'Cancelado',
+  cancelled: 'Cancelado',
+  completed: 'Concluído',
+  delivered: 'Entregue',
+  shipped: 'Enviado',
+  paid: 'Pago',
+  pending: 'Pendente',
+}
+
+/** Status do pedido em português; o que não estiver mapeado sai como veio. */
+export function orderStatusLabel(status: string | null | undefined): string {
+  if (!status) return '—'
+  return ORDER_STATUS_LABEL[status.toLowerCase()] ?? status
 }
 
 /** Um pedido cancelado não deve contar como receita. */

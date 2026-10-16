@@ -25,35 +25,35 @@ export const SEGMENTS: SegmentDef[] = [
   {
     key: 'one_time',
     label: 'Compraram 1 vez',
-    description: 'Fizeram só um pedido — potencial de virar recorrente.',
+    description: 'Fizeram só um pedido, com potencial de virar recorrente.',
     suggestedMessage:
       'Oi! Que bom ter você por aqui 😊 Preparamos um cupom especial pra sua próxima compra. Quer conferir?',
   },
   {
     key: 'recorrente',
     label: 'Recorrentes',
-    description: 'Compraram 2 ou mais vezes — sua base fiel.',
+    description: 'Compraram 2 ou mais vezes: sua base fiel.',
     suggestedMessage:
-      'Oi! Você é um dos nossos clientes especiais 💚 Novidades chegando — quer dar uma olhada em primeira mão?',
+      'Oi! Você é um dos nossos clientes especiais 💚 Novidades chegando, quer dar uma olhada em primeira mão?',
   },
   {
     key: 'vip',
     label: 'VIP (alto valor)',
-    description: 'Já gastaram bastante no total — merecem tratamento premium.',
+    description: 'Já gastaram bastante no total e merecem tratamento premium.',
     suggestedMessage:
       'Olá! Separamos uma condição exclusiva pra você, que é um cliente muito especial pra gente. Posso te mostrar?',
   },
   {
     key: 'inactive',
     label: 'Sumidos',
-    description: 'Já compraram, mas faz tempo — hora de reativar.',
+    description: 'Já compraram, mas faz tempo. Hora de reativar.',
     suggestedMessage:
       'Ei, sentimos sua falta! 🧡 Voltamos com novidades e um mimo pra te receber de volta. Bora conferir?',
   },
   {
     key: 'birthday',
     label: 'Aniversariantes do mês',
-    description: 'Fazem aniversário neste mês — campanha de parabéns converte muito.',
+    description: 'Fazem aniversário neste mês. Campanha de parabéns converte muito.',
     suggestedMessage: 'Feliz aniversário! 🎉 Preparamos um presente especial pra comemorar com você. Quer ver?',
   },
 ]

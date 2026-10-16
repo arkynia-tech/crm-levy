@@ -22,6 +22,7 @@ export default {
         // Um acento por marketplace
         shopee: '#ee4d2d',
         meli: '#ffe600',
+        amazon: '#ff9900',
         tiktok: '#25f4ee',
       },
       fontFamily: {

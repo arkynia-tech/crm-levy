@@ -92,7 +92,7 @@ function CustomerPicker({
             >
               {c.name || 'Sem nome'}
               {!c.phone && (
-                <span className="text-amber-600" title="Sem telefone — será ignorado no disparo">
+                <span className="text-amber-600" title="Sem telefone, será ignorado no disparo">
                   ⚠
                 </span>
               )}
@@ -194,6 +194,14 @@ function BirthdayCard() {
 
   const toggle = async () => {
     const next = !enabled
+    if (
+      next &&
+      !window.confirm(
+        'Ligar o parabéns automático?\n\n' +
+          'Todo dia, quem faz aniversário recebe a mensagem abaixo pelo WhatsApp conectado, sem você precisar disparar.',
+      )
+    )
+      return
     setEnabled(next)
     const ok = await persist({ enabled: next, message })
     if (ok) setMsg({ tone: 'ok', text: next ? 'Disparo de aniversário ativado.' : 'Disparo de aniversário desativado.' })
@@ -406,7 +414,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           <input
             type="text"
             className="input mt-1"
-            placeholder="Ex.: Oferta de julho — clientes recentes"
+            placeholder="Ex.: Oferta de julho para clientes recentes"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -520,14 +528,14 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
         <p className="mt-1 text-xs text-gray-500">
           Dá para escrever na mão também: <code className="rounded bg-gray-100 px-1">{'{'}oi|olá|e aí{'}'}</code>{' '}
           sorteia uma opção e <code className="rounded bg-gray-100 px-1">{'{{'}nome{'}}'}</code> vira o
-          primeiro nome. A mensagem sai pelo número conectado no uazapi, como texto normal.
+          primeiro nome. A mensagem sai pelo número de WhatsApp conectado, como texto normal.
         </p>
       </div>
 
       <div className="mt-3">
         <span className="text-sm font-medium text-gray-700">Imagem (opcional)</span>
         <p className="mb-1 text-xs text-gray-500">
-          Se anexar, a campanha vai como foto + legenda (a mensagem acima vira a legenda) — chama mais
+          Se anexar, a campanha vai como foto + legenda (a mensagem acima vira a legenda), o que chama mais
           atenção e o link fica tocável.
         </p>
         {mediaUrl ? (
@@ -572,7 +580,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           )}
           {preview.total === 0 && (
             <p className="mt-0.5 text-xs text-amber-700">
-              Nenhum contato com telefone nesse público — confira se os clientes têm telefone cadastrado.
+              Nenhum contato com telefone nesse público. Confira se os clientes têm telefone cadastrado.
             </p>
           )}
         </div>
@@ -861,7 +869,7 @@ export default function Campaigns() {
     <div>
       <PageHeader
         title="Campanhas"
-        subtitle="Disparos de WhatsApp para grupos de clientes — com ritmo controlado e opt-out automático"
+        subtitle="Disparos de WhatsApp para grupos de clientes, com ritmo controlado e opt-out automático"
       />
 
       {/* Aniversário é config da loja: gravar em app_settings é de admin pra cima */}
@@ -891,7 +899,7 @@ export default function Campaigns() {
           <div className="card">
             <EmptyState
               title="Nenhuma campanha ainda"
-              hint="Crie a primeira acima — comece com um número de teste antes do disparo de verdade."
+              hint="Crie a primeira acima e comece com um número de teste antes do disparo de verdade."
             />
           </div>
         )}
@@ -901,7 +909,7 @@ export default function Campaigns() {
       <p className="mt-6 flex items-start gap-2 text-xs text-gray-500">
         <Megaphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         Quem responde SAIR, PARAR ou CANCELAR é excluído automaticamente das próximas campanhas. O envio
-        usa ritmo espaçado e aleatório entre mensagens para proteger o número — em bases grandes, prefira
+        usa ritmo espaçado e aleatório entre mensagens para proteger o número. Em bases grandes, prefira
         disparar em lotes ao longo do dia.
       </p>
     </div>

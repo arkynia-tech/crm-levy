@@ -150,7 +150,7 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
       </div>
       <p className="mt-1 text-sm text-gray-500">
         O acesso vale <b>por loja</b>. <b>Administrador</b> vê e faz tudo dentro dela;{' '}
-        <b>Colaborador</b> só importa NF-e e opera campanhas — sem acesso à base de clientes,
+        <b>Colaborador</b> só importa NF-e e opera campanhas, sem acesso à base de clientes,
         vendas e produtos. Quem é master não aparece aqui: master enxerga todas as lojas.
       </p>
 
@@ -198,7 +198,7 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
         </button>
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        Se o e-mail já tem login, deixe a senha em branco — o acesso é concedido na hora. A senha
+        Se o e-mail já tem login, deixe a senha em branco: o acesso é concedido na hora. A senha
         só é usada para criar um login que ainda não existe.
       </p>
       {msg && (
@@ -354,7 +354,7 @@ function CampaignDelaySection() {
     // avisa, mas não impede: pode haver motivo para acelerar num teste pequeno
     setMsg(
       min < 20
-        ? { tone: 'err', text: `Salvo — mas ${min}s é arriscado. Abaixo de 20s o WhatsApp costuma restringir o número.` }
+        ? { tone: 'err', text: `Salvo, mas ${min}s é arriscado. Abaixo de 20s o WhatsApp costuma restringir o número.` }
         : { tone: 'ok', text: 'Salvo.' },
     )
   }
@@ -367,8 +367,7 @@ function CampaignDelaySection() {
       </div>
       <p className="mt-1 text-sm text-gray-500">
         Intervalo aleatório entre cada mensagem, em segundos. O recomendado é <strong>45 a 90</strong>:
-        abaixo disso o WhatsApp identifica o padrão e restringe o número — foi o que aconteceu em
-        outubro de 2026, disparando a cada 2 a 10 segundos.
+        abaixo disso o WhatsApp identifica o padrão e pode restringir o número.
       </p>
       <p className="mt-1 text-sm text-gray-500">
         A 45–90s, mil contatos levam cerca de 19 horas. Prefira quebrar em blocos pelo campo
@@ -427,8 +426,8 @@ function EnrichStatsSection() {
         <h2 className="font-display text-sm font-semibold text-gray-900">Enriquecimentos por loja (master)</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        Quanto cada cliente já consumiu da NovaVida. Enriquecimento não desconta do saldo de notas —
-        este número existe para acompanhar custo.
+        Quanto cada cliente já consumiu da base parceira. Isso não desconta do saldo de notas:
+        o número existe para acompanhar custo.
       </p>
 
       {isLoading ? (

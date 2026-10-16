@@ -27,7 +27,7 @@ export default function Segments() {
     const def = SEGMENTS.find((s) => s.key === key)
     navigate('/campanhas', {
       state: {
-        presetName: `Campanha — ${def?.label ?? key}`,
+        presetName: `Campanha ${def?.label ?? key}`,
         presetMessage: def?.suggestedMessage ?? '',
         presetAudience: { type: 'segment', segment: key },
       },
@@ -38,7 +38,7 @@ export default function Segments() {
     <div>
       <PageHeader
         title="Segmentos"
-        subtitle="Grupos de clientes por comportamento — a base das suas campanhas"
+        subtitle="Grupos de clientes por comportamento, a base das suas campanhas"
       />
 
       {error && <ErrorState message={(error as Error).message} />}

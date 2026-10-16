@@ -14,6 +14,7 @@ function statusTone(status: string | null): 'ok' | 'warn' | 'bad' | 'neutral' {
 const MP_BAR: Record<string, string> = {
   shopee: 'bg-shopee',
   mercado_livre: 'bg-meli',
+  amazon: 'bg-amazon',
   tiktok_shop: 'bg-tiktok',
 }
 
@@ -38,7 +39,7 @@ export default function StoresGrid() {
       <div className="card">
         <EmptyState
           title="Nenhuma loja conectada nesta empresa"
-          hint="As lojas são conectadas pelos fluxos de integração (n8n)."
+          hint="As lojas aparecem aqui assim que a primeira nota fiscal é importada."
         />
       </div>
     )

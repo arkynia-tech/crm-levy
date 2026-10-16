@@ -11,24 +11,7 @@ import {
   type WaInstance,
 } from '../hooks/waInstances'
 import { formatPhone } from '../lib/format'
-import { useCompany } from '../context/CompanyContext'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
-
-/**
- * Como o nome vai aparecer no painel da uazapi. Tem que ser igual ao que o
- * fluxo n8n monta — se um mudar, o outro muda junto.
- */
-function nomeNaUazapi(label: string, clientId: string): string {
-  const slug =
-    label
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 24) || 'instancia'
-  return `${slug}-${clientId.slice(0, 8)}`
-}
 
 /** O QR da uazapi vem em base64 ou já como data URI; a tela aceita os dois. */
 function qrSrc(qr: string): string {
@@ -124,8 +107,8 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
   const deletar = async () => {
     if (
       !window.confirm(
-        `Apagar a instância ${i.label ?? i.instance_name}?\n\n` +
-          'Ela é desconectada e removida também na uazapi. Reconectar exige criar outra e ler o QR de novo.',
+        `Apagar o número ${i.label ?? i.instance_name}?\n\n` +
+          'Ele é desconectado e removido. Pra voltar a usar, é preciso conectar de novo e ler o QR Code.',
       )
     )
       return
@@ -135,9 +118,9 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
   const esquecer = async () => {
     if (
       !window.confirm(
-        'Remover esta instância apenas do CRM?\n\n' +
-          'Use só quando ela já não existe na uazapi. Se ainda existir lá, ela continuará ' +
-          'ativa e fora do seu controle por aqui.',
+        'Remover este número só da lista?\n\n' +
+          'Use só quando ele já foi apagado no provedor de WhatsApp. Se ainda existir lá, ele continua ' +
+          'ativo e fora do seu controle por aqui.',
       )
     )
       return
@@ -205,7 +188,7 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
             className="btn-secondary"
             onClick={() => void rodar('status', () => acoes.atualizarStatus(i.id))}
             disabled={ocupado !== null}
-            title="Perguntar o estado à uazapi agora"
+            title="Conferir agora se o número está conectado"
           >
             {ocupado === 'status' ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -219,8 +202,8 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
             className="inline-flex items-center justify-center rounded-md border border-gray-300 p-2 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
             onClick={() => void deletar()}
             disabled={ocupado !== null}
-            title="Apagar instância"
-            aria-label={`Apagar instância ${i.label ?? i.instance_name}`}
+            title="Apagar número"
+            aria-label={`Apagar número ${i.label ?? i.instance_name}`}
           >
             <Trash2 className="h-4 w-4" aria-hidden />
           </button>
@@ -242,7 +225,7 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
               className="mt-2 underline underline-offset-2 hover:no-underline"
               onClick={() => void esquecer()}
             >
-              Remover só do CRM — use se a instância já não existe na uazapi
+              Remover só da lista (use se o número já foi apagado no provedor)
             </button>
           )}
         </div>
@@ -284,11 +267,11 @@ function NovaInstancia({
   limite,
   usados,
 }: {
-  podeCriar: boolean
+  /** undefined enquanto a cota carrega: não mostra nada em vez de piscar "limite atingido" */
+  podeCriar: boolean | undefined
   limite: number
   usados: string[]
 }) {
-  const { activeClient } = useCompany()
   const acoes = useWaActions()
   const [aberto, setAberto] = useState(false)
   const [label, setLabel] = useState('')
@@ -313,17 +296,19 @@ function NovaInstancia({
     const r = await acoes.criar(nome)
     setCriando(false)
     if (!r.ok) {
-      setErro(r.error ?? 'Falha ao criar a instância.')
+      setErro(r.error ?? 'Não deu pra conectar o número. Tente de novo.')
       return
     }
     setLabel('')
     setAberto(false)
   }
 
+  if (podeCriar === undefined) return null
+
   if (!podeCriar) {
     return (
       <p className="text-sm text-gray-500">
-        Limite de {limite} {limite === 1 ? 'instância' : 'instâncias'} atingido. Fale com o master para
+        Limite de {limite} {limite === 1 ? 'número' : 'números'} atingido. Fale com o suporte para
         aumentar.
       </p>
     )
@@ -357,14 +342,6 @@ function NovaInstancia({
         Cancelar
       </button>
       {erro && <span className="text-sm text-red-700">{erro}</span>}
-      {label.trim() && activeClient && !erro && (
-        <span className="text-xs text-gray-500">
-          Na uazapi:{' '}
-          <code className="rounded bg-gray-100 px-1.5 py-0.5">
-            {nomeNaUazapi(label.trim(), activeClient.id)}
-          </code>
-        </span>
-      )}
     </form>
   )
 }
@@ -395,7 +372,7 @@ export default function WhatsApp() {
         subtitle="Conecte o número que vai disparar as campanhas, lendo um QR Code"
       >
         <NovaInstancia
-          podeCriar={quota?.pode_criar ?? false}
+          podeCriar={quota?.pode_criar}
           limite={quota?.limite ?? 1}
           usados={(instancias ?? []).map((i) => i.label ?? i.instance_name)}
         />
@@ -405,7 +382,7 @@ export default function WhatsApp() {
 
       {quota && (
         <p className="mb-3 text-sm text-gray-500">
-          {quota.usadas} de {quota.limite} {quota.limite === 1 ? 'instância' : 'instâncias'} em uso.
+          {quota.usadas} de {quota.limite} {quota.limite === 1 ? 'número' : 'números'} em uso.
         </p>
       )}
 
@@ -415,7 +392,7 @@ export default function WhatsApp() {
         <div className="card">
           <EmptyState
             title="Nenhum número conectado"
-            hint="Crie uma instância e leia o QR Code com o WhatsApp que vai enviar as campanhas."
+            hint="Conecte um número e leia o QR Code com o WhatsApp que vai enviar as campanhas."
           />
         </div>
       ) : (

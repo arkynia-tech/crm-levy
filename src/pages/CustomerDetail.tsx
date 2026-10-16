@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Mail, MapPin, Phone } from 'lucide-react'
 import { useCustomerDetail } from '../hooks/queries'
 import { formatCurrency, formatDate, formatDateTime, maskCpf } from '../lib/format'
-import { EmptyState, ErrorState, MarketplaceBadge, StatusBadge, orderStatusTone } from '../components/ui'
+import { EmptyState, ErrorState, MarketplaceBadge, OrderStatusBadge } from '../components/ui'
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>()
@@ -103,7 +103,7 @@ export default function CustomerDetail() {
                   <span className="text-sm font-medium tabular-nums text-gray-800">
                     #{order.external_order_id ?? order.id.slice(0, 8)}
                   </span>
-                  {order.status && <StatusBadge status={order.status} tone={orderStatusTone(order.status)} />}
+                  {order.status && <OrderStatusBadge status={order.status} />}
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="tabular-nums text-gray-500">{formatDateTime(order.ordered_at)}</span>

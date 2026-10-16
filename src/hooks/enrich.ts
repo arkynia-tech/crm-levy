@@ -14,7 +14,7 @@ export async function enrichCustomers(
   limit: number,
   clientId?: string,
 ): Promise<{ ok: boolean; iniciado?: boolean; total?: number; enriquecidos?: number; error?: string }> {
-  if (!ENRICH_URL) return { ok: false, error: 'VITE_N8N_ENRICH_URL não está configurada no .env.' }
+  if (!ENRICH_URL) return { ok: false, error: 'Atualização de contatos indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }

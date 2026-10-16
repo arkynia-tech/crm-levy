@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { ORDERS_PAGE_SIZE, useOrders, useOrderStatuses, useStores } from '../hooks/queries'
-import { formatCurrency, formatDateTime, marketplaceLabel } from '../lib/format'
+import { formatCurrency, formatDateTime, marketplaceLabel, orderStatusLabel } from '../lib/format'
 import {
   EmptyState,
   ErrorState,
@@ -10,8 +10,7 @@ import {
   MarketplaceBadge,
   PageHeader,
   Pagination,
-  StatusBadge,
-  orderStatusTone,
+  OrderStatusBadge,
 } from '../components/ui'
 
 export default function Orders() {
@@ -85,7 +84,7 @@ export default function Orders() {
           <option value="">Todos os status</option>
           {(statuses ?? []).map((s) => (
             <option key={s} value={s}>
-              {s}
+              {orderStatusLabel(s)}
             </option>
           ))}
         </select>
@@ -177,7 +176,7 @@ export default function Orders() {
                       )}
                     </td>
                     <td className="td">
-                      {o.status ? <StatusBadge status={o.status} tone={orderStatusTone(o.status)} /> : '—'}
+                      {o.status ? <OrderStatusBadge status={o.status} /> : '—'}
                     </td>
                     <td className="td tabular-nums">{formatDateTime(o.ordered_at)}</td>
                     <td className="td text-right font-medium tabular-nums">

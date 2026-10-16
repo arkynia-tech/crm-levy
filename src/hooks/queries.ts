@@ -85,6 +85,8 @@ export interface DashboardData {
   revenue: number
   orderCount: number
   revenueByMarketplace: { marketplace: string; revenue: number; orders: number }[]
+  /** Clientes sem comprar há 90+ dias e o que eles valem se voltarem uma vez no ticket deles. */
+  dormant: { count: number; potential: number; avgTicket: number }
   recentOrders: Order[]
   recentCustomers: Customer[]
 }
@@ -135,6 +137,25 @@ export function useDashboard(period: Period) {
       const recurrent = [...byCustomer.values()].filter((n) => n >= 2).length
       const recurrentPct = identified > 0 ? (recurrent / identified) * 100 : null
 
+      // Sumidos: última compra há 90+ dias. Potencial = uma compra de cada, no ticket médio dele.
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000
+      const perCustomer = new Map<string, { last: number; spent: number; n: number }>()
+      for (const o of allOrders!) {
+        if (!o.customer_id || isCancelledStatus(o.status) || !o.ordered_at) continue
+        const cur = perCustomer.get(o.customer_id) ?? { last: 0, spent: 0, n: 0 }
+        cur.last = Math.max(cur.last, new Date(o.ordered_at).getTime())
+        cur.spent += o.total_amount ?? 0
+        cur.n += 1
+        perCustomer.set(o.customer_id, cur)
+      }
+      let dormantCount = 0
+      let dormantPotential = 0
+      for (const c of perCustomer.values()) {
+        if (c.last >= cutoff) continue
+        dormantCount += 1
+        dormantPotential += c.spent / c.n
+      }
+
       // Receita e gráfico por marketplace (período selecionado, sem cancelados)
       const valid = orders!.filter((o) => !isCancelledStatus(o.status))
       const revenue = valid.reduce((sum, o) => sum + (o.total_amount ?? 0), 0)
@@ -156,6 +177,11 @@ export function useDashboard(period: Period) {
         revenueByMarketplace: [...byMp.entries()]
           .map(([marketplace, v]) => ({ marketplace, ...v }))
           .sort((a, b) => b.revenue - a.revenue),
+        dormant: {
+          count: dormantCount,
+          potential: dormantPotential,
+          avgTicket: dormantCount > 0 ? dormantPotential / dormantCount : 0,
+        },
         recentOrders: (recentOrdersRes.data ?? []) as unknown as Order[],
         recentCustomers: (recentCustomersRes.data ?? []) as Customer[],
       }

@@ -167,7 +167,7 @@ export interface CampaignActionPayload {
 
 export async function campaignAction(payload: CampaignActionPayload): Promise<CampaignActionResponse> {
   if (!CAMPAIGN_URL) {
-    return { ok: false, error: 'VITE_N8N_WA_CAMPAIGN_URL não está configurada no .env.' }
+    return { ok: false, error: 'Envio de campanhas indisponível no momento.' }
   }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -220,7 +220,7 @@ export interface VariacoesResposta {
 }
 
 export async function gerarVariacoes(message: string, clientId?: string): Promise<VariacoesResposta> {
-  if (!VARIAR_URL) return { ok: false, error: 'VITE_N8N_VARIAR_URL não está configurada no .env.' }
+  if (!VARIAR_URL) return { ok: false, error: 'Geração de variações indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }

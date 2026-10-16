@@ -21,7 +21,7 @@ interface AdminResponse {
 }
 
 async function call(payload: Record<string, unknown>): Promise<AdminResponse> {
-  if (!ADMIN_URL) return { ok: false, error: 'VITE_N8N_ADMIN_USERS_URL não configurada no .env.' }
+  if (!ADMIN_URL) return { ok: false, error: 'Criação de acessos indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }

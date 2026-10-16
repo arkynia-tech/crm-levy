@@ -15,7 +15,7 @@ import { enrichCustomers, registrarEnriquecimento } from '../hooks/enrich'
 import { useCompany } from '../context/CompanyContext'
 
 import { formatCurrency, formatDate, formatDateTime, formatPhone, maskCpf, toE164 } from '../lib/format'
-import { EmptyState, ErrorState, LoadingRows, PageHeader, Pagination, StatusBadge } from '../components/ui'
+import { EmptyState, ErrorState, LoadingBlock, LoadingRows, PageHeader, Pagination, StatusBadge } from '../components/ui'
 
 type CustTab = EnrichFilter
 
@@ -24,9 +24,9 @@ type CustTab = EnrichFilter
 // tempo — "foi consultado?" e "tem telefone?" — então somavam mais que a base e
 // havia gente sem telefone dentro de "Enriquecidos".
 const TABS: { key: CustTab; label: string; title: string }[] = [
-  { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido — dá para mandar WhatsApp hoje' },
+  { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido, dá para mandar WhatsApp hoje' },
   { key: 'na_fila', label: 'Na fila', title: 'Sem número e vale consultar: nunca consultado, ou consultado há mais de 180 dias' },
-  { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, a NovaVida não achou telefone. Voltam para a fila depois de 180 dias' },
+  { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, sem telefone encontrado. Voltam para a fila depois de 180 dias' },
 ]
 
 /**
@@ -46,14 +46,21 @@ function EnrichControl() {
   const { activeClient } = useCompany()
 
   const run = async () => {
+    const pedidos = Math.max(1, Math.min(limit, ENRIQUECER_MAX))
+    if (
+      !window.confirm(
+        `Buscar contato de ${pedidos} cliente(s)?\n\n` +
+          'Cada cliente consultado consome uma consulta da base parceira, mesmo quando não volta telefone.',
+      )
+    )
+      return
     setBusy(true)
     setMsg(null)
-    const pedidos = Math.max(1, Math.min(limit, ENRIQUECER_MAX))
     const res = await enrichCustomers(pedidos, activeClient?.id)
     setBusy(false)
 
     if (!res.ok) {
-      setMsg({ tone: 'err', text: res.error ?? 'Falha ao enriquecer.' })
+      setMsg({ tone: 'err', text: res.error ?? 'Não deu pra buscar os contatos. Tente de novo.' })
       if (activeClient) {
         void registrarEnriquecimento({
           clientId: activeClient.id,
@@ -68,8 +75,8 @@ function EnrichControl() {
     const total = res.total ?? pedidos
     setMsg({
       tone: 'ok',
-      text: `Enriquecendo ${total} cliente(s) em segundo plano. Pode fechar esta tela — os números`
-        + ` abaixo vão subindo conforme a NovaVida responde.`,
+      text: `Buscando contato de ${total} cliente(s) em segundo plano. Pode fechar esta tela:`
+        + ` os números abaixo vão subindo conforme as respostas chegam.`,
     })
 
     // Quem registra o histórico agora é o fluxo: ele é o único que sabe o
@@ -102,24 +109,24 @@ function EnrichControl() {
         onChange={(e) =>
           setLimit(Math.max(1, Math.min(ENRIQUECER_MAX, Number(e.target.value) || 1)))
         }
-        aria-label="Quantos clientes enriquecer"
-        title="Quantos clientes buscar dados na NovaVida"
+        aria-label="Quantos clientes consultar"
+        title="Quantos clientes consultar"
       />
       <button
         type="button"
         className="btn-primary shrink-0"
         onClick={() => void run()}
         disabled={busy}
-        title="Busca nome, telefone, e-mail e endereço pelo CPF (NovaVida)"
+        title="Completa telefone, e-mail e endereço dos clientes na base parceira"
       >
         <Sparkles className="h-4 w-4" aria-hidden />
-        {busy ? 'Enriquecendo…' : 'Enriquecer dados'}
+        {busy ? 'Buscando…' : 'Completar contatos'}
       </button>
       {msg && (
         <span className={`text-xs ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</span>
       )}
       {pendentes !== undefined && (
-        <span className="text-xs text-gray-500" title="Sem enriquecimento ainda, ou já enriquecidos mas sem telefone">
+        <span className="text-xs text-gray-500" title="Ainda não consultados, ou consultados sem telefone">
           <span className="font-medium tabular-nums text-gray-700">{pendentes}</span> na fila
         </span>
       )}
@@ -144,11 +151,11 @@ function HistoricoEnriquecimento() {
   const { data: corridas, isLoading, error } = useEnrichRuns()
 
   if (error) return <ErrorState message={(error as Error).message} />
-  if (isLoading) return <LoadingRows cols={5} rows={3} />
+  if (isLoading) return <LoadingBlock rows={3} />
   if (!corridas || corridas.length === 0) {
     return (
       <p className="mt-2 text-xs text-gray-400">
-        Nenhum enriquecimento registrado ainda. O histórico começa na próxima vez que você rodar.
+        Nenhuma busca de contatos registrada ainda. O histórico começa na próxima vez que você rodar.
       </p>
     )
   }
@@ -512,7 +519,7 @@ export default function Customers() {
               search
                 ? 'Tente outro nome, CPF ou cidade.'
                 : tab === 'alcancavel'
-                  ? 'Use "Enriquecer dados" para buscar telefone na NovaVida.'
+                  ? 'Use "Completar contatos" para buscar o telefone dos clientes.'
                   : 'Os clientes aparecem aqui conforme as NF-e são importadas.'
             }
           />

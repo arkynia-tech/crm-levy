@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { AlertCircle, Inbox } from 'lucide-react'
-import { marketplaceLabel } from '../lib/format'
+import { marketplaceLabel, orderStatusLabel } from '../lib/format'
 
 export function MarketplaceBadge({ marketplace }: { marketplace: string | null | undefined }) {
   const styles: Record<string, string> = {
     shopee: 'bg-orange-50 text-shopee border-orange-200',
     mercado_livre: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+    amazon: 'bg-amber-50 text-amber-900 border-amber-300',
     tiktok_shop: 'bg-gray-900 text-white border-gray-900',
   }
   const cls = styles[marketplace ?? ''] ?? 'bg-gray-100 text-gray-700 border-gray-200'
@@ -30,9 +31,15 @@ export function StatusBadge({ status, tone }: { status: string; tone: 'ok' | 'wa
   )
 }
 
+/** Selo de status de pedido, já traduzido. */
+export function OrderStatusBadge({ status }: { status: string }) {
+  return <StatusBadge status={orderStatusLabel(status)} tone={orderStatusTone(status)} />
+}
+
 export function orderStatusTone(status: string | null | undefined): 'ok' | 'warn' | 'bad' | 'neutral' {
   const s = (status ?? '').toLowerCase()
   if (s.includes('cancel')) return 'bad'
+  if (s === 'importado_nfe') return 'ok'
   if (s.includes('complet') || s.includes('deliver') || s.includes('paid')) return 'ok'
   if (s.includes('ship') || s.includes('process') || s.includes('unpaid') || s.includes('pending')) return 'warn'
   return 'neutral'
@@ -48,13 +55,24 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   )
 }
 
+/** Erro do banco vem em inglês e técnico; na tela vai uma frase, o detalhe fica no console. */
+function friendlyError(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+  if (m.includes('jwt') || m.includes('expired') || m.includes('not authenticated')) return 'Sua sessão expirou. Entre de novo.'
+  if (m.includes('row-level security') || m.includes('permission denied')) return 'Seu acesso não permite ver ou alterar esses dados.'
+  if (/[a-z_]+\.[a-z_]+|relation|column|function|violates|syntax/.test(m)) return 'Tente recarregar a página em alguns segundos.'
+  return message
+}
+
 export function ErrorState({ message }: { message: string }) {
+  console.error('[Contatta]', message)
   return (
     <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <div>
         <p className="font-medium">Não foi possível carregar os dados</p>
-        <p className="mt-0.5 text-red-700">{message}</p>
+        <p className="mt-0.5 text-red-700">{friendlyError(message)}</p>
       </div>
     </div>
   )
@@ -73,6 +91,17 @@ export function LoadingRows({ cols, rows = 6 }: { cols: number; rows?: number })
         </tr>
       ))}
     </>
+  )
+}
+
+/** Skeleton para fora de tabela (LoadingRows gera <tr> e só vale dentro de <tbody>). */
+export function LoadingBlock({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-2" aria-busy="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="h-10 animate-pulse rounded-md bg-gray-100" />
+      ))}
+    </div>
   )
 }
 

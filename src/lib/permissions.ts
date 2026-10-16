@@ -2,7 +2,7 @@
  * Perfis de acesso.
  *
  * O papel vale POR LOJA (uma linha de `clients`), com uma exceção: `master` é
- * global — Mohamad e Levy enxergam e fazem tudo em todas as lojas.
+ * global: enxerga e faz tudo em todas as lojas.
  *
  * Isto aqui é a camada de conveniência da interface. Quem realmente barra é o
  * RLS (supabase/access-roles.sql) e a validação nos fluxos n8n; esconder botão

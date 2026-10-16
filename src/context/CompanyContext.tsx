@@ -23,7 +23,7 @@ const CompanyContext = createContext<CompanyContextValue>({
 })
 
 /**
- * Empresa (CNPJ) ativa. O Levy pode ter mais de uma linha em `clients`;
+ * Empresa (CNPJ) ativa. Um cliente pode ter mais de uma linha em `clients`;
  * todas as queries do app são escopadas pelo client_id ativo.
  */
 export function CompanyProvider({ children }: { children: ReactNode }) {
@@ -33,7 +33,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   )
 
   const { data: clients = [], isLoading, error } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients', session?.user.id],
     enabled: Boolean(session),
     queryFn: async () => {
       const { data, error } = await supabase
