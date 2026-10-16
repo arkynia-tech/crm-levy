@@ -2,6 +2,17 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<script>
+  // Link de convite ou de "esqueci a senha" que o Supabase mandou para o site
+  // em vez do app: repassa para o app com o hash intacto (o token fica no
+  // navegador, o hash nunca vai para servidor nenhum).
+  (function () {
+    var h = location.hash;
+    if (/(^|[#&])(access_token|error_code)=/.test(h) || /[#&]type=(recovery|invite|signup|magiclink)/.test(h)) {
+      location.replace('https://app.contatta.pro/' + h);
+    }
+  })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Contatta · recupere margem dos seus pedidos de marketplace</title>
 <meta name="description" content="Migrar uma pequena parte dos seus pedidos para venda direta paga o sistema e sobra. O Contatta processa seus pedidos, organiza a base de clientes e abre o canal próprio.">
