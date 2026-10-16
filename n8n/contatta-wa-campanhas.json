@@ -369,15 +369,17 @@
       "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
       "name": "Ritmo de envio",
       "webhookId": "9d099f8e-309d-4378-b656-9645dea94586",
-      "notes": "Padrao 45-90s. Era 2-6 e o numero foi restringido em outubro de 2026 nesse ritmo. O valor real vem de app_settings/campaign_delay; este e so o fallback de quando a config nao existe.",
+      "notes": "Espera o que Calcular espera mandar (espera_s): intervalo de 90-180s e, fora do turno ou com o teto batido, ate o proximo turno. Se o banco nao responder, cai em 90-180s.",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3136,
-        160
+        2688,
+        360
       ],
       "parameters": {
-        "amount": "={{ (function(){ var d={min:45,max:90}; try{ var val=$('Buscar config delay').first().json.value; if(val&&val.min!=null){ d.min=Number(val.min); d.max=Number(val.max); } }catch(e){} var lo=d.min>=0?d.min:45; var hi=d.max>lo?d.max:lo; return lo + Math.random()*(hi-lo); })() }}"
+        "resume": "timeInterval",
+        "amount": "={{ Number($json.espera_s) > 0 ? Number($json.espera_s) : 90 + Math.random() * 90 }}",
+        "unit": "seconds"
       }
     },
     {
@@ -671,6 +673,37 @@
         },
         "responseBody": "{ \"ok\": false, \"error\": \"Loja nao informada na chamada. Recarregue a tela e selecione a loja.\" }"
       }
+    },
+    {
+      "id": "dc476ed1-6856-469b-a1e0-1af07ce0f439",
+      "name": "Calcular espera",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2464,
+        360
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "A regra de ritmo e turnos mora no banco (crm_wa_proxima_espera): intervalo de campaign_delay e, fora do turno ou com o teto do turno batido, espera ate o proximo turno com vaga. Le a config a cada mensagem, entao mudar na tela vale para campanha em andamento.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_proxima_espera",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_client_id: $('Buscar campanha').first().json.client_id }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      }
     }
   ],
   "connections": {
@@ -816,7 +849,7 @@
         ],
         [
           {
-            "node": "Montar envio",
+            "node": "Calcular espera",
             "type": "main",
             "index": 0
           }
@@ -849,7 +882,7 @@
       "main": [
         [
           {
-            "node": "Ritmo de envio",
+            "node": "Loop de envio",
             "type": "main",
             "index": 0
           }
@@ -860,7 +893,7 @@
       "main": [
         [
           {
-            "node": "Loop de envio",
+            "node": "Montar envio",
             "type": "main",
             "index": 0
           }
@@ -952,6 +985,17 @@
         [
           {
             "node": "Responder sem loja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular espera": {
+      "main": [
+        [
+          {
+            "node": "Ritmo de envio",
             "type": "main",
             "index": 0
           }

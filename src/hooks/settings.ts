@@ -56,11 +56,11 @@ export interface CampaignDelay {
 }
 
 /**
- * 45 a 90 segundos. O padrão era 2 a 6 e o número do primeiro cliente foi restringido em
- * outubro de 2026 disparando nesse ritmo. É o mesmo intervalo que o projeto
- * LF-LITE usa há mais tempo, sem incidente.
+ * 90 a 180 segundos (era 45 a 90). O padrão original era 2 a 6 e o número do
+ * primeiro cliente foi restringido em outubro de 2026 disparando nesse ritmo.
+ * 90 a 180 é o mesmo intervalo do lote de prospecção da arkynIA.
  */
-const DEFAULT_DELAY: CampaignDelay = { min: 45, max: 90 }
+export const DEFAULT_DELAY: CampaignDelay = { min: 90, max: 180 }
 
 export function useCampaignDelay() {
   const { activeClient } = useCompany()
@@ -181,6 +181,83 @@ export function useSaveCampaignDelay() {
     )
     if (error) return { ok: false, error: error.message }
     void queryClient.invalidateQueries({ queryKey: ['settings', 'campaign_delay'] })
+    return { ok: true }
+  }
+}
+
+/**
+ * Turnos de envio: as campanhas só disparam dentro da manhã e da tarde, com um
+ * teto por turno. Fora do turno, ou com o teto batido, o fluxo espera o próximo
+ * turno e continua de onde parou. Mesmo princípio dos lotes de prospecção.
+ * Horários em hora de Brasília, "HH:MM".
+ */
+export interface CampaignSchedule {
+  manha: { inicio: string; fim: string }
+  tarde: { inicio: string; fim: string }
+  /** máximo de mensagens por turno, somando todas as campanhas do número */
+  limitePorTurno: number
+  /** dias da semana em que envia: 0 = domingo … 6 = sábado */
+  dias: number[]
+}
+
+export const DEFAULT_SCHEDULE: CampaignSchedule = {
+  manha: { inicio: '09:00', fim: '12:00' },
+  tarde: { inicio: '14:00', fim: '18:00' },
+  limitePorTurno: 40,
+  dias: [1, 2, 3, 4, 5, 6],
+}
+
+function asSchedule(v: unknown): CampaignSchedule {
+  const o = (v ?? {}) as Partial<CampaignSchedule>
+  const hora = (x: unknown, padrao: string) => (typeof x === 'string' && /^\d{2}:\d{2}$/.test(x) ? x : padrao)
+  return {
+    manha: {
+      inicio: hora(o.manha?.inicio, DEFAULT_SCHEDULE.manha.inicio),
+      fim: hora(o.manha?.fim, DEFAULT_SCHEDULE.manha.fim),
+    },
+    tarde: {
+      inicio: hora(o.tarde?.inicio, DEFAULT_SCHEDULE.tarde.inicio),
+      fim: hora(o.tarde?.fim, DEFAULT_SCHEDULE.tarde.fim),
+    },
+    limitePorTurno: Number(o.limitePorTurno) > 0 ? Number(o.limitePorTurno) : DEFAULT_SCHEDULE.limitePorTurno,
+    dias: Array.isArray(o.dias) && o.dias.length > 0 ? o.dias.map(Number) : DEFAULT_SCHEDULE.dias,
+  }
+}
+
+export function useCampaignSchedule() {
+  const { activeClient } = useCompany()
+  return useQuery({
+    queryKey: ['settings', 'campaign_schedule', activeClient?.id],
+    enabled: Boolean(activeClient),
+    queryFn: async (): Promise<CampaignSchedule> => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('client_id', activeClient!.id)
+        .eq('key', 'campaign_schedule')
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      return asSchedule(data?.value)
+    },
+  })
+}
+
+export function useSaveCampaignSchedule() {
+  const { activeClient } = useCompany()
+  const queryClient = useQueryClient()
+  return async (schedule: CampaignSchedule): Promise<{ ok: boolean; error?: string }> => {
+    if (!activeClient) return { ok: false, error: 'Empresa não carregada.' }
+    const { error } = await supabase.from('app_settings').upsert(
+      {
+        client_id: activeClient.id,
+        key: 'campaign_schedule',
+        value: schedule,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'client_id,key' },
+    )
+    if (error) return { ok: false, error: error.message }
+    void queryClient.invalidateQueries({ queryKey: ['settings', 'campaign_schedule'] })
     return { ok: true }
   }
 }

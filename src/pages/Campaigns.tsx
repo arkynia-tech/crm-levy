@@ -22,7 +22,7 @@ import { useCompany } from '../context/CompanyContext'
 
 const STATUS_LABEL: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' }> = {
   draft: { label: 'Rascunho', tone: 'neutral' },
-  sending: { label: 'Enviando…', tone: 'warn' },
+  sending: { label: 'Em andamento', tone: 'warn' },
   done: { label: 'Concluída', tone: 'ok' },
   failed: { label: 'Falhou', tone: 'bad' },
   canceled: { label: 'Cancelada', tone: 'neutral' },
@@ -908,9 +908,10 @@ export default function Campaigns() {
 
       <p className="mt-6 flex items-start gap-2 text-xs text-gray-500">
         <Megaphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        Quem responde SAIR, PARAR ou CANCELAR é excluído automaticamente das próximas campanhas. O envio
-        usa ritmo espaçado e aleatório entre mensagens para proteger o número. Em bases grandes, prefira
-        disparar em lotes ao longo do dia.
+        Quem responde SAIR, PARAR ou CANCELAR é excluído automaticamente das próximas campanhas. As
+        mensagens saem só nos turnos de manhã e de tarde, com intervalo aleatório e teto por turno, para
+        proteger o número. Fora do horário, a campanha fica em andamento e continua sozinha no próximo
+        turno. Ajuste em Configurações.
       </p>
     </div>
   )

@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Clock, Plug, Save, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from 'lucide-react'
 import {
+  DEFAULT_DELAY,
+  DEFAULT_SCHEDULE,
   useCampaignDelay,
+  useCampaignSchedule,
   useSaveCampaignDelay,
+  useSaveCampaignSchedule,
+  type CampaignSchedule,
   useUserRole,
   useEnrichmentCredits,
   useSaveCredits,
@@ -323,13 +328,29 @@ function AdminCreditsSection() {
   )
 }
 
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+function minutos(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * Ritmo e turnos ficam juntos porque um só faz sentido com o outro: o intervalo
+ * define quantas mensagens cabem num turno, e o teto do turno é o que segura
+ * o volume diário do número.
+ */
 function CampaignDelaySection() {
-  const { data: delay, isLoading } = useCampaignDelay()
-  const save = useSaveCampaignDelay()
-  const [min, setMin] = useState(45)
-  const [max, setMax] = useState(90)
+  const { data: delay, isLoading: loadingDelay } = useCampaignDelay()
+  const { data: agenda, isLoading: loadingAgenda } = useCampaignSchedule()
+  const saveDelay = useSaveCampaignDelay()
+  const saveAgenda = useSaveCampaignSchedule()
+  const [min, setMin] = useState(DEFAULT_DELAY.min)
+  const [max, setMax] = useState(DEFAULT_DELAY.max)
+  const [turnos, setTurnos] = useState<CampaignSchedule>(DEFAULT_SCHEDULE)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const isLoading = loadingDelay || loadingAgenda
 
   useEffect(() => {
     if (delay) {
@@ -338,24 +359,58 @@ function CampaignDelaySection() {
     }
   }, [delay])
 
+  useEffect(() => {
+    if (agenda) setTurnos(agenda)
+  }, [agenda])
+
+  const setHora = (turno: 'manha' | 'tarde', campo: 'inicio' | 'fim', valor: string) =>
+    setTurnos((t) => ({ ...t, [turno]: { ...t[turno], [campo]: valor } }))
+
+  const toggleDia = (d: number) =>
+    setTurnos((t) => ({
+      ...t,
+      dias: t.dias.includes(d) ? t.dias.filter((x) => x !== d) : [...t.dias, d].sort(),
+    }))
+
+  // Quantas cabem por dia de verdade: o menor entre o teto e o que o ritmo permite no turno
+  const media = (min + max) / 2
+  const cabe = (t: { inicio: string; fim: string }) =>
+    Math.max(0, Math.floor(((minutos(t.fim) - minutos(t.inicio)) * 60) / Math.max(1, media)))
+  const porDia =
+    Math.min(turnos.limitePorTurno, cabe(turnos.manha)) + Math.min(turnos.limitePorTurno, cabe(turnos.tarde))
+
   const handleSave = async () => {
     if (min < 1 || max < min) {
-      setMsg({ tone: 'err', text: 'O mínimo deve ser ≥ 1 e o máximo ≥ mínimo.' })
+      setMsg({ tone: 'err', text: 'O mínimo deve ser 1 ou mais, e o máximo não pode ser menor que o mínimo.' })
+      return
+    }
+    for (const t of [turnos.manha, turnos.tarde]) {
+      if (minutos(t.fim) <= minutos(t.inicio)) {
+        setMsg({ tone: 'err', text: 'Em cada turno, o fim precisa ser depois do início.' })
+        return
+      }
+    }
+    if (minutos(turnos.tarde.inicio) < minutos(turnos.manha.fim)) {
+      setMsg({ tone: 'err', text: 'A tarde precisa começar depois que a manhã termina.' })
+      return
+    }
+    if (turnos.dias.length === 0) {
+      setMsg({ tone: 'err', text: 'Escolha pelo menos um dia da semana.' })
       return
     }
     setSaving(true)
     setMsg(null)
-    const res = await save({ min, max })
+    const [r1, r2] = await Promise.all([saveDelay({ min, max }), saveAgenda(turnos)])
     setSaving(false)
-    if (!res.ok) {
-      setMsg({ tone: 'err', text: res.error ?? 'Falha ao salvar.' })
+    if (!r1.ok || !r2.ok) {
+      setMsg({ tone: 'err', text: r1.error ?? r2.error ?? 'Falha ao salvar.' })
       return
     }
     // avisa, mas não impede: pode haver motivo para acelerar num teste pequeno
     setMsg(
-      min < 20
-        ? { tone: 'err', text: `Salvo, mas ${min}s é arriscado. Abaixo de 20s o WhatsApp costuma restringir o número.` }
-        : { tone: 'ok', text: 'Salvo.' },
+      min < 60
+        ? { tone: 'err', text: `Salvo, mas ${min}s é arriscado. Abaixo de 1 minuto o WhatsApp costuma restringir o número.` }
+        : { tone: 'ok', text: 'Salvo. Vale para as próximas mensagens, inclusive de campanhas em andamento.' },
     )
   }
 
@@ -363,24 +418,21 @@ function CampaignDelaySection() {
     <section className="card p-5">
       <div className="flex items-center gap-2">
         <Clock className="h-4 w-4 text-brand-600" aria-hidden />
-        <h2 className="font-display text-sm font-semibold text-gray-900">Ritmo de disparo das campanhas</h2>
+        <h2 className="font-display text-sm font-semibold text-gray-900">Ritmo e horários de disparo</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        Intervalo aleatório entre cada mensagem, em segundos. O recomendado é <strong>45 a 90</strong>:
-        abaixo disso o WhatsApp identifica o padrão e pode restringir o número.
-      </p>
-      <p className="mt-1 text-sm text-gray-500">
-        A 45–90s, mil contatos levam cerca de 19 horas. Prefira quebrar em blocos pelo campo
-        &ldquo;por vez&rdquo; da campanha a acelerar o ritmo.
+        As campanhas só saem nos turnos abaixo, com um intervalo aleatório entre cada mensagem e um teto por
+        turno. Fora do horário, ou com o teto batido, o envio pausa sozinho e continua no próximo turno. É o
+        que protege o número de ser restringido.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Mínimo (s)</span>
+          <span className="text-sm font-medium text-gray-700">Intervalo mínimo (s)</span>
           <input
             type="number"
             min={1}
-            max={120}
+            max={600}
             className="input mt-1 w-28"
             value={min}
             disabled={isLoading}
@@ -388,17 +440,85 @@ function CampaignDelaySection() {
           />
         </label>
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Máximo (s)</span>
+          <span className="text-sm font-medium text-gray-700">Intervalo máximo (s)</span>
           <input
             type="number"
             min={1}
-            max={300}
+            max={900}
             className="input mt-1 w-28"
             value={max}
             disabled={isLoading}
             onChange={(e) => setMax(Number(e.target.value) || 1)}
           />
         </label>
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">Máximo por turno</span>
+          <input
+            type="number"
+            min={1}
+            max={500}
+            className="input mt-1 w-28"
+            value={turnos.limitePorTurno}
+            disabled={isLoading}
+            onChange={(e) => setTurnos((t) => ({ ...t, limitePorTurno: Math.max(1, Number(e.target.value) || 1) }))}
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {(['manha', 'tarde'] as const).map((turno) => (
+          <fieldset key={turno} className="rounded-lg border border-gray-200 p-3">
+            <legend className="px-1 text-sm font-medium text-gray-700">{turno === 'manha' ? 'Manhã' : 'Tarde'}</legend>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                className="input w-32"
+                value={turnos[turno].inicio}
+                disabled={isLoading}
+                onChange={(e) => setHora(turno, 'inicio', e.target.value)}
+                aria-label={`Início da ${turno === 'manha' ? 'manhã' : 'tarde'}`}
+              />
+              <span className="text-sm text-gray-500">até</span>
+              <input
+                type="time"
+                className="input w-32"
+                value={turnos[turno].fim}
+                disabled={isLoading}
+                onChange={(e) => setHora(turno, 'fim', e.target.value)}
+                aria-label={`Fim da ${turno === 'manha' ? 'manhã' : 'tarde'}`}
+              />
+            </div>
+          </fieldset>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Dias da semana">
+        {DIAS.map((nome, d) => {
+          const ativo = turnos.dias.includes(d)
+          return (
+            <button
+              key={nome}
+              type="button"
+              onClick={() => toggleDia(d)}
+              disabled={isLoading}
+              aria-pressed={ativo}
+              className={`rounded-md border px-3 py-1.5 text-sm transition-colors active:scale-[0.97] ${
+                ativo ? 'border-ink-900 bg-ink-900 text-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {nome}
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="mt-3 text-sm text-gray-500">
+        Com essa configuração saem até <strong className="tabular-nums">{porDia}</strong> mensagens por dia.
+        Mil contatos levam cerca de{' '}
+        <strong className="tabular-nums">{porDia > 0 ? Math.ceil(1000 / porDia) : '—'}</strong> dias de envio.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <button type="button" className="btn-primary" onClick={() => void handleSave()} disabled={saving || isLoading}>
           <Save className="h-4 w-4" aria-hidden />
           {saving ? 'Salvando…' : 'Salvar'}
