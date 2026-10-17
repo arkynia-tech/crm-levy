@@ -44,6 +44,7 @@ jobs:
           VITE_N8N_ENRICH_URL: ${{ secrets.VITE_N8N_ENRICH_URL }}
           VITE_N8N_ADMIN_USERS_URL: ${{ secrets.VITE_N8N_ADMIN_USERS_URL }}
           VITE_N8N_WA_INSTANCE_URL: ${{ secrets.VITE_N8N_WA_INSTANCE_URL }}
+          VITE_N8N_ASSINATURAS_URL: ${{ secrets.VITE_N8N_ASSINATURAS_URL }}
 
       - name: Montar a árvore do domínio
         run: |

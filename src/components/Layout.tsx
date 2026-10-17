@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
+import { AvisoCobranca } from './Assinatura'
 import { useUserRole } from '../hooks/settings'
 import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
@@ -241,6 +242,7 @@ export default function Layout() {
 
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-[1600px]">
+          <AvisoCobranca />
           <Outlet />
         </div>
       </main>

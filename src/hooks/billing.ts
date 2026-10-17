@@ -1,0 +1,137 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../lib/supabase'
+
+const ASSINATURAS_URL = import.meta.env.VITE_N8N_ASSINATURAS_URL as string | undefined
+
+export type Ciclo = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY'
+export type StatusAssinatura = 'pendente' | 'ativa' | 'em_atraso' | 'suspensa' | 'cancelada'
+
+export interface Plano {
+  code: string
+  name: string
+  monthly_price: number | null
+  orders_per_month: number | null
+  users_limit: number | null
+  overage_per_order: number | null
+  sort: number
+}
+
+/** O que crm_billing_resumo devolve: plano, status, uso do mês e usuários. */
+export interface ResumoAssinatura {
+  tem_assinatura: boolean
+  plano: string | null
+  plan_code: string | null
+  ciclo: Ciclo | null
+  valor: number | null
+  status: StatusAssinatura | null
+  proximo_vencimento: string | null
+  atraso_desde: string | null
+  bloqueio_em: string | null
+  fatura_url: string | null
+  ambiente: 'sandbox' | 'producao' | null
+  franquia: number | null
+  pedidos_no_mes: number
+  excedente_por_pedido: number | null
+  usuarios: number
+  limite_usuarios: number | null
+  nome: string | null
+  cpf_cnpj: string | null
+  email: string | null
+}
+
+export const CICLO_LABEL: Record<Ciclo, string> = {
+  MONTHLY: 'Mensal',
+  SEMIANNUALLY: 'Semestral',
+  YEARLY: 'Anual',
+}
+
+/** Mesma conta do banco (crm_billing_valor_ciclo): semestral 10% off, anual 2 meses grátis. */
+export function valorDoCiclo(mensal: number, ciclo: Ciclo): number {
+  const v = ciclo === 'MONTHLY' ? mensal : ciclo === 'SEMIANNUALLY' ? mensal * 6 * 0.9 : mensal * 10
+  return Math.round(v * 100) / 100
+}
+
+export const STATUS_ASSINATURA: Record<StatusAssinatura, { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' }> = {
+  pendente: { label: 'Aguardando 1º pagamento', tone: 'warn' },
+  ativa: { label: 'Em dia', tone: 'ok' },
+  em_atraso: { label: 'Em atraso', tone: 'warn' },
+  suspensa: { label: 'Suspensa', tone: 'bad' },
+  cancelada: { label: 'Cancelada', tone: 'neutral' },
+}
+
+export function usePlanos() {
+  return useQuery({
+    queryKey: ['billing-plans'],
+    staleTime: 60 * 60 * 1000,
+    queryFn: async (): Promise<Plano[]> => {
+      const { data, error } = await supabase.from('billing_plans').select('*').order('sort')
+      if (error) throw new Error(error.message)
+      return (data ?? []) as Plano[]
+    },
+  })
+}
+
+export function useResumoAssinatura(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['billing-resumo', clientId],
+    enabled: Boolean(clientId),
+    queryFn: async (): Promise<ResumoAssinatura | null> => {
+      const { data, error } = await supabase.rpc('crm_billing_resumo', { p_client_id: clientId })
+      // Banco ainda sem as tabelas de cobrança: a tela segue como antes
+      if (error) {
+        if (/crm_billing_resumo|does not exist|schema cache/i.test(error.message)) return null
+        throw new Error(error.message)
+      }
+      return (data ?? null) as ResumoAssinatura | null
+    },
+  })
+}
+
+export interface CriarAssinaturaInput {
+  client_id: string
+  plan_code: string
+  cycle: Ciclo
+  mensal_enterprise?: number
+  nome: string
+  cpf_cnpj: string
+  email: string
+  telefone?: string
+  primeiro_vencimento: string
+}
+
+async function chamar(body: Record<string, unknown>): Promise<{ ok: boolean; error?: string; invoice_url?: string | null }> {
+  if (!ASSINATURAS_URL) return { ok: false, error: 'Cobrança indisponível no momento.' }
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }
+  try {
+    const res = await fetch(ASSINATURAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    })
+    const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; invoice_url?: string } | null
+    if (!res.ok || !json?.ok) return { ok: false, error: json?.error ?? `Não deu certo (HTTP ${res.status}).` }
+    return { ok: true, invoice_url: json.invoice_url ?? null }
+  } catch {
+    return { ok: false, error: 'Não foi possível falar com o serviço de cobrança.' }
+  }
+}
+
+export function useAcoesAssinatura() {
+  const queryClient = useQueryClient()
+  const atualizar = (clientId: string) =>
+    queryClient.invalidateQueries({ queryKey: ['billing-resumo', clientId] })
+  return {
+    criar: async (input: CriarAssinaturaInput) => {
+      const r = await chamar({ action: 'criar', ...input })
+      void atualizar(input.client_id)
+      return r
+    },
+    cancelar: async (clientId: string) => {
+      const r = await chamar({ action: 'cancelar', client_id: clientId })
+      void atualizar(clientId)
+      return r
+    },
+  }
+}

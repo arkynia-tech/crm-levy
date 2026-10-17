@@ -11,6 +11,7 @@ import {
 } from '../hooks/admin'
 import { formatCnpj, formatDate, marketplaceLabel, storeStatusLabel } from '../lib/format'
 import { EmptyState, ErrorState, LoadingBlock, MarketplaceBadge, PageHeader, StatusBadge } from '../components/ui'
+import { AssinaturaDoCliente } from '../components/Assinatura'
 
 const MARKETPLACES = ['shopee', 'mercado_livre', 'amazon', 'tiktok_shop'] as const
 
@@ -350,6 +351,7 @@ function LinhaCliente({ c }: { c: ClientOverview }) {
       {aberto && (
         <div className="divide-y divide-gray-200 border-t border-gray-200 bg-gray-50/60 px-4">
           <DadosDoCliente c={c} />
+          <AssinaturaDoCliente clientId={c.id} nomeCliente={c.name} cnpj={c.document} />
           <div className="pt-4">
             <LojasDoCliente clientId={c.id} />
           </div>

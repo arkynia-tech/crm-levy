@@ -107,6 +107,29 @@ policy nenhuma — invisível para anon e authenticated, igual a `store_tokens`.
 Rode `supabase/wa-instances-schema.sql` e siga `docs/n8n-whatsapp-uazapi.md`.
 Precisa da variável `VITE_N8N_WA_INSTANCE_URL`.
 
+## Assinaturas (Asaas)
+
+O Asaas é o dono da cobrança; o banco guarda o espelho (`billing_accounts`) e o
+n8n fica no meio. A chave do Asaas vive só na credencial "Asaas Sandbox" do n8n.
+
+- Planos em `billing_plans`: Starter, Pro, Business e Enterprise (valor livre).
+  Ciclos mensal, semestral (10% de desconto) e anual (2 meses grátis). A franquia
+  de pedidos é sempre mensal; o excedente vira cobrança avulsa no início do mês.
+- Contratar e cancelar: master, em **Clientes e lojas** → fluxo n8n
+  "Assinaturas Asaas — Contatta" (`VITE_N8N_ASSINATURAS_URL`).
+- Avisos do Asaas → fluxo "Asaas Webhook — Contatta" → `crm_billing_aplicar_evento`,
+  que confere o token e registra cada evento uma vez.
+- Todo dia às 7h, "Cobrança diária Asaas — Contatta": suspende quem passou de 5 dias
+  de atraso (conta somente leitura: não importa nem dispara), cobra o excedente e
+  recarrega a franquia no dia 1º. O mesmo fluxo tem o gatilho manual que registra
+  o webhook no Asaas.
+- Loja sem assinatura (demonstração, testes) segue funcionando como antes.
+- Limite de usuários do plano: gatilho em `user_clients`.
+
+Rode `supabase/assinaturas-asaas.sql`. Hoje tudo aponta para o sandbox
+(`api-sandbox.asaas.com`); a troca para produção é trocar a URL nos três fluxos,
+a credencial e o `environment` gravado.
+
 ## Saldo de notas
 
 1 crédito = 1 nota fiscal importada. Cada importação desconta o total de notas

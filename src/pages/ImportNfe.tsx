@@ -5,6 +5,8 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { EmptyState, ErrorState, LoadingBlock, PageHeader } from '../components/ui'
 import { useCompany } from '../context/CompanyContext'
 import { useNfeImportLog } from '../hooks/nfeImports'
+import { useResumoAssinatura } from '../hooks/billing'
+import { useUserRole } from '../hooks/settings'
 import { lerArquivo } from '../lib/nfe/zip'
 import { lerNota } from '../lib/nfe/parse'
 import {
@@ -149,6 +151,9 @@ function HistoricoImportacoes() {
 
 export default function ImportNfe() {
   const { activeClient } = useCompany()
+  const { data: cobranca } = useResumoAssinatura(activeClient?.id)
+  const { data: papel } = useUserRole()
+  const somenteLeitura = papel !== 'master' && (cobranca?.status === 'suspensa' || cobranca?.status === 'cancelada')
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [aba, setAba] = useState<'importar' | 'historico'>('importar')
@@ -172,6 +177,10 @@ export default function ImportNfe() {
   const handleFile = async (file: File) => {
     setErro(null)
     setResultado(null)
+    if (somenteLeitura) {
+      setErro('A conta está em modo somente leitura por falta de pagamento. A importação volta assim que a fatura for paga.')
+      return
+    }
     const nome = file.name.toLowerCase()
     if (!nome.endsWith('.zip') && !nome.endsWith('.xml')) {
       setErro(`"${file.name}" não é um .zip nem um .xml.`)
