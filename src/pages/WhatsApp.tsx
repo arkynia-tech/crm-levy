@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug } from 'lucide-react'
+import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug, X } from 'lucide-react'
 import {
   ehOficial,
   esquecerInstancia,
@@ -15,7 +15,6 @@ import {
 } from '../hooks/waInstances'
 import { formatPhone } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
-import { AvisoApiOficial } from '../components/AvisoApiOficial'
 import { oficialConfigurado, QUALIDADE_NUMERO, useWaOficial } from '../hooks/waOficial'
 import { abrirSignupDaMeta, metaSignupDisponivel, prepararSdkDaMeta } from '../lib/metaSignup'
 
@@ -24,7 +23,7 @@ function qrSrc(qr: string): string {
   return qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`
 }
 
-function CartaoInstancia({ i }: { i: WaInstance }) {
+function CartaoInstancia({ i, gerarQrJa = false }: { i: WaInstance; gerarQrJa?: boolean }) {
   const acoes = useWaActions()
   const [qr, setQr] = useState<string | null>(null)
   const [paircode, setPaircode] = useState<string | null>(null)
@@ -104,6 +103,15 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
       setPaircode(resp.paircode ?? null)
     }
   }
+
+  // Acabou de nascer pela escolha "Pelo QR Code": já pede o QR, sem clique a mais
+  const jaPediuQr = useRef(false)
+  useEffect(() => {
+    if (!gerarQrJa || jaPediuQr.current || i.status === 'creating' || i.status === 'connected') return
+    jaPediuQr.current = true
+    void conectar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gerarQrJa, i.status])
 
   const desconectar = async () => {
     if (!window.confirm(`Desconectar ${i.label ?? i.instance_name}? As campanhas param até reconectar.`)) return
@@ -375,39 +383,124 @@ function CartaoOficial({ i }: { i: WaInstance }) {
   )
 }
 
+type Caminho = 'oficial' | 'qr'
+
+/** Cartão de uma das duas formas de conectar. */
+function OpcaoConexao({
+  ativo,
+  desabilitado,
+  onEscolher,
+  icone: Icone,
+  titulo,
+  selo,
+  itens,
+  aviso,
+}: {
+  ativo: boolean
+  desabilitado?: boolean
+  onEscolher: () => void
+  icone: typeof BadgeCheck
+  titulo: string
+  selo?: string
+  itens: string[]
+  aviso?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onEscolher}
+      disabled={desabilitado}
+      aria-pressed={ativo}
+      className={`flex h-full flex-col rounded-lg border p-4 text-left transition-[border-color,background-color,transform] duration-150 ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
+        ativo ? 'border-brand-600 bg-brand-50/70 ring-1 ring-brand-600' : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
+    >
+      <span className="flex w-full items-center gap-2">
+        <Icone className="h-5 w-5 shrink-0 text-brand-600" aria-hidden />
+        <span className="font-display text-sm font-semibold text-gray-900">{titulo}</span>
+        {selo && (
+          <span className="ml-auto rounded-full bg-brand-600 px-2 py-0.5 text-[0.7rem] font-medium text-white">{selo}</span>
+        )}
+      </span>
+      <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+        {itens.map((t) => (
+          <li key={t} className="flex gap-2">
+            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-gray-400" aria-hidden />
+            {t}
+          </li>
+        ))}
+      </ul>
+      {aviso && <span className="mt-3 text-xs text-gray-500">{aviso}</span>}
+    </button>
+  )
+}
+
 /**
- * Conectar pela API oficial: abre o Embedded Signup da Meta e, com o código
- * que volta, pede ao n8n pra terminar (token, webhook, registro do número).
+ * Conectar um número: a pessoa escolhe entre a API oficial da Meta (janela da
+ * Meta, com ou sem coexistência) e o QR Code da uazapi. Os dois caminhos
+ * gravam o número nesta loja, que é o que as campanhas usam.
  */
-function ConectarOficial({ podeCriar }: { podeCriar: boolean | undefined }) {
+function ConectarNumero({
+  podeCriar,
+  limite,
+  usados,
+  onQrCriado,
+}: {
+  /** undefined enquanto a cota carrega: não mostra nada em vez de piscar "limite atingido" */
+  podeCriar: boolean | undefined
+  limite: number
+  usados: string[]
+  /** número do QR acabou de nascer: o cartão dele já pede o QR Code */
+  onQrCriado: (instanceId: string) => void
+}) {
+  const acoes = useWaActions()
   const oficial = useWaOficial()
-  const [coexistencia, setCoexistencia] = useState(false)
+  const oficialLigado = metaSignupDisponivel && oficialConfigurado
+  const [aberto, setAberto] = useState(false)
+  const [caminho, setCaminho] = useState<Caminho | null>(null)
+  const [coexistencia, setCoexistencia] = useState<boolean | null>(null)
   const [label, setLabel] = useState('')
   const [etapa, setEtapa] = useState<'parado' | 'janela' | 'gravando'>('parado')
   const [erro, setErro] = useState<string | null>(null)
-  const [pronto, setPronto] = useState(false)
   const [sucesso, setSucesso] = useState<string | null>(null)
+  const [sdkPronto, setSdkPronto] = useState(false)
 
+  // O FB.login tem que sair direto do clique: o SDK já fica carregado antes
   useEffect(() => {
-    if (!metaSignupDisponivel) return
+    if (!oficialLigado) return
     prepararSdkDaMeta()
-      .then(() => setPronto(true))
+      .then(() => setSdkPronto(true))
       .catch((e: Error) => setErro(e.message))
-  }, [])
+  }, [oficialLigado])
 
-  const conectar = () => {
+  const fechar = () => {
+    setAberto(false)
+    setCaminho(null)
+    setCoexistencia(null)
+    setLabel('')
+    setErro(null)
+  }
+
+  const escolher = (c: Caminho) => {
+    setCaminho(c)
+    setErro(null)
+    setSucesso(null)
+  }
+
+  const conectarOficial = () => {
     setErro(null)
     setSucesso(null)
     setEtapa('janela')
+    const coex = coexistencia === true
     // abrirSignupDaMeta chama o FB.login na hora, ainda dentro do clique
-    void abrirSignupDaMeta({ coexistencia }).then(async (r) => {
+    void abrirSignupDaMeta({ coexistencia: coex }).then(async (r) => {
       if (!r.ok) {
         setEtapa('parado')
         if (!r.cancelado) setErro(r.error)
         return
       }
       setEtapa('gravando')
-      const g = await oficial.conectar(r.dados, { label: label.trim(), coexistencia })
+      const g = await oficial.conectar(r.dados, { label: label.trim(), coexistencia: coex })
       if (!g.ok) {
         setEtapa('parado')
         setErro(g.error ?? 'Não deu pra terminar a conexão.')
@@ -415,7 +508,7 @@ function ConectarOficial({ podeCriar }: { podeCriar: boolean | undefined }) {
       }
       if (g.instance_id) await oficial.sincronizarModelos(g.instance_id)
       setEtapa('parado')
-      setLabel('')
+      fechar()
       setSucesso(
         g.status === 'connected'
           ? 'Número oficial conectado. Agora crie um modelo em Modelos e espere a Meta aprovar pra disparar.'
@@ -424,169 +517,192 @@ function ConectarOficial({ podeCriar }: { podeCriar: boolean | undefined }) {
     })
   }
 
-  if (!metaSignupDisponivel || !oficialConfigurado) {
-    return (
-      <div className="-mt-2 mb-4">
-        <AvisoApiOficial />
-      </div>
-    )
-  }
-
-  return (
-    <section className="card mb-6 overflow-hidden">
-      <div className="border-l-4 border-brand-600 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-xl">
-            <h2 className="flex items-center gap-2 font-display text-base font-semibold text-gray-900">
-              <BadgeCheck className="h-5 w-5 text-brand-600" aria-hidden />
-              API oficial do WhatsApp
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Conecte pela própria Meta, sem QR Code. A campanha sai por modelo aprovado e o risco de bloqueio do
-              número cai bastante. Cada mensagem é cobrada pela Meta direto no cartão que você cadastrar no WhatsApp
-              Manager.
-            </p>
-            <p className="mt-2 text-xs text-gray-500">
-              Vai abrir uma janela da Meta: entre com o Facebook da empresa, escolha (ou crie) a conta do WhatsApp
-              Business e confirme o número.
-            </p>
-          </div>
-
-          <div className="w-full max-w-xs space-y-3">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Nome do número (opcional)</span>
-              <input
-                className="input mt-1"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Ex.: Loja oficial"
-                disabled={etapa !== 'parado'}
-              />
-            </label>
-            <label className="flex items-start gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600"
-                checked={coexistencia}
-                onChange={(e) => setCoexistencia(e.target.checked)}
-                disabled={etapa !== 'parado'}
-              />
-              <span>
-                Esse número já usa o app WhatsApp Business no celular
-                <span className="block text-xs text-gray-500">
-                  Ele continua funcionando no celular e no Contatta ao mesmo tempo.
-                </span>
-              </span>
-            </label>
-            <button
-              type="button"
-              className="btn-primary w-full transition-transform duration-150 ease-out active:scale-[0.98]"
-              onClick={conectar}
-              disabled={etapa !== 'parado' || !pronto || podeCriar === false}
-            >
-              {etapa !== 'parado' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              {etapa === 'janela'
-                ? 'Esperando a janela da Meta…'
-                : etapa === 'gravando'
-                  ? 'Terminando a conexão…'
-                  : 'Conectar WhatsApp oficial'}
-            </button>
-            {podeCriar === false && (
-              <p className="text-xs text-gray-500">
-                O limite de números desta loja já foi usado. Fale com o suporte pra aumentar.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-        {sucesso && <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{sucesso}</p>}
-      </div>
-    </section>
-  )
-}
-
-function NovaInstancia({
-  podeCriar,
-  limite,
-  usados,
-}: {
-  /** undefined enquanto a cota carrega: não mostra nada em vez de piscar "limite atingido" */
-  podeCriar: boolean | undefined
-  limite: number
-  usados: string[]
-}) {
-  const acoes = useWaActions()
-  const [aberto, setAberto] = useState(false)
-  const [label, setLabel] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
-  const [criando, setCriando] = useState(false)
-
-  const criar = async (e: FormEvent) => {
+  const criarQr = async (e: FormEvent) => {
     e.preventDefault()
     setErro(null)
     const nome = label.trim()
-    if (!nome) {
-      setErro('Dê um nome para identificar este número.')
-      return
-    }
-    // O nome vira o identificador na uazapi, que é único na conta inteira —
-    // dois iguais na mesma loja gerariam o mesmo e a criação falharia lá.
+    if (!nome) return setErro('Dê um nome pra identificar este número.')
+    // O nome vira o identificador na uazapi, que é único na conta inteira
     if (usados.some((u) => u.toLowerCase() === nome.toLowerCase())) {
-      setErro('Já existe um número com esse nome nesta loja. Escolha outro.')
-      return
+      return setErro('Já existe um número com esse nome nesta loja. Escolha outro.')
     }
-    setCriando(true)
+    setEtapa('gravando')
     const r = await acoes.criar(nome)
-    setCriando(false)
-    if (!r.ok) {
-      setErro(r.error ?? 'Não deu pra conectar o número. Tente de novo.')
-      return
-    }
-    setLabel('')
-    setAberto(false)
+    setEtapa('parado')
+    if (!r.ok) return setErro(r.error ?? 'Não deu pra criar o número. Tente de novo.')
+    if (r.instance_id) onQrCriado(r.instance_id)
+    fechar()
   }
 
   if (podeCriar === undefined) return null
 
-  if (!podeCriar) {
-    return (
-      <p className="text-sm text-gray-500">
-        Limite de {limite} {limite === 1 ? 'número' : 'números'} atingido. Fale com o suporte para
-        aumentar.
-      </p>
-    )
-  }
-
   if (!aberto) {
     return (
-      <button type="button" className="btn-primary" onClick={() => setAberto(true)}>
-        <Plus className="h-4 w-4" aria-hidden />
-        Conectar um número
-      </button>
+      <div className="mb-6">
+        {podeCriar ? (
+          <button
+            type="button"
+            className="btn-primary transition-transform duration-150 ease-out active:scale-[0.98]"
+            onClick={() => {
+              setAberto(true)
+              setSucesso(null)
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Conectar um número
+          </button>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Limite de {limite} {limite === 1 ? 'número' : 'números'} atingido. Fale com o suporte pra aumentar.
+          </p>
+        )}
+        {sucesso && <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{sucesso}</p>}
+      </div>
     )
   }
 
+  const ocupado = etapa !== 'parado'
+
   return (
-    <form onSubmit={criar} className="flex flex-wrap items-end gap-2">
-      <label className="block">
-        <span className="text-sm font-medium text-gray-700">Nome do número</span>
-        <input
-          className="input mt-1 w-56"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Ex.: Vendas"
-          autoFocus
+    <section className="card mb-6 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-semibold text-gray-900">Como você quer conectar?</h2>
+          <p className="mt-0.5 text-sm text-gray-500">Dá pra ter os dois e escolher por qual sai cada campanha.</p>
+        </div>
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          onClick={fechar}
+          disabled={ocupado}
+          aria-label="Fechar"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <OpcaoConexao
+          ativo={caminho === 'oficial'}
+          desabilitado={!oficialLigado || ocupado}
+          onEscolher={() => escolher('oficial')}
+          icone={BadgeCheck}
+          titulo="API oficial da Meta"
+          selo={oficialLigado ? 'Recomendado' : 'Em breve'}
+          itens={[
+            'Bem menos risco de bloqueio do número',
+            'A campanha sai por modelo aprovado pela Meta',
+            'Pode continuar usando o WhatsApp Business no celular',
+          ]}
+          aviso="A Meta cobra cada mensagem no cartão cadastrado no WhatsApp Manager da loja."
         />
-      </label>
-      <button type="submit" className="btn-primary" disabled={criando}>
-        {criando ? 'Criando…' : 'Criar'}
-      </button>
-      <button type="button" className="text-sm text-gray-500 hover:text-gray-700" onClick={() => setAberto(false)}>
-        Cancelar
-      </button>
-      {erro && <span className="text-sm text-red-700">{erro}</span>}
-    </form>
+        <OpcaoConexao
+          ativo={caminho === 'qr'}
+          desabilitado={ocupado}
+          onEscolher={() => escolher('qr')}
+          icone={QrCode}
+          titulo="Pelo QR Code"
+          itens={[
+            'Lê o QR Code em Aparelhos conectados e pronto',
+            'Texto livre, com variações e ritmo controlado',
+            'Sem custo da Meta por mensagem',
+          ]}
+          aviso="Não é o canal oficial: disparo em volume tem mais risco de restrição."
+        />
+      </div>
+
+      {caminho === 'oficial' && (
+        <div className="mt-5 border-t border-gray-100 pt-5">
+          <fieldset>
+            <legend className="text-sm font-medium text-gray-700">Esse número já está no app WhatsApp Business do celular?</legend>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(
+                [
+                  [true, 'Sim, e quero continuar usando no celular', 'A Meta mostra um QR Code e você lê pelo app WhatsApp Business. As conversas seguem no celular.'],
+                  [false, 'Não, é um número novo', 'A Meta manda um código por SMS ou ligação pra confirmar o número.'],
+                ] as const
+              ).map(([valor, rotulo, dica]) => (
+                <label
+                  key={String(valor)}
+                  className={`cursor-pointer rounded-md border px-3 py-2 text-sm transition-colors ${
+                    coexistencia === valor ? 'border-brand-600 bg-brand-50' : 'border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="coexistencia"
+                    className="sr-only"
+                    checked={coexistencia === valor}
+                    onChange={() => setCoexistencia(valor)}
+                    disabled={ocupado}
+                  />
+                  <span className="block font-medium text-gray-900">{rotulo}</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">{dica}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Nome do número (opcional)</span>
+              <input
+                className="input mt-1 w-60"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Ex.: Loja oficial"
+                disabled={ocupado}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn-primary transition-transform duration-150 ease-out active:scale-[0.98]"
+              onClick={conectarOficial}
+              disabled={ocupado || coexistencia === null || !sdkPronto}
+            >
+              {ocupado && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {etapa === 'janela'
+                ? 'Esperando a janela da Meta…'
+                : etapa === 'gravando'
+                  ? 'Terminando a conexão…'
+                  : 'Abrir a janela da Meta'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Na janela, entre com o Facebook da empresa e escolha (ou crie) a conta do WhatsApp Business.
+            {coexistencia === true &&
+              ' Quando pedir, escolha conectar o app WhatsApp Business e leia o QR Code pelo celular.'}
+          </p>
+        </div>
+      )}
+
+      {caminho === 'qr' && (
+        <form onSubmit={criarQr} className="mt-5 border-t border-gray-100 pt-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Nome do número</span>
+              <input
+                className="input mt-1 w-60"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Ex.: Vendas"
+                disabled={ocupado}
+                autoFocus
+              />
+            </label>
+            <button type="submit" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.98]" disabled={ocupado}>
+              {ocupado ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <QrCode className="h-4 w-4" aria-hidden />}
+              {ocupado ? 'Preparando…' : 'Gerar QR Code'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            O QR Code aparece logo abaixo, no cartão do número. Leia pelo WhatsApp do celular em Aparelhos conectados.
+          </p>
+        </form>
+      )}
+
+      {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+    </section>
   )
 }
 
@@ -597,6 +713,8 @@ export default function WhatsApp() {
   const oficial = useWaOficial()
   const oficiais = (instancias ?? []).filter(ehOficial)
   const porQr = (instancias ?? []).filter((i) => !ehOficial(i))
+  // número do QR que acabou de ser criado: o cartão dele já gera o QR Code
+  const [recemCriada, setRecemCriada] = useState<string | null>(null)
 
   // O status guardado envelhece: se o número cair de madrugada, a tabela
   // continua dizendo "conectado" até alguém perguntar. Ao abrir a tela,
@@ -615,15 +733,14 @@ export default function WhatsApp() {
 
   return (
     <div>
-      <PageHeader title="WhatsApp" subtitle="Conecte o número que vai disparar as campanhas">
-        <NovaInstancia
-          podeCriar={quota?.pode_criar}
-          limite={quota?.limite ?? 1}
-          usados={(instancias ?? []).map((i) => i.label ?? i.instance_name)}
-        />
-      </PageHeader>
+      <PageHeader title="WhatsApp" subtitle="Conecte o número que vai disparar as campanhas" />
 
-      <ConectarOficial podeCriar={quota?.pode_criar} />
+      <ConectarNumero
+        podeCriar={quota?.pode_criar}
+        limite={quota?.limite ?? 1}
+        usados={(instancias ?? []).map((i) => i.label ?? i.instance_name)}
+        onQrCriado={setRecemCriada}
+      />
 
       {error && <ErrorState message={(error as Error).message} />}
 
@@ -639,7 +756,7 @@ export default function WhatsApp() {
         <div className="card">
           <EmptyState
             title="Nenhum número conectado"
-            hint="Conecte pela API oficial ali em cima, ou pelo QR Code no botão Conectar um número."
+            hint="Clique em Conectar um número e escolha entre a API oficial da Meta e o QR Code."
           />
         </div>
       ) : (
@@ -658,7 +775,7 @@ export default function WhatsApp() {
               )}
               <div className="space-y-4">
                 {porQr.map((i) => (
-                  <CartaoInstancia key={i.id} i={i} />
+                  <CartaoInstancia key={i.id} i={i} gerarQrJa={i.id === recemCriada} />
                 ))}
               </div>
             </div>
