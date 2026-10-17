@@ -202,6 +202,8 @@ export function useAcoesAssinatura() {
     void queryClient.invalidateQueries({ queryKey: ['billing-faturas', clientId] })
     void queryClient.invalidateQueries({ queryKey: ['billing-contato', clientId] })
     void queryClient.invalidateQueries({ queryKey: ['master-painel'] })
+    void queryClient.invalidateQueries({ queryKey: ['creditos', clientId] })
+    void queryClient.invalidateQueries({ queryKey: ['creditos-extras', clientId] })
     return queryClient.invalidateQueries({ queryKey: ['billing-resumo', clientId] })
   }
   return {
@@ -226,6 +228,12 @@ export function useAcoesAssinatura() {
     /** e-mail e WhatsApp da cobrança: vão pro Asaas e pro banco (só master) */
     atualizarContato: async (clientId: string, email: string, telefone: string) => {
       const r = await chamar({ action: 'contato', client_id: clientId, email, telefone })
+      void atualizar(clientId)
+      return r
+    },
+    /** pacote de pedidos extras: no cartão guardado na hora, ou fatura */
+    comprarPacote: async (clientId: string, quantidade: number) => {
+      const r = await chamar({ action: 'pacote', client_id: clientId, quantidade })
       void atualizar(clientId)
       return r
     },

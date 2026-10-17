@@ -49,9 +49,12 @@ export function SaldoCreditos({ saldo, papel, compacto }: { saldo: Saldo; papel?
           Acabou o crédito: <strong>pedidos novos não entram</strong>. Notas de pedidos que já estão no Contatta
           continuam sendo atualizadas.{' '}
           {papel === 'master' ? (
-            <Link to="/configuracoes" className="font-medium underline">Dar crédito avulso</Link>
+            <>
+              <Link to="/configuracoes" className="font-medium underline">Dar crédito avulso</Link> ou{' '}
+              <Link to="/assinatura#pedidos-extras" className="font-medium underline">comprar pedidos extras</Link>
+            </>
           ) : papel === 'admin' ? (
-            <Link to="/assinatura" className="font-medium underline">Ver plano</Link>
+            <Link to="/assinatura#pedidos-extras" className="font-medium underline">Comprar pedidos extras</Link>
           ) : (
             'Fale com o administrador da loja.'
           )}

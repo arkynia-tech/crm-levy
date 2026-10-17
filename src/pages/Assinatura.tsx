@@ -21,7 +21,7 @@ import {
 } from '../hooks/billing'
 import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, PageHeader, StatusBadge } from '../components/ui'
-import { ORIGEM_CREDITO, useSaldoCreditos } from '../hooks/creditos'
+import { ORIGEM_CREDITO, useCreditosExtras, useDefinirTeto, useSaldoCreditos } from '../hooks/creditos'
 
 const CICLOS: Ciclo[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY']
 
@@ -464,6 +464,8 @@ export default function Assinatura() {
         />
       </div>
 
+      <PedidosExtras clientId={clientId} />
+
       {r.plan_code !== 'enterprise' && (
         <section>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -611,5 +613,185 @@ function DialogoCancelar({
         </div>
       </div>
     </div>
+  )
+}
+
+/** Pacotes de pedidos (vale 45 dias) e o teto de excedente da loja. */
+function PedidosExtras({ clientId }: { clientId: string }) {
+  const { data: x } = useCreditosExtras(clientId)
+  const acoes = useAcoesAssinatura()
+  const definirTeto = useDefinirTeto()
+  const [qtd, setQtd] = useState(1000)
+  const [comprando, setComprando] = useState(false)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const [ligado, setLigado] = useState(false)
+  const [teto, setTeto] = useState('')
+  const [salvandoTeto, setSalvandoTeto] = useState(false)
+  const [msgTeto, setMsgTeto] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+
+  useEffect(() => {
+    if (!x) return
+    setLigado(x.teto != null && x.teto > 0)
+    setTeto(x.teto ? String(x.teto) : '')
+  }, [x?.teto])
+
+  // veio do aviso "comprar pedidos extras": desce até aqui quando a seção aparece
+  useEffect(() => {
+    if (x?.pode_comprar && window.location.hash === '#pedidos-extras') {
+      document.getElementById('pedidos-extras')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [x?.pode_comprar])
+
+  if (!x || !x.pode_comprar || x.pacotes.length === 0) return null
+  const escolhido = x.pacotes.find((p) => p.quantidade === qtd) ?? x.pacotes[0]
+
+  const comprar = async () => {
+    setComprando(true)
+    setMsg(null)
+    const r = await acoes.comprarPacote(clientId, escolhido.quantidade)
+    setComprando(false)
+    if (!r.ok) {
+      setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
+      return
+    }
+    if (r.cobrado_no_cartao) {
+      setMsg({
+        tone: 'ok',
+        text: `Pronto. Cobramos ${formatCurrency(escolhido.valor)} no cartão final ${r.cartao_final ?? ''} e os ${escolhido.quantidade.toLocaleString('pt-BR')} pedidos já estão no seu crédito.`,
+      })
+      return
+    }
+    if (r.invoice_url) {
+      window.location.href = r.invoice_url
+      return
+    }
+    setMsg({ tone: 'ok', text: 'Fatura criada. O crédito entra assim que o pagamento for confirmado.' })
+  }
+
+  const valorTeto = Number(teto.replace(',', '.')) || 0
+  const pedidosNoTeto = x.por_pedido_excedente ? Math.floor(valorTeto / x.por_pedido_excedente) : 0
+
+  const salvarTeto = async () => {
+    setSalvandoTeto(true)
+    setMsgTeto(null)
+    const r = await definirTeto(clientId, ligado ? valorTeto : 0)
+    setSalvandoTeto(false)
+    setMsgTeto(
+      r.ok
+        ? {
+            tone: 'ok',
+            text: ligado && valorTeto > 0
+              ? `Pronto: depois do crédito, entram até ${(r.pedidos ?? pedidosNoTeto).toLocaleString('pt-BR')} pedidos por mês, cobrados na fatura seguinte.`
+              : 'Pronto: quando o crédito acabar, pedidos novos não entram.',
+          }
+        : { tone: 'err', text: r.error ?? 'Não deu certo.' },
+    )
+  }
+
+  return (
+    <section id="pedidos-extras" className="card p-5">
+      <h2 className="font-display text-base font-semibold text-gray-900">Pedidos extras</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Pacote pago à parte, vale 45 dias a partir do pagamento e é usado depois da franquia do mês. Sai{' '}
+        {x.por_pedido_pacote != null && <b className="font-semibold text-gray-700">{formatCurrency(x.por_pedido_pacote)} por pedido</b>}
+        {x.por_pedido_excedente != null && <>, mais barato que o excedente ({formatCurrency(x.por_pedido_excedente)})</>}.
+      </p>
+
+      {x.pendentes.map((p) => (
+        <div key={p.vencimento + p.valor} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <span>
+            Pacote de {p.quantidade.toLocaleString('pt-BR')} pedidos aguardando pagamento ({formatCurrency(p.valor)}).
+          </span>
+          {p.fatura_url && (
+            <a href={p.fatura_url} target="_blank" rel="noreferrer" className="font-medium underline">
+              Pagar fatura
+            </a>
+          )}
+        </div>
+      ))}
+
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4" role="radiogroup" aria-label="Tamanho do pacote">
+        {x.pacotes.map((p) => {
+          const ativo = p.quantidade === escolhido.quantidade
+          return (
+            <button
+              key={p.quantidade}
+              type="button"
+              role="radio"
+              aria-checked={ativo}
+              onClick={() => setQtd(p.quantidade)}
+              className={`rounded-xl border p-4 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
+                ativo ? 'border-brand-600 bg-brand-50/60 ring-1 ring-brand-600' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <p className="font-display text-xl font-semibold tabular-nums text-gray-900">{p.quantidade.toLocaleString('pt-BR')}</p>
+              <p className="text-xs text-gray-500">pedidos</p>
+              <p className="mt-2 text-sm font-medium tabular-nums text-gray-900">{formatCurrency(p.valor)}</p>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" className="btn-primary" onClick={() => void comprar()} disabled={comprando}>
+          {comprando && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+          {comprando ? 'Processando…' : `Comprar ${escolhido.quantidade.toLocaleString('pt-BR')} pedidos por ${formatCurrency(escolhido.valor)}`}
+        </button>
+        <span className="text-xs text-gray-500">
+          {x.cartao_final
+            ? `Cobrado na hora no cartão final ${x.cartao_final}.`
+            : 'Abre a fatura: Pix, boleto ou cartão. O crédito entra quando o pagamento for confirmado.'}
+        </span>
+      </div>
+      {msg && <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
+
+      <div className="mt-6 border-t border-gray-100 pt-5">
+        <h3 className="text-sm font-semibold text-gray-900">Quando o crédito acabar</h3>
+        <div className="mt-3 space-y-2 text-sm">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input type="radio" name="teto" className="mt-0.5 h-4 w-4 text-brand-600" checked={!ligado} onChange={() => setLigado(false)} />
+            <span>
+              <span className="font-medium text-gray-900">Parar de importar pedidos novos</span>
+              <span className="block text-gray-500">Nada é cobrado além do que você já pagou.</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input type="radio" name="teto" className="mt-0.5 h-4 w-4 text-brand-600" checked={ligado} onChange={() => setLigado(true)} />
+            <span className="flex-1">
+              <span className="font-medium text-gray-900">Deixar passar, com limite por mês</span>
+              <span className="block text-gray-500">
+                Cada pedido além do crédito sai a {x.por_pedido_excedente != null ? formatCurrency(x.por_pedido_excedente) : '—'}, cobrado na fatura do mês seguinte.
+              </span>
+              {ligado && (
+                <span className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-gray-700">Até R$</span>
+                  <input
+                    className="input w-28 tabular-nums"
+                    inputMode="decimal"
+                    value={teto}
+                    onChange={(e) => setTeto(e.target.value.replace(/[^0-9.,]/g, ''))}
+                    placeholder="300"
+                  />
+                  <span className="text-gray-500">
+                    por mês{pedidosNoTeto > 0 && ` (até ${pedidosNoTeto.toLocaleString('pt-BR')} pedidos)`}
+                  </span>
+                </span>
+              )}
+            </span>
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void salvarTeto()}
+            disabled={salvandoTeto || (ligado && valorTeto <= 0)}
+          >
+            {salvandoTeto ? 'Salvando…' : 'Salvar'}
+          </button>
+          {msgTeto && <span className={`text-sm ${msgTeto.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msgTeto.text}</span>}
+        </div>
+      </div>
+    </section>
   )
 }
