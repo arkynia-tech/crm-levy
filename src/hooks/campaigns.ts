@@ -21,6 +21,11 @@ export interface WaCampaign {
     customer_ids?: string[]
   }
   status: string
+  /** Campanha pela API oficial: modelo aprovado e o que vai em cada variável */
+  template_id?: string | null
+  template_name?: string | null
+  template_header?: string | null
+  template_params?: TemplateParams | null
   started_at: string | null
   finished_at: string | null
   created_at: string
@@ -28,6 +33,9 @@ export interface WaCampaign {
   /** Preenchido pelo hook: o colaborador recebe daqui, sem ler os telefones. */
   counts?: CampaignCounts
 }
+
+/** O que entra em cada variável do modelo, por destinatário. */
+export type TemplateParams = Record<string, { fonte: 'nome' | 'texto'; valor?: string; padrao?: string }>
 
 export interface CampaignCounts {
   total: number
@@ -161,6 +169,9 @@ export interface CampaignActionPayload {
   audience?: AudienceInput
   campaign_id?: string
   limit?: number
+  /** API oficial: o modelo aprovado e os valores das variáveis */
+  template_id?: string | null
+  template_params?: TemplateParams
   /** Loja a que a ação pertence. O n8n confere no JWT se quem chamou pode. */
   client_id?: string
 }

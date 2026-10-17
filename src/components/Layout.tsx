@@ -17,6 +17,7 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  FileText,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -25,6 +26,7 @@ import { useUserRole } from '../hooks/settings'
 import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
 import Logo from './Logo'
+import { metaSignupDisponivel } from '../lib/metaSignup'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
@@ -47,7 +49,11 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
     titulo: 'Relacionamento',
     itens: [
       { to: '/campanhas', label: 'Campanhas', icon: Megaphone, permission: 'campaigns' },
-      { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, permission: 'waInstances' },
+      { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, end: true, permission: 'waInstances' },
+      // Modelos só existem na API oficial: sem o app da Meta ligado, nem aparece
+      ...(metaSignupDisponivel
+        ? [{ to: '/whatsapp/modelos', label: 'Modelos', icon: FileText, permission: 'waInstances' as Permission }]
+        : []),
     ],
   },
   {

@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { CheckCircle2, FileArchive, FileCode2, Loader2, UploadCloud } from 'lucide-react'
 import { formatDate, formatDateTime } from '../lib/format'
 import { EmptyState, ErrorState, LoadingBlock, PageHeader } from '../components/ui'
@@ -238,6 +239,18 @@ export default function ImportNfe() {
         title="Importar NF-e"
         subtitle="Envie um ZIP de notas (pode ter pastas e ZIPs internos) ou um XML avulso"
       />
+
+      <p className="-mt-3 mb-4 text-sm text-gray-500">
+        Em breve as vendas vão poder entrar sozinhas, direto do seu ERP (Bling, Tiny, Omie) ou do marketplace.
+        {papel !== 'collaborator' && (
+          <>
+            {' '}
+            <Link to="/configuracoes" className="font-medium text-brand-700 hover:underline">
+              Diga qual você usa
+            </Link>
+          </>
+        )}
+      </p>
 
       <div className="mb-4 flex gap-1 border-b border-gray-200">
         {([

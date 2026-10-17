@@ -1,5 +1,8 @@
 # WhatsApp via Twilio — desenho dos fluxos n8n
 
+> Esboço antigo (Twilio). O envio pela API oficial da Meta foi feito direto na
+> Cloud API: veja `docs/whatsapp-api-oficial.md`.
+
 Blueprint dos 3 workflows a criar no n8n (mesmo padrão do fluxo de NF-e:
 webhook + validação + Supabase). O frontend nunca vê o Auth Token da Twilio.
 
