@@ -27,12 +27,13 @@ export type Permission =
   | 'manageClients' // cadastrar cliente novo e as lojas dele
   | 'waInstances' // conectar e desconectar o WhatsApp do cliente
   | 'billing' // ver a assinatura, trocar de plano e cancelar
+  | 'salesPanel' // painel de vendas do Contatta (só master)
 
 const BY_ROLE: Record<Role, Permission[]> = {
   master: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
     'importNfe', 'settings', 'customerData', 'manageUsers', 'credits', 'manageClients',
-    'waInstances', 'billing',
+    'waInstances', 'billing', 'salesPanel',
   ],
   admin: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',

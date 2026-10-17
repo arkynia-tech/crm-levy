@@ -12,6 +12,7 @@ import {
   Megaphone,
   Settings,
   CreditCard,
+  TrendingUp,
   LogOut,
   Menu,
   X,
@@ -64,6 +65,7 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
     titulo: 'Conta',
     itens: [
       { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
+      { to: '/painel-vendas', label: 'Painel de vendas', icon: TrendingUp, permission: 'salesPanel' },
       { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
     ],
   },

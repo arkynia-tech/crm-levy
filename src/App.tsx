@@ -21,6 +21,7 @@ import Clients from './pages/Clients'
 import WhatsApp from './pages/WhatsApp'
 import Modelos from './pages/Modelos'
 import Assinatura from './pages/Assinatura'
+import PainelVendas from './pages/PainelVendas'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -165,6 +166,10 @@ function Rotas() {
         <Route
           path="/clientes-lojas"
           element={<RequirePermission permission="manageClients"><Clients /></RequirePermission>}
+        />
+        <Route
+          path="/painel-vendas"
+          element={<RequirePermission permission="salesPanel"><PainelVendas /></RequirePermission>}
         />
         <Route
           path="/assinatura"
