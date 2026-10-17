@@ -24,6 +24,7 @@ import { useCompany } from '../context/CompanyContext'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
+import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -650,6 +651,7 @@ export default function Settings() {
             <h2 className="font-display text-sm font-semibold text-gray-900">Integrações</h2>
           </div>
           <StoresGrid />
+          <IntegracoesEmBreve />
         </section>
       </div>
     </div>
