@@ -46,6 +46,8 @@ export interface ResumoAssinatura {
   troca_valor: number | null
   /** cobrança avulsa (diferença de troca, excedente) ainda não paga */
   avulsa_aberta: { valor: number; vencimento: string | null; descricao: string | null; fatura_url: string | null; atrasada: boolean } | null
+  /** cartão guardado no último pagamento no cartão; automatico = mensalidade cobrada sozinha */
+  cartao: { bandeira: string | null; final: string | null; automatico: boolean } | null
 }
 
 /** O que crm_billing_simular_troca devolve, para mostrar antes de confirmar. */
@@ -61,6 +63,8 @@ export interface SimulacaoTroca {
   reinicia_ciclo?: boolean
   credito?: number
   novo_vencimento?: string | null
+  cartao_final?: string | null
+  cartao_bandeira?: string | null
 }
 
 export async function simularTroca(clientId: string, plano: string, ciclo: Ciclo): Promise<SimulacaoTroca> {
@@ -144,6 +148,8 @@ export interface RespostaAssinatura {
   tipo?: 'imediata' | 'na_renovacao'
   efetiva_em?: string | null
   prorata?: number
+  cobrado_no_cartao?: boolean
+  cartao_final?: string | null
 }
 
 async function chamar(body: Record<string, unknown>): Promise<RespostaAssinatura> {

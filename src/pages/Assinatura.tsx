@@ -22,6 +22,12 @@ import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, PageHeader, StatusBadge } from '../components/ui'
 
 const CICLOS: Ciclo[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY']
+
+function nomeBandeira(b: string | null | undefined): string {
+  if (!b) return 'Cartão'
+  const m: Record<string, string> = { VISA: 'Visa', MASTERCARD: 'Mastercard', ELO: 'Elo', AMEX: 'Amex', HIPERCARD: 'Hipercard' }
+  return m[b.toUpperCase()] ?? b
+}
 const MESES: Record<Ciclo, number> = { MONTHLY: 1, SEMIANNUALLY: 6, YEARLY: 12 }
 const EXTRA_CICLO: Partial<Record<Ciclo, string>> = { SEMIANNUALLY: '-10%', YEARLY: '2 meses grátis' }
 
@@ -65,6 +71,11 @@ function Destaque({ r }: { r: ResumoAssinatura }) {
               <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-white/70">Teste</span>
             )}
           </div>
+          <p className="mt-3 text-sm text-white/60">
+            {r.cartao?.final
+              ? `${nomeBandeira(r.cartao.bandeira)} final ${r.cartao.final}${r.cartao.automatico ? ' · cobrança automática' : ''}`
+              : 'Pagamento por fatura (Pix, boleto ou cartão)'}
+          </p>
         </div>
 
         <div className="text-left sm:text-right">
@@ -171,7 +182,14 @@ function CartaoPlano({
     if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
     setMsg(
       r.tipo === 'imediata'
-        ? { tone: 'ok', text: 'Pronto, o plano novo já vale.', fatura: r.invoice_url, valor: r.prorata }
+        ? {
+            tone: 'ok',
+            text: r.cobrado_no_cartao
+              ? `Pronto. Cobramos ${formatCurrency(r.prorata ?? 0)} no cartão final ${r.cartao_final ?? ''} e o plano novo já vale.`
+              : 'Pronto, o plano novo já vale.',
+            fatura: r.cobrado_no_cartao ? null : r.invoice_url,
+            valor: r.prorata,
+          }
         : { tone: 'ok', text: `Agendado para ${formatDate(r.efetiva_em)}.` },
     )
   }
@@ -183,9 +201,10 @@ function CartaoPlano({
       ? sim.error
       : subida
         ? sim.prorata
-          ? sim.reinicia_ciclo
-            ? `Vale na hora. Você paga ${formatCurrency(sim.prorata)} agora (já descontado o que sobrou do plano atual) e o ciclo recomeça hoje.`
-            : `Vale na hora. Você paga ${formatCurrency(sim.prorata)} pelos ${sim.dias_restantes} dias que faltam.`
+          ? (sim.reinicia_ciclo
+              ? `Vale na hora. ${formatCurrency(sim.prorata)} agora (já descontado o que sobrou do plano atual), e o ciclo recomeça hoje.`
+              : `Vale na hora. ${formatCurrency(sim.prorata)} pelos ${sim.dias_restantes} dias que faltam.`) +
+            (sim.cartao_final ? ` Cobrado no cartão final ${sim.cartao_final}.` : ' Você paga pela fatura.')
           : 'Vale na hora, sem cobrança extra.'
         : `Vale a partir de ${formatDate(sim.efetiva_em)}, na renovação.`
 
@@ -238,7 +257,13 @@ function CartaoPlano({
             ) : confirmando ? (
               <div className="mt-2 flex gap-2">
                 <button type="button" className="btn-primary flex-1 justify-center" disabled={enviando} onClick={() => void confirmar()}>
-                  {enviando ? 'Trocando…' : sim?.prorata ? `Confirmar e pagar ${formatCurrency(sim.prorata)}` : 'Confirmar'}
+                  {enviando
+                    ? 'Trocando…'
+                    : sim?.prorata
+                      ? sim.cartao_final
+                        ? `Confirmar e cobrar ${formatCurrency(sim.prorata)}`
+                        : `Confirmar e pagar ${formatCurrency(sim.prorata)}`
+                      : 'Confirmar'}
                 </button>
                 <button type="button" className="btn-secondary" onClick={() => setConfirmando(false)}>Voltar</button>
               </div>
