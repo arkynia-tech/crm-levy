@@ -37,6 +37,34 @@ export interface ResumoAssinatura {
   nome: string | null
   cpf_cnpj: string | null
   email: string | null
+  /** cancelamento pedido: o acesso vai até esta data */
+  cancela_em: string | null
+  /** troca agendada para a renovação */
+  troca_para: string | null
+  troca_ciclo: Ciclo | null
+  troca_em: string | null
+}
+
+/** O que crm_billing_simular_troca devolve, para mostrar antes de confirmar. */
+export interface SimulacaoTroca {
+  ok: boolean
+  error?: string
+  tipo?: 'imediata' | 'na_renovacao'
+  plano?: string
+  valor_ciclo?: number
+  prorata?: number
+  dias_restantes?: number
+  efetiva_em?: string | null
+}
+
+export async function simularTroca(clientId: string, plano: string, ciclo: Ciclo): Promise<SimulacaoTroca> {
+  const { data, error } = await supabase.rpc('crm_billing_simular_troca', {
+    p_client_id: clientId,
+    p_plan: plano,
+    p_cycle: ciclo,
+  })
+  if (error) return { ok: false, error: 'Não deu pra calcular a troca agora.' }
+  return (data ?? { ok: false }) as SimulacaoTroca
 }
 
 export const CICLO_LABEL: Record<Ciclo, string> = {
@@ -99,7 +127,20 @@ export interface CriarAssinaturaInput {
   primeiro_vencimento: string
 }
 
-async function chamar(body: Record<string, unknown>): Promise<{ ok: boolean; error?: string; invoice_url?: string | null }> {
+export interface RespostaAssinatura {
+  ok: boolean
+  error?: string
+  invoice_url?: string | null
+  /** cancelar: false quando o acesso segue até o fim do período */
+  imediato?: boolean
+  acesso_ate?: string | null
+  /** trocar de plano */
+  tipo?: 'imediata' | 'na_renovacao'
+  efetiva_em?: string | null
+  prorata?: number
+}
+
+async function chamar(body: Record<string, unknown>): Promise<RespostaAssinatura> {
   if (!ASSINATURAS_URL) return { ok: false, error: 'Cobrança indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -110,9 +151,9 @@ async function chamar(body: Record<string, unknown>): Promise<{ ok: boolean; err
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     })
-    const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; invoice_url?: string } | null
+    const json = (await res.json().catch(() => null)) as RespostaAssinatura | null
     if (!res.ok || !json?.ok) return { ok: false, error: json?.error ?? `Não deu certo (HTTP ${res.status}).` }
-    return { ok: true, invoice_url: json.invoice_url ?? null }
+    return { ...json, ok: true }
   } catch {
     return { ok: false, error: 'Não foi possível falar com o serviço de cobrança.' }
   }
@@ -130,6 +171,11 @@ export function useAcoesAssinatura() {
     },
     cancelar: async (clientId: string) => {
       const r = await chamar({ action: 'cancelar', client_id: clientId })
+      void atualizar(clientId)
+      return r
+    },
+    trocar: async (clientId: string, plano: string, ciclo: Ciclo) => {
+      const r = await chamar({ action: 'trocar_plano', client_id: clientId, plan_code: plano, cycle: ciclo })
       void atualizar(clientId)
       return r
     },

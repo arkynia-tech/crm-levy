@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { AlertTriangle, CreditCard, ExternalLink, Lock } from 'lucide-react'
 import {
   CICLO_LABEL,
@@ -6,8 +6,10 @@ import {
   useAcoesAssinatura,
   usePlanos,
   useResumoAssinatura,
+  simularTroca,
   valorDoCiclo,
   type Ciclo,
+  type SimulacaoTroca,
 } from '../hooks/billing'
 import { formatCurrency, formatDate } from '../lib/format'
 import { StatusBadge } from './ui'
@@ -77,7 +79,7 @@ export function AssinaturaDoCliente({ clientId, nomeCliente, cnpj }: { clientId:
   }
 
   const cancelar = async () => {
-    if (!window.confirm('Cancelar a assinatura deste cliente?\n\nAs próximas faturas deixam de ser geradas e a conta fica somente leitura.')) return
+    if (!window.confirm('Cancelar a assinatura deste cliente?\n\nAs próximas faturas deixam de ser geradas. Se estiver em dia, o acesso segue até o fim do período pago; se não, a conta fica somente leitura agora.')) return
     setEnviando(true)
     const r = await acoes.cancelar(clientId)
     setEnviando(false)
@@ -243,13 +245,137 @@ export function AvisoCobranca() {
   )
 }
 
-/** "Seu plano" em Configurações: o que o admin contratou e quanto já usou no mês. */
+/** Troca de plano e de ciclo pelo próprio admin, com o efeito mostrado antes de confirmar. */
+function MudarPlano({ clientId, atual, cicloAtual, onFechar }: { clientId: string; atual: string | null; cicloAtual: Ciclo | null; onFechar: () => void }) {
+  const { data: planos } = usePlanos()
+  const acoes = useAcoesAssinatura()
+  const [plano, setPlano] = useState(atual ?? 'starter')
+  const [ciclo, setCiclo] = useState<Ciclo>(cicloAtual ?? 'MONTHLY')
+  const [sim, setSim] = useState<SimulacaoTroca | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string; fatura?: string | null } | null>(null)
+
+  useEffect(() => {
+    let vivo = true
+    setSim(null)
+    if (plano === atual && ciclo === cicloAtual) return
+    void simularTroca(clientId, plano, ciclo).then((r) => vivo && setSim(r))
+    return () => {
+      vivo = false
+    }
+  }, [clientId, plano, ciclo, atual, cicloAtual])
+
+  const confirmar = async () => {
+    setEnviando(true)
+    setMsg(null)
+    const r = await acoes.trocar(clientId, plano, ciclo)
+    setEnviando(false)
+    if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
+    setMsg(
+      r.tipo === 'imediata'
+        ? { tone: 'ok', text: 'Plano trocado. Os limites novos já valem.', fatura: r.invoice_url }
+        : { tone: 'ok', text: `Troca agendada para ${formatDate(r.efetiva_em)}. Até lá, segue o plano atual.` },
+    )
+  }
+
+  const opcoes = (planos ?? []).filter((x) => x.monthly_price)
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600">Plano</span>
+          <select className="input mt-1 w-56" value={plano} onChange={(e) => setPlano(e.target.value)}>
+            {opcoes.map((x) => (
+              <option key={x.code} value={x.code}>
+                {x.name} · {formatCurrency(x.monthly_price ?? 0)}/mês · {x.orders_per_month?.toLocaleString('pt-BR')} pedidos
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="block">
+          <span className="text-xs font-medium text-gray-600">Ciclo</span>
+          <div className="mt-1 flex rounded-md border border-gray-300 bg-white p-0.5" role="group" aria-label="Ciclo">
+            {CICLOS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCiclo(c)}
+                aria-pressed={ciclo === c}
+                className={`rounded px-3 py-1.5 text-sm transition-colors ${ciclo === c ? 'bg-ink-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                {CICLO_LABEL[c]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-3 min-h-[20px] text-sm text-gray-700">
+        {plano === atual && ciclo === cicloAtual
+          ? 'Esse é o seu plano atual.'
+          : !sim
+            ? 'Calculando…'
+            : !sim.ok
+              ? <span className="text-red-700">{sim.error}</span>
+              : sim.tipo === 'imediata'
+                ? <>Vale na hora. {sim.prorata ? <>Você paga {formatCurrency(sim.prorata)} de diferença pelos {sim.dias_restantes} dias que faltam, e as próximas faturas vêm em {formatCurrency(sim.valor_ciclo ?? 0)}.</> : <>As próximas faturas vêm em {formatCurrency(sim.valor_ciclo ?? 0)}.</>}</>
+                : <>Vale a partir de {formatDate(sim.efetiva_em)}, na renovação, com fatura de {formatCurrency(sim.valor_ciclo ?? 0)}. Até lá, segue o plano atual.</>}
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button type="button" className="btn-primary" disabled={enviando || !sim?.ok} onClick={() => void confirmar()}>
+          {enviando ? 'Trocando…' : 'Confirmar troca'}
+        </button>
+        <button type="button" className="text-sm text-gray-500 hover:text-gray-700" onClick={onFechar}>
+          Fechar
+        </button>
+        {msg && (
+          <span className={`text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>
+            {msg.text}{' '}
+            {msg.fatura && (
+              <a className="font-medium underline underline-offset-2" href={msg.fatura} target="_blank" rel="noreferrer">
+                Pagar a diferença
+              </a>
+            )}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** "Seu plano" em Configurações: o que o admin contratou, quanto usou, e onde troca ou cancela. */
 export function SeuPlano({ clientId }: { clientId: string | undefined }) {
   const { data: r } = useResumoAssinatura(clientId)
-  if (!r || !r.tem_assinatura) return null
+  const acoes = useAcoesAssinatura()
+  const [trocando, setTrocando] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  if (!clientId || !r || !r.tem_assinatura) return null
   const st = r.status ? STATUS_ASSINATURA[r.status] : null
   const uso = r.franquia ? Math.min(100, Math.round((r.pedidos_no_mes / r.franquia) * 100)) : 0
   const passou = r.franquia != null && r.pedidos_no_mes > r.franquia
+  const podeMexer = r.status === 'ativa' && !r.cancela_em
+  const enterprise = r.plan_code === 'enterprise'
+
+  const cancelar = async () => {
+    const ate = r.status === 'ativa' && r.proximo_vencimento ? formatDate(r.proximo_vencimento) : null
+    if (
+      !window.confirm(
+        'Cancelar a assinatura?\n\n' +
+          (ate
+            ? `Não haverá novas cobranças, e você segue usando o Contatta até ${ate}.`
+            : 'A conta fica somente leitura a partir de agora.'),
+      )
+    )
+      return
+    setCancelando(true)
+    setErro(null)
+    const res = await acoes.cancelar(clientId)
+    setCancelando(false)
+    if (!res.ok) setErro(res.error ?? 'Não deu certo.')
+  }
 
   return (
     <section className="card p-5">
@@ -262,8 +388,20 @@ export function SeuPlano({ clientId }: { clientId: string | undefined }) {
       </div>
       <p className="mt-1 text-sm text-gray-500">
         {formatCurrency(r.valor ?? 0)} por ciclo
-        {r.proximo_vencimento && <> · próximo vencimento {formatDate(r.proximo_vencimento)}</>}
+        {r.proximo_vencimento && !r.cancela_em && <> · próximo vencimento {formatDate(r.proximo_vencimento)}</>}
       </p>
+
+      {r.cancela_em && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Assinatura cancelada. Você segue usando o Contatta até {formatDate(r.cancela_em)}, e não haverá novas cobranças.
+        </p>
+      )}
+      {r.troca_para && r.troca_em && (
+        <p className="mt-3 rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
+          A partir de {formatDate(r.troca_em)} o plano passa a ser {r.troca_para}
+          {r.troca_ciclo ? ` ${CICLO_LABEL[r.troca_ciclo].toLowerCase()}` : ''}.
+        </p>
+      )}
 
       {r.franquia != null && (
         <div className="mt-4">
@@ -288,11 +426,27 @@ export function SeuPlano({ clientId }: { clientId: string | undefined }) {
           Usuários: <span className="tabular-nums">{r.usuarios} de {r.limite_usuarios}</span>
         </p>
       )}
-      {r.fatura_url && (
-        <a href={r.fatura_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">
-          Ver última fatura <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-        </a>
-      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        {r.fatura_url && (
+          <a href={r.fatura_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">
+            Ver última fatura <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </a>
+        )}
+        {podeMexer && !enterprise && !trocando && (
+          <button type="button" className="btn-secondary" onClick={() => setTrocando(true)}>
+            Mudar de plano
+          </button>
+        )}
+        {r.status !== 'cancelada' && !r.cancela_em && (
+          <button type="button" className="text-sm text-gray-500 hover:text-red-600" onClick={() => void cancelar()} disabled={cancelando}>
+            {cancelando ? 'Cancelando…' : 'Cancelar assinatura'}
+          </button>
+        )}
+        {erro && <span className="text-sm text-red-700">{erro}</span>}
+      </div>
+
+      {trocando && <MudarPlano clientId={clientId} atual={r.plan_code} cicloAtual={r.ciclo} onFechar={() => setTrocando(false)} />}
     </section>
   )
 }

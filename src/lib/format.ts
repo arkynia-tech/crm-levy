@@ -45,6 +45,10 @@ export function formatCurrency(value: number | null | undefined, currency = 'BRL
 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
+  // Data pura ("2026-10-16", vencimento, aniversário): o Date leria como meia-noite UTC
+  // e, no fuso de Brasília, mostraria o dia anterior.
+  const soData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (soData) return `${soData[3]}/${soData[2]}/${soData[1]}`
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('pt-BR')
