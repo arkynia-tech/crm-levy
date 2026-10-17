@@ -619,6 +619,7 @@ function DialogoCancelar({
 /** Pacotes de pedidos (vale 45 dias) e o teto de excedente da loja. */
 function PedidosExtras({ clientId }: { clientId: string }) {
   const { data: x } = useCreditosExtras(clientId)
+  const { data: saldo } = useSaldoCreditos(clientId)
   const acoes = useAcoesAssinatura()
   const definirTeto = useDefinirTeto()
   const [qtd, setQtd] = useState(1000)
@@ -696,6 +697,23 @@ function PedidosExtras({ clientId }: { clientId: string }) {
         {x.por_pedido_pacote != null && <b className="font-semibold text-gray-700">{formatCurrency(x.por_pedido_pacote)} por pedido</b>}
         {x.por_pedido_excedente != null && <>, mais barato que o excedente ({formatCurrency(x.por_pedido_excedente)})</>}.
       </p>
+
+      {saldo && !saldo.sem_trava && (
+        <div
+          className={`mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border px-4 py-3 text-sm ${
+            saldo.disponivel <= 0 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50/60 text-gray-700'
+          }`}
+        >
+          <span>Crédito agora:</span>
+          <span className="font-display text-base font-semibold tabular-nums">{saldo.disponivel.toLocaleString('pt-BR')}</span>
+          <span>{saldo.disponivel === 1 ? 'pedido novo' : 'pedidos novos'}</span>
+          {saldo.disponivel <= 0 && (
+            <span className="basis-full sm:basis-auto">
+              · acabou: pedidos novos não entram até você comprar um pacote, liberar o excedente ou a franquia renovar no dia 1º.
+            </span>
+          )}
+        </div>
+      )}
 
       {x.pendentes.map((p) => (
         <div key={p.vencimento + p.valor} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
