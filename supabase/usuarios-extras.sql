@@ -40,7 +40,7 @@ begin
   end if;
   select count(*) into v_atual from public.user_clients where client_id = NEW.client_id;
   if v_atual >= v_limite then
-    raise exception 'O plano desta loja permite até % %. Para liberar mais acessos, mude de plano.',
+    raise exception 'O plano desta loja permite até % %. Para liberar mais acessos, adicione um usuário extra em Assinatura ou mude de plano.',
       v_limite, case when v_limite = 1 then 'usuário' else 'usuários' end
       using errcode = 'P0001';
   end if;
