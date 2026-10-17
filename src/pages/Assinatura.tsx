@@ -180,6 +180,11 @@ function CartaoPlano({
     setEnviando(false)
     setConfirmando(false)
     if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
+    // Diferença por fatura: leva direto para a página de pagamento do Asaas
+    if (r.tipo === 'imediata' && !r.cobrado_no_cartao && r.invoice_url) {
+      window.location.href = r.invoice_url
+      return
+    }
     setMsg(
       r.tipo === 'imediata'
         ? {
