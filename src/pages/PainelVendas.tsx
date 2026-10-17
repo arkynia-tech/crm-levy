@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { AlertTriangle, CalendarClock, CreditCard, Plug, ShoppingBag } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CreditCard, Mail, MessageCircle, Plug, ShoppingBag, UserMinus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
-import { CICLO_LABEL, STATUS_ASSINATURA, type Ciclo, type StatusAssinatura } from '../hooks/billing'
+import { CICLO_LABEL, MOTIVOS_CANCELAMENTO, STATUS_ASSINATURA, type Ciclo, type StatusAssinatura } from '../hooks/billing'
 
 interface Painel {
   mrr: number
@@ -40,6 +40,102 @@ interface Painel {
     desde: string
   }[]
   integracoes_pedidas: { integracao: string; lojas: number }[]
+  /** só vem depois do motivo-cancelamento.sql */
+  cancelamentos?: Cancelamento[]
+}
+
+interface Cancelamento {
+  client_id: string
+  loja: string
+  plano: string
+  mensal: number
+  situacao: 'agendado' | 'cancelado'
+  data: string
+  contato: string | null
+  email: string | null
+  telefone: string | null
+  motivo: string | null
+  detalhe: string | null
+  pedido_por: string | null
+}
+
+const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_CANCELAMENTO.map((m) => [m.id, m.label]))
+
+/** wa.me precisa do número com DDI: telefone brasileiro sem o 55 ganha o 55. */
+function linkWhatsApp(telefone: string, texto: string): string {
+  let n = telefone.replace(/\D/g, '')
+  if (n.length === 10 || n.length === 11) n = `55${n}`
+  return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`
+}
+
+function mensagemCancelamento(c: Cancelamento): string {
+  const nome = c.contato?.trim().split(/\s+/)[0]
+  const fez = c.situacao === 'agendado' ? 'pediu o cancelamento' : 'cancelou'
+  return (
+    `Oi${nome ? `, ${nome}` : ''}! Aqui é o Mohamad, do Contatta. ` +
+    `Vi que você ${fez} da assinatura da ${c.loja} e queria muito entender o que aconteceu. ` +
+    `Pode me contar? O que você disser ajuda a gente a melhorar.`
+  )
+}
+
+function Cancelamentos({ itens }: { itens: Cancelamento[] }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-gray-200 px-5 py-4">
+        <UserMinus className="h-4 w-4 text-brand-600" aria-hidden />
+        <h2 className="font-display text-sm font-semibold text-gray-900">Cancelamentos</h2>
+        <span className="text-xs text-gray-500">agendados e dos últimos 90 dias</span>
+      </div>
+      {itens.length === 0 ? (
+        <p className="px-5 py-4 text-sm text-gray-500">Ninguém cancelou nos últimos 90 dias.</p>
+      ) : (
+        <ul className="divide-y divide-gray-100">
+          {itens.map((c) => (
+            <li key={c.client_id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-gray-900">{c.loja}</p>
+                  <StatusBadge
+                    status={c.situacao === 'agendado' ? `Sai em ${formatDate(c.data)}` : `Cancelou em ${formatDate(c.data)}`}
+                    tone={c.situacao === 'agendado' ? 'warn' : 'neutral'}
+                  />
+                </div>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {[c.contato, c.telefone, c.email].filter(Boolean).join(' · ') || 'Sem contato cadastrado'} · {c.plano},{' '}
+                  {formatCurrency(c.mensal)}/mês
+                </p>
+                <p className="mt-2 text-sm text-gray-700">
+                  <span className="text-gray-500">Motivo: </span>
+                  {c.motivo ? (MOTIVO_LABEL[c.motivo] ?? c.motivo) : 'não informado'}
+                </p>
+                {c.detalhe && <p className="mt-1 border-l-2 border-gray-200 pl-3 text-sm italic text-gray-600">“{c.detalhe}”</p>}
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {c.telefone && (
+                  <a
+                    href={linkWhatsApp(c.telefone, mensagemCancelamento(c))}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-[background-color,transform] duration-150 hover:bg-brand-700 active:scale-[0.97]"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp
+                  </a>
+                )}
+                {c.email && (
+                  <a
+                    href={`mailto:${c.email}?subject=${encodeURIComponent('Sobre o seu cancelamento no Contatta')}&body=${encodeURIComponent(mensagemCancelamento(c))}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-[background-color,transform] duration-150 hover:bg-gray-50 active:scale-[0.97]"
+                  >
+                    <Mail className="h-4 w-4" aria-hidden /> E-mail
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
 }
 
 const NOME_INTEGRACAO: Record<string, string> = {
@@ -292,6 +388,8 @@ export default function PainelVendas() {
           )}
         </section>
       </div>
+
+      {p.cancelamentos && <Cancelamentos itens={p.cancelamentos} />}
 
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-4">

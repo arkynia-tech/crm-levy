@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Check, ExternalLink, Loader2 } from 'lucide-react'
+import { ArrowUpRight, Check, ExternalLink, Loader2, X } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
 import { useUserRole } from '../hooks/settings'
 import {
   CICLO_LABEL,
+  MOTIVOS_CANCELAMENTO,
   STATUS_ASSINATURA,
   simularTroca,
   useAcoesAssinatura,
@@ -350,6 +351,7 @@ export default function Assinatura() {
   const acoes = useAcoesAssinatura()
   const [ciclo, setCiclo] = useState<Ciclo>('MONTHLY')
   const [cancelando, setCancelando] = useState(false)
+  const [perguntando, setPerguntando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
@@ -382,20 +384,15 @@ export default function Assinatura() {
   const podeTrocar = r.status === 'ativa' && !r.cancela_em && r.plan_code !== 'enterprise'
   const vitrine = (planos ?? []).filter((p) => p.monthly_price)
 
-  const cancelar = async () => {
-    const ate = r.status === 'ativa' && r.proximo_vencimento ? formatDate(r.proximo_vencimento) : null
-    if (
-      !window.confirm(
-        'Cancelar a assinatura?\n\n' +
-          (ate ? `Não haverá novas cobranças, e você segue usando o Contatta até ${ate}.` : 'A conta fica somente leitura a partir de agora.'),
-      )
-    )
-      return
+  const acessoAte = r.status === 'ativa' && r.proximo_vencimento ? formatDate(r.proximo_vencimento) : null
+
+  const cancelar = async (motivo: { motivo: string; detalhe?: string }) => {
     setCancelando(true)
     setErro(null)
-    const res = await acoes.cancelar(clientId)
+    const res = await acoes.cancelar(clientId, motivo)
     setCancelando(false)
     if (!res.ok) setErro(res.error ?? 'Não deu certo.')
+    else setPerguntando(false)
   }
 
   return (
@@ -498,12 +495,103 @@ export default function Assinatura() {
             Cancelar para as próximas cobranças.
             {r.status === 'ativa' && r.proximo_vencimento && ` O acesso continua até ${formatDate(r.proximo_vencimento)}.`}
           </p>
-          <button type="button" className="text-gray-500 underline-offset-2 hover:text-red-600 hover:underline" onClick={() => void cancelar()} disabled={cancelando}>
-            {cancelando ? 'Cancelando…' : 'Cancelar assinatura'}
+          <button type="button" className="text-gray-500 underline-offset-2 hover:text-red-600 hover:underline" onClick={() => setPerguntando(true)}>
+            Cancelar assinatura
           </button>
-          {erro && <p className="w-full text-red-700">{erro}</p>}
         </div>
       )}
+
+      {perguntando && (
+        <DialogoCancelar
+          acessoAte={acessoAte}
+          enviando={cancelando}
+          erro={erro}
+          onFechar={() => {
+            setPerguntando(false)
+            setErro(null)
+          }}
+          onConfirmar={(m) => void cancelar(m)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Antes de cancelar, pergunta o porquê: é o que dá pra conversar depois e corrigir. */
+function DialogoCancelar({
+  acessoAte,
+  enviando,
+  erro,
+  onFechar,
+  onConfirmar,
+}: {
+  acessoAte: string | null
+  enviando: boolean
+  erro: string | null
+  onFechar: () => void
+  onConfirmar: (m: { motivo: string; detalhe?: string }) => void
+}) {
+  const [motivo, setMotivo] = useState<string | null>(null)
+  const [detalhe, setDetalhe] = useState('')
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && !enviando && onFechar()
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [enviando, onFechar])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-cancelar">
+      <div className="absolute inset-0 bg-ink-900/40 animate-[fadeIn_150ms_ease-out]" onClick={() => !enviando && onFechar()} />
+      <div className="relative w-full max-w-md origin-bottom rounded-2xl bg-white p-6 shadow-xl animate-[popIn_200ms_cubic-bezier(0.23,1,0.32,1)] sm:origin-center">
+        <button type="button" onClick={onFechar} disabled={enviando} className="absolute right-4 top-4 rounded-md p-1 text-gray-400 hover:text-gray-700" aria-label="Fechar">
+          <X className="h-4 w-4" />
+        </button>
+        <h2 id="titulo-cancelar" className="font-display text-lg font-semibold text-gray-900">Cancelar a assinatura?</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          {acessoAte ? `Não haverá novas cobranças, e você segue usando o Contatta até ${acessoAte}.` : 'A conta fica somente leitura a partir de agora.'}
+        </p>
+
+        <p className="mt-5 text-sm font-medium text-gray-900">O que levou você a cancelar?</p>
+        <div className="mt-2 space-y-1.5">
+          {MOTIVOS_CANCELAMENTO.map((m) => (
+            <label
+              key={m.id}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors duration-150 ${
+                motivo === m.id ? 'border-brand-600 bg-brand-50/60 text-gray-900' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <input type="radio" name="motivo" className="h-4 w-4 text-brand-600" checked={motivo === m.id} onChange={() => setMotivo(m.id)} />
+              {m.label}
+            </label>
+          ))}
+        </div>
+        <textarea
+          value={detalhe}
+          onChange={(e) => setDetalhe(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          placeholder="Se quiser, conta um pouco mais (opcional)"
+          className="mt-3 w-full rounded-lg border-gray-300 text-sm focus:border-brand-600 focus:ring-brand-600"
+        />
+
+        {erro && <p className="mt-2 text-sm text-red-700">{erro}</p>}
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="btn-secondary" onClick={onFechar} disabled={enviando}>
+            Continuar com o plano
+          </button>
+          <button
+            type="button"
+            disabled={!motivo || enviando}
+            onClick={() => motivo && onConfirmar({ motivo, detalhe: detalhe.trim() || undefined })}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-[background-color,transform] duration-150 hover:bg-red-700 active:scale-[0.97] disabled:opacity-50"
+          >
+            {enviando && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            {enviando ? 'Cancelando…' : 'Confirmar cancelamento'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

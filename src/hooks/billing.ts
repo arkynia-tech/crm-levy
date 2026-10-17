@@ -183,7 +183,15 @@ export function useAcoesAssinatura() {
       void atualizar(input.client_id)
       return r
     },
-    cancelar: async (clientId: string) => {
+    cancelar: async (clientId: string, motivo?: { motivo: string; detalhe?: string }) => {
+      if (motivo) {
+        // guarda o motivo antes; se o banco ainda não tiver a função, o cancelamento segue igual
+        await supabase.rpc('crm_billing_registrar_motivo', {
+          p_client_id: clientId,
+          p_motivo: motivo.motivo,
+          p_detalhe: motivo.detalhe ?? null,
+        })
+      }
       const r = await chamar({ action: 'cancelar', client_id: clientId })
       void atualizar(clientId)
       return r
@@ -195,6 +203,18 @@ export function useAcoesAssinatura() {
     },
   }
 }
+
+/** Motivos oferecidos ao cancelar. A chave vai pro banco; o texto aparece pro cliente e no painel. */
+export const MOTIVOS_CANCELAMENTO: { id: string; label: string }[] = [
+  { id: 'preco', label: 'Ficou caro pra mim' },
+  { id: 'pouco_uso', label: 'Não estou usando o suficiente' },
+  { id: 'faltou_recurso', label: 'Faltou algo que eu preciso' },
+  { id: 'whatsapp', label: 'Tive problema com o WhatsApp ou os disparos' },
+  { id: 'dificil', label: 'Achei difícil de usar' },
+  { id: 'outra_ferramenta', label: 'Vou usar outra ferramenta' },
+  { id: 'pausa', label: 'É uma pausa, devo voltar' },
+  { id: 'outro', label: 'Outro motivo' },
+]
 
 export interface Fatura {
   id: string
