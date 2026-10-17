@@ -14,11 +14,11 @@
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contatta · recupere margem dos seus pedidos de marketplace</title>
-<meta name="description" content="Migrar uma pequena parte dos seus pedidos para venda direta paga o sistema e sobra. O Contatta processa seus pedidos, organiza a base de clientes e abre o canal próprio.">
+<title>Contatta · cada pedido de marketplace vira um cliente que volta</title>
+<meta name="description" content="O Contatta junta os pedidos do Mercado Livre, Shopee, Amazon e TikTok numa base só, mostra quem voltou, quem sumiu e quem gasta mais, e leva a recompra para o seu WhatsApp.">
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-<meta property="og:title" content="Contatta · recupere margem dos seus pedidos de marketplace">
-<meta property="og:description" content="Seus pedidos de marketplace valem mais fora dele. Organize a base e ative a venda direta.">
+<meta property="og:title" content="Contatta · cada pedido de marketplace vira um cliente que volta">
+<meta property="og:description" content="Sua base de clientes de marketplace num lugar só, com segmentos prontos e campanha de recompra no WhatsApp.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://contatta.pro/">
 <meta property="og:image" content="https://contatta.pro/img/og.png">
@@ -27,60 +27,93 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink-950:#0c101b; --ink-900:#111627; --ink-800:#1a2138;
-    --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca;
+    --ink-950:#0c101b; --ink-900:#111627; --ink-800:#1a2138; --ink-700:#262f4d;
+    --brand-300:#a5b4fc; --brand-500:#6366f1; --brand-600:#4f46e5; --brand-700:#4338ca;
     --brand-50:#eef2ff; --brand-100:#e0e7ff;
-    --ok-600:#059669; --ok-50:#ecfdf5;
-    --gray-50:#f9fafb; --gray-200:#e5e7eb; --gray-300:#d1d5db; --gray-400:#9ca3af;
+    --ok-600:#059669; --ok-50:#ecfdf5; --ok-300:#6ee7b7;
+    --mist:#f6f7fb;
+    --gray-200:#e5e7eb; --gray-300:#d1d5db; --gray-400:#9ca3af;
     --gray-500:#6b7280; --gray-600:#4b5563; --gray-800:#1f2937;
+    --ease-out:cubic-bezier(.23,1,.32,1);
   }
   *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:76px}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{margin:0;background:#fff;font-size:16px;
        font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--gray-800);
        line-height:1.6;-webkit-font-smoothing:antialiased}
-  h1,h2,h3{font-family:Archivo,Inter,system-ui,sans-serif;line-height:1.2;margin:0;text-wrap:balance}
+  h1,h2,h3{font-family:Archivo,Inter,system-ui,sans-serif;line-height:1.15;margin:0;text-wrap:balance}
+  p{text-wrap:pretty}
   a{color:inherit}
-  table{border-collapse:collapse;width:100%}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-  .sec-title{font-size:clamp(26px,3.5vw,34px);font-weight:600}
-  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-           color:var(--brand-600);margin-bottom:10px}
-  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:8px;padding:12px 20px;
-       font-weight:600;font-size:15px;text-decoration:none;transition:.15s;border:1px solid transparent}
+  img{max-width:100%}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
+
+  /* títulos de seção */
+  .sec-head{max-width:640px}
+  .sec-head.centro{margin-inline:auto;text-align:center}
+  .sec-title{font-size:clamp(28px,3.8vw,42px);font-weight:700;letter-spacing:-.02em}
+  .sec-sub{color:var(--gray-600);font-size:clamp(16px,1.6vw,18px);margin:14px 0 0}
+  .escuro .sec-title{color:#fff}
+  .escuro .sec-sub{color:#c3cad9}
+
+  /* botões */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;
+       padding:13px 22px;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;
+       border:1px solid transparent;font-family:inherit;
+       transition:transform 160ms var(--ease-out),background-color 160ms ease,border-color 160ms ease}
+  .btn:active{transform:scale(.97)}
   .btn-primary{background:var(--brand-600);color:#fff}
-  .btn-primary:hover{background:var(--brand-700)}
-  .btn-ghost{color:#fff;border-color:rgba(255,255,255,.25)}
-  .btn-ghost:hover{background:rgba(255,255,255,.08)}
+  .btn-ghost{color:#fff;border-color:rgba(255,255,255,.22)}
   .btn-outline{border-color:var(--gray-300);color:var(--brand-700);background:#fff}
-  .btn-outline:hover{background:var(--brand-50)}
+  .btn-lg{padding:15px 26px;font-size:16px}
+  @media (hover:hover) and (pointer:fine){
+    .btn-primary:hover{background:var(--brand-700)}
+    .btn-ghost:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.38)}
+    .btn-outline:hover{background:var(--brand-50)}
+  }
 
-  header{background:var(--ink-950);position:sticky;top:0;z-index:20}
-  .nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+  /* topo */
+  header{background:var(--ink-950);backdrop-filter:saturate(1.4) blur(12px);
+         -webkit-backdrop-filter:saturate(1.4) blur(12px);position:sticky;top:0;z-index:30;
+         border-bottom:1px solid rgba(255,255,255,.06)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
   .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-  .brand span{font-family:Archivo;font-weight:600;color:#fff;font-size:18px;letter-spacing:.02em}
+  .brand span{font-family:Archivo;font-weight:600;color:#fff;font-size:18px;letter-spacing:.01em}
   .nav-links{display:flex;align-items:center;gap:26px}
-  .nav-links a{color:#cbd5e1;text-decoration:none;font-size:15px}
-  .nav-links a:hover{color:#fff}
-  @media(max-width:760px){.nav-links a:not(.btn){display:none}}
+  .nav-links a:not(.btn){color:#c3cad9;text-decoration:none;font-size:15px;transition:color 160ms ease}
+  .nav-links a:not(.btn):hover{color:#fff}
+  .nav-links .btn{padding:9px 16px;font-size:14.5px}
+  @media(max-width:900px){.nav-links a:not(.btn){display:none}.nav-links{gap:10px}}
+  @media(max-width:420px){.nav-links .so-desk{display:none}}
 
-  .hero{background:var(--ink-950);color:#fff;padding:76px 0 0;
-        background-image:radial-gradient(60% 50% at 72% 0%,rgba(99,102,241,.24),transparent 70%)}
-  .hero h1{font-size:clamp(32px,5vw,52px);font-weight:700;max-width:17ch}
-  .hero p.lead{font-size:clamp(17px,2vw,20px);color:#cbd5e1;max-width:58ch;margin:20px 0 32px}
-  .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
-  .canais{display:flex;align-items:center;gap:20px 36px;flex-wrap:wrap;margin-top:44px}
+  /* hero */
+  .hero{background:var(--ink-950);color:#fff;position:relative;overflow:hidden;
+        padding:84px 0 0}
+  .hero::before{content:"";position:absolute;inset:-20% -10% auto auto;width:70%;height:90%;
+        background:radial-gradient(closest-side,rgba(99,102,241,.28),transparent);pointer-events:none}
+  .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:56px;align-items:end;position:relative}
+  .hero-copy{padding-bottom:72px}
+  @media(max-width:980px){.hero-copy{padding-bottom:0}}
+  @media(max-width:980px){.hero-grid{grid-template-columns:1fr;gap:48px}}
+  .hero h1{font-size:clamp(36px,5.2vw,60px);font-weight:800;letter-spacing:-.025em;line-height:1.05}
+  .hero .lead{font-size:clamp(17px,1.8vw,19px);color:#c3cad9;max-width:52ch;margin:22px 0 32px}
+  .hero .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .hero .cta small{color:var(--gray-400);font-size:13.5px;flex-basis:100%;margin-top:4px}
+
+  .canais{display:flex;align-items:center;gap:16px 32px;flex-wrap:wrap;margin-top:44px;
+          padding-top:28px;border-top:1px solid rgba(255,255,255,.09)}
   .canais p{margin:0;font-size:14px;color:var(--gray-400)}
-  .canais ul{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:20px 40px;flex-wrap:wrap}
+  .canais ul{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:20px 36px;flex-wrap:wrap}
   .canais li{display:flex;align-items:center}
   /* logos oficiais em branco, pra conversar com o hero escuro */
   .canais img{display:block;width:auto;filter:brightness(0) invert(1);opacity:.78}
-  .canais .mp-ml{height:36px}
-  .canais .mp-shopee{height:28px}
-  .canais .mp-amazon{height:26px;transform:translateY(4px)}
-  .canais .mp-tiktok{height:17px}
+  .canais .mp-ml{height:34px}
+  .canais .mp-shopee{height:26px}
+  .canais .mp-amazon{height:24px;transform:translateY(4px)}
+  .canais .mp-tiktok{height:16px}
   @media(max-width:560px){
     .canais{gap:14px}
     .canais ul{width:100%;justify-content:space-between;gap:16px}
@@ -88,96 +121,174 @@
     .canais .mp-amazon{height:20px;transform:translateY(3px)}.canais .mp-tiktok{height:14px}
   }
 
-  .incluso{margin:28px auto 0;background:#fff;border:1px solid var(--gray-200);border-radius:14px;
-           padding:22px 24px;display:grid;grid-template-columns:auto 1fr;gap:12px 32px;align-items:start}
-  @media(max-width:760px){.incluso{grid-template-columns:1fr}}
-  .incluso h3{font-size:16px;font-weight:600;padding-top:1px}
-  .incluso ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px}
-  @media(max-width:620px){.incluso ul{grid-template-columns:1fr}}
-  .incluso li{font-size:14.5px;color:var(--gray-600);padding-left:24px;position:relative}
-  .incluso li::before{content:"";position:absolute;left:0;top:5px;width:14px;height:14px;border-radius:50%;
-    background:var(--ok-50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M4 7.2l2 2 4-4.4' fill='none' stroke='%23059669' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat}
+  /* a tela do produto no hero */
+  .vitrine{position:relative;align-self:end}
+  .janela{border-radius:14px 14px 0 0;overflow:hidden;background:var(--ink-800);
+          border:1px solid rgba(255,255,255,.12);border-bottom:0;
+          box-shadow:0 40px 80px -30px rgba(0,0,0,.7),0 0 0 6px rgba(255,255,255,.03)}
+  .janela .barra{display:flex;gap:6px;padding:12px 14px;background:#151b2e}
+  .janela .barra i{width:10px;height:10px;border-radius:50%;background:#2c3550}
+  .janela img{display:block;width:100%;height:auto;aspect-ratio:1600/900;object-fit:cover;object-position:top left}
+  @media(min-width:981px){.vitrine{margin-right:-200px}}
+  .flutua{position:absolute;left:-36px;bottom:44px;width:min(300px,72%);background:#fff;color:var(--gray-800);
+          border-radius:14px;padding:16px 16px 14px;box-shadow:0 24px 48px -16px rgba(12,16,27,.55);
+          border:1px solid var(--gray-200)}
+  @media(max-width:980px){.flutua{left:12px;bottom:20px}}
+  @media(max-width:560px){.flutua{display:none}}
+  .flutua .rotulo{display:flex;align-items:center;gap:10px}
+  .flutua .ic{width:34px;height:34px;border-radius:9px;background:var(--brand-50);display:grid;place-items:center;flex:none}
+  .flutua b{font-family:Archivo;font-size:15px;display:block;line-height:1.2}
+  .flutua span{font-size:12.5px;color:var(--gray-500)}
+  .flutua .acao{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;background:#e8faf0;
+          color:#047857;border-radius:9px;padding:9px;font-size:13.5px;font-weight:600}
 
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.12);
-         border-radius:12px;overflow:hidden;margin:56px 0 -44px;position:relative}
-  @media(max-width:760px){.stats{grid-template-columns:1fr 1fr}}
-  .stat{background:var(--ink-900);padding:20px 22px}
-  .stat b{display:block;font-family:Archivo;font-size:28px;font-weight:700;color:#fff;
-          letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-  .stat span{font-size:13px;color:var(--gray-400)}
+  /* entrada do hero: um momento só, orquestrado */
+  @media (prefers-reduced-motion:no-preference){
+    .entra{opacity:0;transform:translateY(14px);animation:entra 700ms var(--ease-out) forwards}
+    .entra.d1{animation-delay:60ms}.entra.d2{animation-delay:140ms}.entra.d3{animation-delay:220ms}.entra.d4{animation-delay:300ms}
+    .vitrine.entra{transform:translateY(28px);animation-duration:900ms;animation-delay:180ms}
+    .flutua{opacity:0;transform:translateY(10px) scale(.97);animation:entra 600ms var(--ease-out) 760ms forwards}
+  }
+  @keyframes entra{to{opacity:1;transform:none}}
 
-  section.pad{padding:96px 0 72px}
-  .problem{background:#fff;padding:120px 0 72px}
-  .tri{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
-  @media(max-width:860px){.tri{grid-template-columns:1fr}}
-  .tri .box{border-left:3px solid var(--brand-100);padding:4px 0 4px 18px}
-  .tri h3{font-size:17px;font-weight:600;margin-bottom:8px}
-  .tri p{color:var(--gray-600);font-size:15px;margin:0}
+  /* dor */
+  .dor{padding:112px 0 96px}
+  .dor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:56px}
+  @media(max-width:860px){.dor-grid{grid-template-columns:1fr;gap:28px}}
+  .dor-item{padding-top:22px;border-top:2px solid var(--ink-950)}
+  .dor-item h3{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
+  .dor-item p{color:var(--gray-600);margin:0}
+  .virada{margin-top:64px;padding:28px 32px;border-radius:16px;background:var(--brand-50);
+          display:flex;gap:20px 40px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .virada p{margin:0;font-family:Archivo;font-size:clamp(19px,2.2vw,24px);font-weight:600;
+            letter-spacing:-.01em;color:var(--ink-950);max-width:44ch;line-height:1.3}
 
-  .conta{background:var(--gray-50);border-top:1px solid var(--gray-200);padding:72px 0}
-  .formula{background:#fff;border:1px solid var(--gray-200);border-left:4px solid var(--brand-600);
-           border-radius:10px;padding:22px 24px;margin:28px 0 36px}
-  .formula b{display:block;font-family:Archivo;font-size:16px;margin-bottom:8px}
-  .formula code{font-family:inherit;color:var(--gray-600);font-size:15px}
-  .tbl-wrap{overflow-x:auto;border:1px solid var(--gray-200);border-radius:10px;background:#fff}
-  th,td{padding:12px 16px;text-align:left;font-size:15px;border-bottom:1px solid var(--gray-200)}
-  th{background:var(--ink-900);color:#fff;font-weight:600;font-size:13px;
-     letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
-  tbody tr:last-child td{border-bottom:none}
-  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  td.destaque{color:var(--ok-600);font-weight:600}
-  .nota{color:var(--gray-500);font-size:13.5px;margin-top:16px;max-width:76ch}
+  /* como funciona */
+  .passos-sec{background:var(--mist);padding:96px 0}
+  .passos{list-style:none;padding:0;margin:56px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:passo}
+  @media(max-width:860px){.passos{grid-template-columns:1fr}}
+  .passo{background:#fff;border:1px solid var(--gray-200);border-radius:16px;padding:28px;counter-increment:passo;position:relative}
+  .passo::before{content:counter(passo);font-family:Archivo;font-weight:800;font-size:44px;line-height:1;
+                 color:var(--brand-100);display:block;margin-bottom:18px;letter-spacing:-.03em}
+  .passo h3{font-size:19px;font-weight:600;margin-bottom:8px;letter-spacing:-.01em}
+  .passo p{color:var(--gray-600);margin:0;font-size:15.5px}
 
-  .jornada{background:#fff;padding:72px 0}
-  .passos{display:grid;grid-template-columns:repeat(5,1fr);gap:20px;margin-top:36px;
-          counter-reset:passo}
-  @media(max-width:960px){.passos{grid-template-columns:1fr 1fr}}
-  @media(max-width:560px){.passos{grid-template-columns:1fr}}
-  .passo{counter-increment:passo}
-  .passo::before{content:counter(passo);display:flex;align-items:center;justify-content:center;
-                 width:28px;height:28px;border-radius:8px;background:var(--brand-50);
-                 color:var(--brand-700);font-weight:600;font-size:13px;margin-bottom:12px}
-  .passo h3{font-size:15.5px;font-weight:600;margin-bottom:6px}
-  .passo p{color:var(--gray-600);font-size:14.5px;margin:0}
+  /* por dentro */
+  .produto{background:var(--ink-950);color:#fff;padding:104px 0}
+  .tour{display:grid;gap:88px;margin-top:64px}
+  .tela{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:56px;align-items:center}
+  .tela.inverte{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}
+  .tela.inverte figure{order:2}
+  @media(max-width:900px){.tela,.tela.inverte{grid-template-columns:1fr;gap:28px}.tela.inverte figure{order:0}}
+  .tela figure{margin:0}
+  .tela img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.12);
+            box-shadow:0 30px 60px -28px rgba(0,0,0,.8)}
+  .tela h3{font-size:clamp(22px,2.4vw,28px);font-weight:700;letter-spacing:-.02em;color:#fff}
+  .tela p{color:#c3cad9;margin:14px 0 0}
+  .tela ul{list-style:none;padding:0;margin:22px 0 0;display:grid;gap:10px}
+  .tela li{color:#dfe3ec;font-size:15px;padding-left:26px;position:relative}
+  .tela li::before{content:"";position:absolute;left:0;top:7px;width:14px;height:8px;border-left:2px solid var(--brand-300);
+                   border-bottom:2px solid var(--brand-300);transform:rotate(-45deg)}
+  .demo{color:var(--gray-400);font-size:13px;margin-top:56px;text-align:center}
 
-  .pricing{background:var(--gray-50);border-top:1px solid var(--gray-200);padding:72px 0}
-  .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;align-items:start}
-  @media(max-width:1000px){.plans{grid-template-columns:1fr 1fr}}
-  @media(max-width:620px){.plans{grid-template-columns:1fr;max-width:420px;margin-inline:auto}}
-  .plan{background:#fff;border:1px solid var(--gray-200);border-radius:14px;padding:24px;
-        position:relative;display:flex;flex-direction:column;height:100%}
-  .plan.destaque{border-color:var(--brand-600);box-shadow:0 12px 32px -14px rgba(79,70,229,.4)}
-  .tag{position:absolute;top:-11px;left:24px;background:var(--brand-600);color:#fff;font-size:11.5px;
-       font-weight:600;padding:3px 10px;border-radius:999px;letter-spacing:.02em}
-  .plan h3{font-size:18px;font-weight:600}
-  .plan .desc{color:var(--gray-500);font-size:13.5px;margin:6px 0 18px;min-height:38px}
-  .price{display:flex;align-items:baseline;gap:5px}
-  .price .val{font-family:Archivo;font-size:31px;font-weight:700;letter-spacing:-.02em;
-              font-variant-numeric:tabular-nums}
-  .price .per{color:var(--gray-500);font-size:13.5px}
-  .por-pedido{color:var(--gray-500);font-size:13px;margin-top:4px}
-  .plan ul{list-style:none;padding:0;margin:20px 0 24px;display:grid;gap:9px;flex:1;align-content:start}
-  .plan li{font-size:14.5px;color:var(--gray-600)}
-  .plan li b{color:var(--gray-800);font-weight:600}
-  .plan .btn{width:100%;justify-content:center}
-  .btn{transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease}
-  .btn:active{transform:scale(.97)}
+  /* calculadora */
+  .conta{padding:104px 0}
+  .calc{margin-top:52px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);border-radius:20px;
+        border:1px solid var(--gray-200);overflow:hidden;box-shadow:0 30px 60px -40px rgba(12,16,27,.35)}
+  @media(max-width:900px){.calc{grid-template-columns:1fr}}
+  .calc-in{padding:36px;display:grid;gap:30px;background:#fff}
+  @media(max-width:560px){.calc-in{padding:24px}}
+  .faixa label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-weight:600;font-size:15px}
+  .faixa output{font-family:Archivo;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink-950)}
+  .faixa small{display:block;color:var(--gray-500);font-size:13px;margin-top:2px;font-weight:400}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:8px 0 0;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:999px;
+    background:linear-gradient(to right,var(--brand-600) var(--p,50%),var(--gray-200) var(--p,50%))}
+  input[type=range]::-moz-range-track{height:6px;border-radius:999px;background:var(--gray-200)}
+  input[type=range]::-moz-range-progress{height:6px;border-radius:999px;background:var(--brand-600)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;
+    border:2px solid var(--brand-600);margin-top:-8px;box-shadow:0 2px 6px rgba(12,16,27,.2);transition:transform 120ms var(--ease-out)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--brand-600)}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.12)}
+  input[type=range]:focus-visible{outline:2px solid var(--brand-500);outline-offset:4px;border-radius:6px}
+  .calc-out{background:var(--ink-950);color:#fff;padding:36px;display:flex;flex-direction:column;gap:20px}
+  @media(max-width:560px){.calc-out{padding:24px}}
+  .linha{display:flex;justify-content:space-between;gap:16px;align-items:baseline;padding-bottom:16px;
+         border-bottom:1px solid rgba(255,255,255,.1);font-size:15px;color:#c3cad9}
+  .linha{flex-wrap:wrap}
+  .linha b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;margin-left:auto}
+  .sobra{margin-top:auto}
+  .sobra span{display:block;color:#c3cad9;font-size:15px}
+  .sobra strong{display:block;font-family:Archivo;font-size:clamp(40px,5vw,56px);font-weight:800;letter-spacing:-.03em;
+                line-height:1.05;font-variant-numeric:tabular-nums;color:var(--ok-300);margin-top:6px}
+  .sobra strong.neg{color:#fca5a5}
+  .sobra p{color:var(--gray-400);font-size:13.5px;margin:10px 0 0}
+  .calc-out .btn{width:100%}
+  .formula{color:var(--gray-500);font-size:13.5px;margin-top:20px;max-width:90ch}
 
-  /* ciclo de cobrança */
-  .ciclos{display:flex;justify-content:center;margin-top:28px}
-  .ciclos [role=group]{display:inline-flex;background:#fff;border:1px solid var(--gray-200);border-radius:999px;padding:4px;gap:2px}
+  /* na prática */
+  .pratica{background:var(--mist);padding:88px 0}
+  .pratica-box{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:48px;align-items:center}
+  @media(max-width:860px){.pratica-box{grid-template-columns:1fr;gap:32px}}
+  .pratica-box p{color:var(--gray-600);margin:14px 0 0}
+  .numeros{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:480px){.numeros{gap:10px}.numeros div{padding:14px 12px}.numeros span{font-size:12.5px;display:block;line-height:1.35;margin-top:4px}}
+  .numeros div{background:#fff;border:1px solid var(--gray-200);border-radius:14px;padding:20px}
+  .numeros b{display:block;font-family:Archivo;font-size:clamp(28px,3.4vw,38px);font-weight:800;letter-spacing:-.02em;
+             font-variant-numeric:tabular-nums;color:var(--ink-950);line-height:1.1}
+  .numeros span{font-size:14px;color:var(--gray-500)}
+
+  /* planos */
+  .pricing{padding:104px 0}
+  .ciclos{display:flex;justify-content:center;margin-top:32px}
+  .ciclos [role=group]{display:inline-flex;background:var(--mist);border:1px solid var(--gray-200);border-radius:999px;padding:4px;gap:2px;flex-wrap:wrap;justify-content:center}
   .ciclos button{border:0;background:transparent;border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;
                  color:var(--gray-600);cursor:pointer;transition:background-color 160ms ease,color 160ms ease}
-  .ciclos button[aria-pressed=true]{background:var(--ink-900);color:#fff}
+  .ciclos button[aria-pressed=true]{background:var(--ink-950);color:#fff}
   .ciclos button small{font-size:11.5px;font-weight:600;color:var(--ok-600);margin-left:6px}
-  .ciclos button[aria-pressed=true] small{color:#6ee7b7}
-  .ciclo-total{color:var(--gray-500);font-size:12.5px;margin-top:2px;min-height:18px}
+  .ciclos button[aria-pressed=true] small{color:var(--ok-300)}
+  @media(max-width:480px){.ciclos [role=group]{flex-wrap:nowrap}.ciclos button{padding:7px 13px;font-size:13.5px;line-height:1.25}.ciclos button small{display:block;margin:0}}
+  .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;align-items:stretch}
+  @media(max-width:1040px){.plans{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.plans{grid-template-columns:1fr;max-width:420px;margin-inline:auto}}
+  .plan{background:#fff;border:1px solid var(--gray-200);border-radius:18px;padding:26px;
+        position:relative;display:flex;flex-direction:column}
+  .plan.destaque{background:var(--ink-950);border-color:var(--ink-950);color:#fff;
+        box-shadow:0 30px 60px -30px rgba(79,70,229,.6)}
+  .plan.destaque .desc,.plan.destaque .per,.plan.destaque .ciclo-total,.plan.destaque .por-pedido{color:var(--gray-400)}
+  .plan.destaque li{color:#dfe3ec}
+  .plan.destaque li b{color:#fff}
+  .tag{position:absolute;top:-12px;left:26px;background:var(--brand-600);color:#fff;font-size:12px;
+       font-weight:600;padding:4px 11px;border-radius:999px}
+  .plan h3{font-size:19px;font-weight:700}
+  .plan .desc{color:var(--gray-500);font-size:14px;margin:6px 0 20px;min-height:44px}
+  .price{display:flex;align-items:baseline;gap:5px}
+  .price .val{font-family:Archivo;font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .price .per{color:var(--gray-500);font-size:14px}
+  .ciclo-total{color:var(--gray-500);font-size:12.5px;margin:2px 0 0;min-height:18px}
+  .por-pedido{color:var(--gray-500);font-size:13px;margin:4px 0 0}
+  .plan ul{list-style:none;padding:20px 0 0;margin:20px 0 24px;display:grid;gap:10px;flex:1;align-content:start;
+           border-top:1px solid var(--gray-200)}
+  .plan.destaque ul{border-top-color:rgba(255,255,255,.12)}
+  .plan li{font-size:14.5px;color:var(--gray-600)}
+  .plan li b{color:var(--gray-800);font-weight:600}
+  .plan .btn{width:100%}
+
+  .incluso{margin:24px auto 0;background:var(--mist);border-radius:18px;
+           padding:26px 28px;display:grid;grid-template-columns:auto 1fr;gap:14px 40px;align-items:start}
+  @media(max-width:760px){.incluso{grid-template-columns:1fr}}
+  .incluso h3{font-size:17px;font-weight:700;padding-top:1px}
+  .incluso ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 32px}
+  @media(max-width:620px){.incluso ul{grid-template-columns:1fr}}
+  .incluso li{font-size:15px;color:var(--gray-600);padding-left:26px;position:relative}
+  .incluso li::before{content:"";position:absolute;left:0;top:5px;width:16px;height:16px;border-radius:50%;
+    background:var(--ok-50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.6 8.2l2.2 2.2 4.6-4.9' fill='none' stroke='%23059669' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
 
   /* assinatura */
   dialog.assinar{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 32px));
                  box-shadow:0 30px 80px -20px rgba(12,16,27,.45);color:var(--gray-800)}
   dialog.assinar::backdrop{background:rgba(12,16,27,.55)}
-  dialog.assinar[open]{animation:surgir 220ms cubic-bezier(.23,1,.32,1)}
+  dialog.assinar[open]{animation:surgir 220ms var(--ease-out)}
   @keyframes surgir{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){dialog.assinar[open]{animation:none}}
   .assinar .topo{background:var(--ink-950);color:#fff;padding:22px 26px}
@@ -197,64 +308,71 @@
   .assinar .teste{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:600;
                   padding:3px 9px;border-radius:999px}
 
-  .produto{background:var(--ink-950);color:#fff;padding:72px 0}
-  .produto .sec-title,.produto h3{color:#fff}
-  .produto .eyebrow{color:var(--brand-500)}
-  .produto .sub{color:#cbd5e1;margin-top:12px;max-width:62ch}
-  .shots{display:grid;gap:36px;margin-top:40px}
-  .shot figcaption{color:#cbd5e1;font-size:14.5px;margin-top:12px;max-width:72ch}
-  .shot b{color:#fff;font-weight:600}
-  .shot img{width:100%;max-width:100%;display:block;border-radius:10px;
-            border:1px solid rgba(255,255,255,.14)}
+  /* regras */
+  .regras{background:var(--mist);padding:96px 0}
+  .regras-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
+  @media(max-width:860px){.regras-grid{grid-template-columns:1fr}}
+  .regra{background:#fff;border-radius:16px;padding:26px;border:1px solid var(--gray-200)}
+  .regra .ic{width:40px;height:40px;border-radius:11px;background:var(--brand-50);display:grid;place-items:center;margin-bottom:18px}
+  .regra h3{font-size:17.5px;font-weight:600;margin-bottom:8px}
+  .regra p{color:var(--gray-600);font-size:15px;margin:0}
+  .regras .legal{color:var(--gray-500);font-size:14px;max-width:80ch;margin:36px 0 0}
 
-  .case{background:#fff;padding:72px 0}
-  .case-box{border:1px solid var(--gray-200);border-radius:14px;padding:28px;margin-top:32px;
-            display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:center}
-  @media(max-width:820px){.case-box{grid-template-columns:1fr}}
-  .case-box h3{font-size:19px;font-weight:600;margin-bottom:10px}
-  .case-box p{color:var(--gray-600);font-size:15px;margin:0}
-  .case-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  .case-nums div{border-left:3px solid var(--brand-100);padding-left:14px}
-  .case-nums b{display:block;font-family:Archivo;font-size:26px;font-weight:700;
-               font-variant-numeric:tabular-nums}
-  .case-nums span{font-size:13px;color:var(--gray-500)}
-
-  .faq{background:var(--gray-50);border-top:1px solid var(--gray-200);padding:72px 0}
-  .faq-list{margin-top:32px;border:1px solid var(--gray-200);border-radius:12px;
-            background:#fff;overflow:hidden}
+  /* dúvidas */
+  .faq{padding:104px 0}
+  .faq-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:56px;align-items:start}
+  @media(max-width:900px){.faq-grid{grid-template-columns:1fr;gap:32px}}
+  .faq-list{border-top:1px solid var(--gray-200)}
   .faq details{border-bottom:1px solid var(--gray-200)}
-  .faq details:last-child{border-bottom:none}
-  .faq summary{cursor:pointer;padding:16px 20px;font-weight:600;font-size:15.5px;
-               list-style:none;display:flex;justify-content:space-between;gap:16px;align-items:center}
+  .faq summary{cursor:pointer;padding:20px 0;font-weight:600;font-size:16.5px;
+               list-style:none;display:flex;justify-content:space-between;gap:20px;align-items:center}
   .faq summary::-webkit-details-marker{display:none}
-  .faq summary::after{content:"+";color:var(--brand-600);font-size:20px;font-weight:600;line-height:1}
-  .faq details[open] summary::after{content:"\2212"}
-  .faq summary:hover{background:var(--gray-50)}
-  .faq .resp{padding:0 20px 18px;color:var(--gray-600);font-size:15px;max-width:78ch}
+  .faq summary::after{content:"";flex:none;width:12px;height:12px;border-right:2px solid var(--brand-600);border-bottom:2px solid var(--brand-600);
+                      transform:translateY(-3px) rotate(45deg);transition:transform 200ms var(--ease-out)}
+  .faq details[open] summary::after{transform:translateY(3px) rotate(-135deg)}
+  .faq .resp{padding:0 0 22px;color:var(--gray-600);font-size:15.5px;max-width:68ch;margin:0}
 
-  .contato{background:#fff;padding:72px 0}
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px;max-width:720px}
+  /* contato */
+  .contato{background:var(--ink-950);color:#fff;padding:104px 0;position:relative;overflow:hidden}
+  .contato::before{content:"";position:absolute;inset:auto auto -30% -10%;width:60%;height:80%;
+        background:radial-gradient(closest-side,rgba(99,102,241,.22),transparent);pointer-events:none}
+  .contato-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:start;position:relative}
+  @media(max-width:900px){.contato-grid{grid-template-columns:1fr;gap:36px}}
+  .contato h2{font-size:clamp(30px,4vw,46px);font-weight:800;letter-spacing:-.03em;line-height:1.08}
+  .contato .sec-sub{color:#c3cad9}
+  .proximo{list-style:none;padding:0;margin:32px 0 0;display:grid;gap:14px;counter-reset:prox}
+  .proximo li{counter-increment:prox;display:flex;gap:14px;color:#dfe3ec;font-size:15.5px}
+  .proximo li::before{content:counter(prox);flex:none;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.08);
+                      color:var(--brand-300);font-weight:600;font-size:13.5px;display:grid;place-items:center}
+  .form-card{background:#fff;color:var(--gray-800);border-radius:20px;padding:30px}
+  @media(max-width:560px){.form-card{padding:22px}}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:620px){.form-grid{grid-template-columns:1fr}}
   .campo{display:flex;flex-direction:column;gap:6px}
   .campo.full{grid-column:1/-1}
   .campo label{font-size:13.5px;font-weight:600;color:var(--gray-600)}
-  .campo input,.campo select,.campo textarea{border:1px solid var(--gray-300);border-radius:8px;
-    padding:10px 12px;font:inherit;font-size:15px;background:#fff;color:var(--gray-800)}
+  .campo input,.campo select,.campo textarea{border:1px solid var(--gray-300);border-radius:10px;
+    padding:11px 12px;font:inherit;font-size:15px;background:#fff;color:var(--gray-800);transition:border-color 160ms ease,box-shadow 160ms ease}
   .campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;
-    border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-50)}
+    border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+  .form-card .btn{width:100%}
 
-  .legal{background:var(--gray-50);border-top:1px solid var(--gray-200);padding:44px 0}
-  .legal p{color:var(--gray-600);font-size:14px;max-width:78ch;margin:0}
-  .legal strong{color:var(--gray-800)}
-
-  .final{background:var(--ink-950);color:#fff;padding:80px 0;text-align:center}
-  .final h2{font-size:clamp(26px,3.5vw,36px);font-weight:600}
-  .final p{color:#cbd5e1;margin:14px auto 28px;max-width:54ch}
-  footer{background:var(--ink-900);color:var(--gray-400);padding:30px 0;font-size:14px}
+  footer{background:var(--ink-950);color:var(--gray-400);padding:28px 0;font-size:14px;border-top:1px solid rgba(255,255,255,.08)}
   .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
   footer a{text-decoration:none}
   footer a:hover{color:#fff}
-  a:focus-visible,button:focus-visible{outline:2px solid var(--brand-500);outline-offset:3px}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--brand-500);outline-offset:3px;border-radius:6px}
+
+  /* barra fixa no celular */
+  .barra-cta{position:fixed;left:12px;right:12px;bottom:12px;z-index:25;display:none;
+             background:rgba(12,16,27,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+             border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 10px 10px 16px;
+             align-items:center;justify-content:space-between;gap:12px;color:#fff;font-size:14px;
+             transform:translateY(140%);transition:transform 280ms var(--ease-out)}
+  .barra-cta .btn{padding:10px 16px;font-size:14px}
+  .barra-cta.on{transform:none}
+  @media(max-width:760px){.barra-cta{display:flex}}
+  @media (prefers-reduced-motion:reduce){.barra-cta{transition:none}}
 </style>
 </head>
 <body>
@@ -272,215 +390,240 @@
       </svg>
       <span>Contatta</span>
     </a>
-    <nav class="nav-links">
-      <a href="#conta">Como a conta fecha</a>
-      <a href="#jornada">Como funciona</a>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#conta">Faça a conta</a>
       <a href="#planos">Planos</a>
       <a href="#faq">Dúvidas</a>
-      <a class="btn btn-ghost" href="https://app.contatta.pro">Entrar</a>
+      <a class="btn btn-ghost so-desk" href="https://app.contatta.pro">Entrar</a>
+      <a class="btn btn-primary" href="#contato">Ver funcionando</a>
     </nav>
   </div>
 </header>
 
+<main>
 <section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <h1 class="entra">Cada pedido de marketplace é um cliente que pode voltar.</h1>
+      <p class="lead entra d1">
+        O Contatta junta os pedidos de todas as suas lojas numa base só, mostra quem voltou, quem
+        sumiu e quem gasta mais, e leva a recompra para o seu WhatsApp, com quem autorizou receber
+        mensagem.
+      </p>
+      <div class="cta entra d2">
+        <a class="btn btn-primary btn-lg" href="#contato">Ver funcionando em 15 minutos</a>
+        <a class="btn btn-ghost btn-lg" href="#conta">Fazer a conta</a>
+      </div>
+
+      <div class="canais entra d3">
+        <p>Junta numa base só os pedidos de</p>
+        <ul>
+          <li><img src="./img/mp/mercado-livre.svg" alt="Mercado Livre" class="mp-ml" width="86" height="34"></li>
+          <li><img src="./img/mp/shopee.svg" alt="Shopee" class="mp-shopee" width="81" height="26"></li>
+          <li><img src="./img/mp/amazon.svg" alt="Amazon" class="mp-amazon" width="80" height="24"></li>
+          <li><img src="./img/mp/tiktok.svg" alt="TikTok Shop" class="mp-tiktok" width="71" height="16"></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="vitrine entra">
+      <div class="janela">
+        <div class="barra" aria-hidden="true"><i></i><i></i><i></i></div>
+        <img src="./img/app-clientes.png" width="1600" height="1000" fetchpriority="high"
+             alt="Tela de clientes do Contatta com nome, contato, cidade, pedidos, total gasto e última compra de cada comprador">
+      </div>
+      <div class="flutua" aria-hidden="true">
+        <div class="rotulo">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 11h5"/></svg>
+          </div>
+          <div><b>Sumidos</b><span>Já compraram, mas faz tempo</span></div>
+        </div>
+        <div class="acao">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>
+          Criar campanha de volta
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dor" aria-labelledby="dor-titulo">
   <div class="wrap">
-    <h1>Seus pedidos de marketplace valem mais fora dele.</h1>
-    <p class="lead">
-      Você já tem demanda, produto e histórico de vendas, mas o canal fica com a relação e
-      cobra a taxa. O Contatta processa seus pedidos, organiza a base de clientes e abre o
-      caminho para a recompra acontecer no seu site e no seu WhatsApp.
+    <div class="sec-head">
+      <h2 class="sec-title" id="dor-titulo">Você vende todo dia. Mas sabe quem são os seus clientes?</h2>
+      <p class="sec-sub">No marketplace a venda acontece, mas a relação com quem comprou fica espalhada.</p>
+    </div>
+    <div class="dor-grid">
+      <div class="dor-item">
+        <h3>Não existe uma lista</h3>
+        <p>O histórico está em notas fiscais soltas, em várias contas e canais. Ninguém sabe dizer
+           quantos clientes a loja tem de verdade.</p>
+      </div>
+      <div class="dor-item">
+        <h3>Quem sumiu passa batido</h3>
+        <p>O cliente que comprou três vezes e parou não acende nenhum alerta. Quando alguém percebe,
+           ele já está comprando do concorrente.</p>
+      </div>
+      <div class="dor-item">
+        <h3>Toda recompra paga taxa de novo</h3>
+        <p>Sem um canal próprio, até o cliente fiel volta pelo marketplace, e a comissão sai da sua
+           margem a cada pedido.</p>
+      </div>
+    </div>
+    <div class="virada">
+      <p>O Contatta transforma os pedidos que você já tem numa base de clientes que dá pra chamar de volta.</p>
+      <a class="btn btn-primary" href="#como-funciona">Ver como funciona</a>
+    </div>
+  </div>
+</section>
+
+<section class="passos-sec" id="como-funciona" aria-labelledby="passos-titulo">
+  <div class="wrap">
+    <div class="sec-head centro">
+      <h2 class="sec-title" id="passos-titulo">Três passos, sem trocar o seu ERP</h2>
+      <p class="sec-sub">Você continua vendendo e emitindo nota do jeito que já faz.</p>
+    </div>
+    <ol class="passos">
+      <li class="passo">
+        <h3>Suba as notas</h3>
+        <p>Os XMLs das notas entram em lote, até dentro de ZIPs com pastas. O sistema reconhece de
+           qual marketplace veio cada pedido.</p>
+      </li>
+      <li class="passo">
+        <h3>Veja a sua base</h3>
+        <p>O mesmo comprador em lojas diferentes vira uma pessoa só, com quantas vezes comprou,
+           quanto gastou e quando foi a última compra.</p>
+      </li>
+      <li class="passo">
+        <h3>Chame de volta</h3>
+        <p>Escolha um segmento e mande a campanha pelo WhatsApp, em lotes, só para quem autorizou e
+           sem nunca insistir com quem pediu para sair.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="produto escuro" id="produto" aria-labelledby="produto-titulo">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 class="sec-title" id="produto-titulo">É isto que você vai abrir todo dia</h2>
+      <p class="sec-sub">Telas reais do sistema. Nada de planilha nem relatório para montar.</p>
+    </div>
+
+    <div class="tour">
+      <div class="tela">
+        <figure>
+          <img src="./img/app-clientes.png" width="1600" height="1000" loading="lazy"
+               alt="Tela de clientes do Contatta, com nome, contato, cidade, número de pedidos, total gasto e data da última compra">
+        </figure>
+        <div>
+          <h3>Sua base, sem repetição</h3>
+          <p>Todos os compradores das suas lojas num lugar só, com o histórico de cada um.</p>
+          <ul>
+            <li>Um cliente por CPF, juntando todos os canais</li>
+            <li>Pedidos, total gasto e última compra</li>
+            <li>CPF sempre mascarado na tela</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tela inverte">
+        <figure>
+          <img src="./img/app-segmentos.png" width="1600" height="1000" loading="lazy"
+               alt="Tela de segmentos do Contatta, com grupos de clientes: compraram uma vez, recorrentes, VIP, sumidos e aniversariantes do mês">
+        </figure>
+        <div>
+          <h3>Segmentos prontos para campanha</h3>
+          <p>Os grupos que importam para a recompra já vêm montados, com a contagem de quem tem WhatsApp.</p>
+          <ul>
+            <li>Compraram uma vez só</li>
+            <li>Recorrentes e alto valor</li>
+            <li>Sumidos e aniversariantes do mês</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="demo">Telas com dados de demonstração.</p>
+  </div>
+</section>
+
+<section class="conta" id="conta" aria-labelledby="conta-titulo">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 class="sec-title" id="conta-titulo">Faça a conta com os seus números</h2>
+      <p class="sec-sub">Não precisa mudar todas as suas vendas. Uma parte pequena das recompras
+        passando pelo seu canal já paga o sistema.</p>
+    </div>
+
+    <div class="calc">
+      <div class="calc-in">
+        <div class="faixa">
+          <label for="c-pedidos">Pedidos por mês <output id="o-pedidos" for="c-pedidos">1.000</output></label>
+          <input type="range" id="c-pedidos" min="100" max="15000" step="100" value="1000">
+        </div>
+        <div class="faixa">
+          <label for="c-ticket">Ticket médio <output id="o-ticket" for="c-ticket">R$ 120</output></label>
+          <input type="range" id="c-ticket" min="30" max="800" step="10" value="120">
+        </div>
+        <div class="faixa">
+          <label for="c-volta"><span>Pedidos que voltam pelo seu canal<small>Recompras pelo seu WhatsApp ou site</small></span>
+            <output id="o-volta" for="c-volta">5%</output></label>
+          <input type="range" id="c-volta" min="1" max="20" step="1" value="5">
+        </div>
+        <div class="faixa">
+          <label for="c-taxa"><span>Taxa do marketplace que deixa de pagar<small>Comissão e tarifas por venda</small></span>
+            <output id="o-taxa" for="c-taxa">20%</output></label>
+          <input type="range" id="c-taxa" min="10" max="30" step="1" value="20">
+        </div>
+      </div>
+
+      <div class="calc-out" aria-live="polite">
+        <div class="linha"><span>Recompras no seu canal</span><b id="r-vendas">50 pedidos</b></div>
+        <div class="linha"><span>Margem que fica com você</span><b id="r-margem">R$ 1.200</b></div>
+        <div class="linha"><span>Plano para esse volume</span><b id="r-plano">Starter · R$ 397</b></div>
+        <div class="sobra">
+          <span>Estimativa do que sobra no mês</span>
+          <strong id="r-sobra">R$ 803</strong>
+          <p id="r-nota">Depois de pagar o Contatta.</p>
+        </div>
+        <a class="btn btn-primary btn-lg" href="#contato">Quero ver com os meus pedidos</a>
+      </div>
+    </div>
+    <p class="formula">
+      Conta: pedidos no mês × % que volta pelo seu canal × ticket médio × taxa que deixa de pagar,
+      menos a mensalidade do plano que cobre o seu volume. <strong>É uma estimativa para mostrar o
+      potencial, não garantia de resultado</strong>: o número real depende da sua taxa de recompra e
+      de quantos clientes autorizaram receber contato.
     </p>
-    <div class="cta">
-      <a class="btn btn-primary" href="#contato">Falar com a gente</a>
-      <a class="btn btn-ghost" href="#produto">Ver por dentro</a>
-    </div>
+  </div>
+</section>
 
-    <div class="canais">
-      <p>Junta numa base só os pedidos de</p>
-      <ul>
-        <li><img src="./img/mp/mercado-livre.svg" alt="Mercado Livre" class="mp-ml" width="91" height="36"></li>
-        <li><img src="./img/mp/shopee.svg" alt="Shopee" class="mp-shopee" width="88" height="28"></li>
-        <li><img src="./img/mp/amazon.svg" alt="Amazon" class="mp-amazon" width="86" height="26"></li>
-        <li><img src="./img/mp/tiktok.svg" alt="TikTok Shop" class="mp-tiktok" width="75" height="17"></li>
-      </ul>
+<section class="pratica" aria-labelledby="pratica-titulo">
+  <div class="wrap pratica-box">
+    <div>
+      <h2 class="sec-title" id="pratica-titulo">O primeiro operador rodando</h2>
+      <p>Uma operação com cinco contas de marketplace não tinha lista de clientes, só notas fiscais
+         espalhadas em arquivos. Subindo os ZIPs das notas, a base se montou sozinha, com os
+         compradores sem repetição e as vendas separadas por loja.</p>
     </div>
-
-    <div class="stats">
-      <div class="stat"><b>+20 p.p.</b><span>margem estimada na venda direta</span></div>
-      <div class="stat"><b>10%</b><span>dos pedidos migrados no cenário-base</span></div>
-      <div class="stat"><b>R$ 0,25</b><span>por pedido no maior plano</span></div>
-      <div class="stat"><b>30 dias</b><span>ciclo de análise</span></div>
+    <div class="numeros">
+      <div><b>1.323</b><span>clientes identificados</span></div>
+      <div><b>1.361</b><span>pedidos processados</span></div>
+      <div><b>5</b><span>contas num painel só</span></div>
     </div>
   </div>
 </section>
 
-<section class="problem">
+<section class="pricing" id="planos" aria-labelledby="planos-titulo">
   <div class="wrap">
-    <p class="eyebrow">A oportunidade</p>
-    <h2 class="sec-title">O dinheiro está escondido fora do marketplace</h2>
-    <div class="tri">
-      <div class="box">
-        <h3>O canal prende a relação</h3>
-        <p>O cliente compra, mas quem fica com o contato é o marketplace. Você depende das
-           regras dele e paga intermediação em toda recompra.</p>
-      </div>
-      <div class="box">
-        <h3>O Contatta organiza a base</h3>
-        <p>Processa os pedidos, deduplica compradores, identifica quem volta e separa quem
-           tem autorização para receber contato.</p>
-      </div>
-      <div class="box">
-        <h3>A venda direta devolve margem</h3>
-        <p>O que sai pelo seu site ou pelo seu WhatsApp não paga comissão de canal. É essa
-           diferença que o sistema persegue.</p>
-      </div>
+    <div class="sec-head centro">
+      <h2 class="sec-title" id="planos-titulo">Um plano para cada volume</h2>
+      <p class="sec-sub">O sistema é o mesmo em todos, com o WhatsApp incluso. Muda só a quantidade
+        de pedidos e de usuários. Pague por mês, por semestre com 10% de desconto ou por ano com 2
+        meses grátis.</p>
     </div>
-  </div>
-</section>
-
-<section class="conta" id="conta">
-  <div class="wrap">
-    <p class="eyebrow">Como a conta fecha</p>
-    <h2 class="sec-title">Não precisa mudar 100% das suas vendas</h2>
-
-    <div class="formula">
-      <b>Lucro incremental no mês</b>
-      <code>pedidos no mês × % migrado para venda direta × ticket médio × ganho de margem
-        − mensalidade do Contatta</code>
-    </div>
-
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Plano</th>
-            <th class="num">Pedidos/mês</th>
-            <th class="num">Venda direta simulada</th>
-            <th class="num">Ganho de margem</th>
-            <th class="num">Mensalidade</th>
-            <th class="num">Sobra no mês</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Starter</td><td class="num">1.000</td><td class="num">100 pedidos · R$ 12.000</td>
-            <td class="num">R$ 2.400</td><td class="num">R$ 397</td><td class="num destaque">R$ 2.003</td>
-          </tr>
-          <tr>
-            <td>Pro</td><td class="num">3.500</td><td class="num">350 pedidos · R$ 42.000</td>
-            <td class="num">R$ 8.400</td><td class="num">R$ 997</td><td class="num destaque">R$ 7.403</td>
-          </tr>
-          <tr>
-            <td>Business</td><td class="num">10.000</td><td class="num">1.000 pedidos · R$ 120.000</td>
-            <td class="num">R$ 24.000</td><td class="num">R$ 2.497</td><td class="num destaque">R$ 21.503</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p class="nota">
-      Cenário-base da simulação: ticket médio de R$ 120, 10% dos pedidos migrados para venda
-      direta e ganho de 20 pontos percentuais de margem, que representa a economia de taxas e
-      intermediação. <strong>São cenários hipotéticos para demonstrar potencial econômico, não
-      garantia de resultado</strong>: o número real depende do seu ticket, da sua taxa de
-      recompra e de quanto da base pode ser contatada.
-    </p>
-  </div>
-</section>
-
-<section class="jornada" id="jornada">
-  <div class="wrap">
-    <p class="eyebrow">Como funciona</p>
-    <h2 class="sec-title">Do pedido preso no canal à venda direta</h2>
-    <div class="passos">
-      <div class="passo">
-        <h3>Importar pedidos</h3>
-        <p>Notas fiscais, pedidos e base histórica entram no sistema, em lote.</p>
-      </div>
-      <div class="passo">
-        <h3>Organizar clientes</h3>
-        <p>Deduplicação por CPF: o mesmo comprador em canais diferentes vira uma pessoa só.</p>
-      </div>
-      <div class="passo">
-        <h3>Segmentar</h3>
-        <p>Recorrente, alto valor, inativo e aniversariante, sem montar filtro na mão.</p>
-      </div>
-      <div class="passo">
-        <h3>Ativar o canal próprio</h3>
-        <p>Site e WhatsApp para a recompra, respeitando quem autorizou receber contato.</p>
-      </div>
-      <div class="passo">
-        <h3>Capturar margem</h3>
-        <p>Parte das recompras deixa de pagar comissão de canal.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="produto" id="produto">
-  <div class="wrap">
-    <p class="eyebrow">Por dentro</p>
-    <h2 class="sec-title">É isto que você vai abrir todo dia</h2>
-    <p class="sub">Telas reais do sistema, com dados de demonstração.</p>
-
-    <div class="shots">
-      <figure class="shot" style="margin:0">
-        <img src="./img/app-clientes.png" width="1600" height="1000"
-             alt="Tela de clientes do Contatta, com nome, contato, cidade, número de pedidos, total gasto e data da última compra">
-        <figcaption>
-          <b>Sua base, sem repetição.</b> O mesmo comprador em canais diferentes vira uma pessoa
-          só, com quantos pedidos fez, quanto já gastou e quando comprou pela última vez. O CPF
-          aparece sempre mascarado.
-        </figcaption>
-      </figure>
-
-      <figure class="shot" style="margin:0">
-        <img src="./img/app-segmentos.png" width="1600" height="1000"
-             alt="Tela de segmentos do Contatta, com grupos de clientes: compraram uma vez, recorrentes, VIP, sumidos e aniversariantes do mês">
-        <figcaption>
-          <b>Segmentos prontos.</b> Quem comprou uma vez só, quem é recorrente, quem gasta mais,
-          quem sumiu e quem faz aniversário no mês, com a contagem de quantos têm telefone para
-          receber campanha. Sem montar filtro.
-        </figcaption>
-      </figure>
-    </div>
-  </div>
-</section>
-
-<section class="case">
-  <div class="wrap">
-    <p class="eyebrow">Na prática</p>
-    <h2 class="sec-title">O primeiro operador rodando</h2>
-    <div class="case-box">
-      <div>
-        <h3>Operador de marketplace · 5 contas Shopee</h3>
-        <p>
-          A operação vendia em cinco contas de marketplace e não tinha uma lista de clientes,
-          só notas fiscais espalhadas em arquivos. Subindo os ZIPs de NF-e, a base se montou
-          sozinha, com os compradores deduplicados por CPF e as vendas reunidas por loja.
-        </p>
-      </div>
-      <div class="case-nums">
-        <div><b>1.323</b><span>clientes identificados</span></div>
-        <div><b>1.361</b><span>pedidos processados</span></div>
-        <div><b>5</b><span>contas num painel só</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="pricing" id="planos">
-  <div class="wrap">
-    <p class="eyebrow" style="text-align:center">Planos</p>
-    <h2 class="sec-title" style="text-align:center">A cobrança é por pedido processado</h2>
-    <p style="text-align:center;color:var(--gray-500);margin:12px auto 0;max-width:64ch">
-      Você escolhe pela faixa de volume. Os planos mudam só na quantidade de pedidos e de
-      usuários: o sistema é o mesmo em todos, com o WhatsApp incluso.
-    </p>
-    <p style="text-align:center;color:var(--gray-500);margin:6px auto 0;max-width:64ch">
-      Pague por mês, por semestre com <b>10% de desconto</b> ou por ano com <b>2 meses grátis</b>.
-      A franquia de pedidos vale por mês em qualquer ciclo.
-    </p>
 
     <div class="ciclos">
       <div role="group" aria-label="Ciclo de cobrança">
@@ -522,6 +665,7 @@
       </div>
 
       <div class="plan destaque">
+        <span class="tag">Menor custo por pedido</span>
         <h3>Business</h3>
         <p class="desc">Para volume alto e times separados por marca.</p>
         <div class="price" data-mensal="2497" data-pedidos="10000"><span class="val">R$ 2.497</span><span class="per">/mês</span></div>
@@ -602,10 +746,46 @@
   </form>
 </dialog>
 
-<section class="faq" id="faq">
+<section class="regras" aria-labelledby="regras-titulo">
   <div class="wrap">
-    <p class="eyebrow">Dúvidas</p>
-    <h2 class="sec-title">O que perguntam antes de assinar</h2>
+    <div class="sec-head">
+      <h2 class="sec-title" id="regras-titulo">Recompra dentro das regras</h2>
+      <p class="sec-sub">Ter o telefone de um comprador não autoriza, por si só, uma mensagem. O
+        Contatta foi feito para você vender de novo sem queimar o seu número nem a sua loja.</p>
+    </div>
+    <div class="regras-grid">
+      <div class="regra">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/></svg></div>
+        <h3>Só quem autorizou</h3>
+        <p>O sistema registra a autorização de cada cliente e respeita quem pede para sair, em todas
+           as suas lojas, para sempre.</p>
+      </div>
+      <div class="regra">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Envio no ritmo certo</h3>
+        <p>As campanhas saem em lotes, com intervalo entre as mensagens. Disparo sem critério derruba
+           qualquer número, em qualquer ferramenta.</p>
+      </div>
+      <div class="regra">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Seus dados separados</h3>
+        <p>Cada empresa enxerga só a própria base, com isolamento no banco de dados, e você define
+           quem é administrador e quem é colaborador.</p>
+      </div>
+    </div>
+    <p class="legal">O Contatta trabalha com base legal, finalidade declarada e registro de
+      autorização, e o disparo por WhatsApp respeita o opt-out e as regras do canal. A configuração
+      de cada operação passa por essa validação antes de entrar no ar.</p>
+  </div>
+</section>
+
+<section class="faq" id="faq" aria-labelledby="faq-titulo">
+  <div class="wrap faq-grid">
+    <div class="sec-head">
+      <h2 class="sec-title" id="faq-titulo">O que perguntam antes de assinar</h2>
+      <p class="sec-sub">Ficou alguma dúvida? <a href="#contato">Fale com a gente</a> e mostramos o
+        sistema funcionando.</p>
+    </div>
 
     <div class="faq-list">
       <details open>
@@ -656,75 +836,63 @@
   </div>
 </section>
 
-<section class="contato" id="contato">
-  <div class="wrap">
-    <p class="eyebrow">Contato</p>
-    <h2 class="sec-title">Conte o tamanho da sua operação</h2>
-    <p style="color:var(--gray-500);margin-top:12px;max-width:62ch">
-      A gente responde com o plano que faz sentido para o seu volume e, se preferir, com uma
-      demonstração ao vivo do sistema.
-    </p>
+<section class="contato escuro" id="contato" aria-labelledby="contato-titulo">
+  <div class="wrap contato-grid">
+    <div>
+      <h2 id="contato-titulo">Sua próxima venda pode ser para quem já comprou.</h2>
+      <p class="sec-sub">Conte o tamanho da sua operação e a gente mostra o Contatta funcionando
+        numa conversa de 15 minutos.</p>
+      <ol class="proximo">
+        <li>Você preenche o volume e onde vende</li>
+        <li>A gente marca uma conversa rápida no horário que for melhor</li>
+        <li>Você vê o sistema e sai com o plano que faz sentido para o seu volume</li>
+      </ol>
+    </div>
 
-    <form class="form-grid" id="lead">
-      <div class="campo">
-        <label for="nome">Seu nome</label>
-        <input id="nome" name="nome" required autocomplete="name">
-      </div>
-      <div class="campo">
-        <label for="empresa">Empresa</label>
-        <input id="empresa" name="empresa" autocomplete="organization">
-      </div>
-      <div class="campo">
-        <label for="email">E-mail</label>
-        <input id="email" name="email" type="email" required autocomplete="email">
-      </div>
-      <div class="campo">
-        <label for="whats">WhatsApp</label>
-        <input id="whats" name="whats" inputmode="tel" autocomplete="tel">
-      </div>
-      <div class="campo">
-        <label for="volume">Pedidos por mês</label>
-        <select id="volume" name="volume">
-          <option>até 1.000</option>
-          <option>de 1.000 a 3.500</option>
-          <option>de 3.500 a 10.000</option>
-          <option>acima de 10.000</option>
-        </select>
-      </div>
-      <div class="campo">
-        <label for="canais">Onde você vende</label>
-        <input id="canais" name="canais" placeholder="Shopee, Mercado Livre, loja própria…">
-      </div>
-      <div class="campo full">
-        <label for="msg">Alguma coisa que a gente deva saber (opcional)</label>
-        <textarea id="msg" name="msg" rows="3"></textarea>
-      </div>
-      <div class="campo full">
-        <button class="btn btn-primary" type="submit">Enviar</button>
-        <p id="aviso" style="color:var(--gray-500);font-size:13.5px;margin-top:10px"></p>
-      </div>
-    </form>
+    <div class="form-card">
+      <form class="form-grid" id="lead">
+        <div class="campo">
+          <label for="nome">Seu nome</label>
+          <input id="nome" name="nome" required autocomplete="name">
+        </div>
+        <div class="campo">
+          <label for="empresa">Empresa</label>
+          <input id="empresa" name="empresa" autocomplete="organization">
+        </div>
+        <div class="campo">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" required autocomplete="email">
+        </div>
+        <div class="campo">
+          <label for="whats">WhatsApp</label>
+          <input id="whats" name="whats" inputmode="tel" autocomplete="tel">
+        </div>
+        <div class="campo">
+          <label for="volume">Pedidos por mês</label>
+          <select id="volume" name="volume">
+            <option>até 1.000</option>
+            <option>de 1.000 a 3.500</option>
+            <option>de 3.500 a 10.000</option>
+            <option>acima de 10.000</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="canais">Onde você vende</label>
+          <input id="canais" name="canais" placeholder="Shopee, Mercado Livre, loja própria…">
+        </div>
+        <div class="campo full">
+          <label for="msg">Alguma coisa que a gente deva saber (opcional)</label>
+          <textarea id="msg" name="msg" rows="3"></textarea>
+        </div>
+        <div class="campo full">
+          <button class="btn btn-primary btn-lg" type="submit">Quero ver funcionando</button>
+          <p id="aviso" style="color:var(--gray-500);font-size:13.5px;margin:10px 0 0"></p>
+        </div>
+      </form>
+    </div>
   </div>
 </section>
-
-<section class="legal">
-  <div class="wrap">
-    <p>
-      <strong>Sobre o uso dos dados.</strong> Ter o telefone de um comprador não autoriza, por
-      si só, uma abordagem comercial. O Contatta trabalha com base legal, finalidade declarada e
-      registro de autorização, e o disparo por WhatsApp respeita opt-out e as regras do canal.
-      A configuração de cada operação passa por essa validação antes de entrar no ar.
-    </p>
-  </div>
-</section>
-
-<section class="final">
-  <div class="wrap">
-    <h2>Sua próxima venda pode ser para quem já comprou.</h2>
-    <p>Comece processando os pedidos do último mês e veja o tamanho da base que você já tem.</p>
-    <a class="btn btn-primary" href="#contato">Falar com a gente</a>
-  </div>
-</section>
+</main>
 
 <footer>
   <div class="wrap foot">
@@ -732,6 +900,11 @@
     <span><a href="mailto:contato@arkynia.com">contato@arkynia.com</a></span>
   </div>
 </footer>
+
+<div class="barra-cta" id="barra-cta">
+  <span>Veja com os seus pedidos</span>
+  <a class="btn btn-primary" href="#contato">Falar com a gente</a>
+</div>
 
 <script>
   document.getElementById('ano').textContent = new Date().getFullYear()
@@ -858,6 +1031,73 @@
     document.getElementById('aviso').textContent =
       'Abrimos seu programa de e-mail com a mensagem pronta. Se não abrir, escreva para contato@arkynia.com.'
   })
+</script>
+<script>
+  // ---- Calculadora --------------------------------------------------------
+  // Mesmos planos e preços dos cards. Acima de 10.000 pedidos é Enterprise.
+  (function () {
+    var PLANOS = [
+      { nome: 'Starter', ate: 1000, preco: 397 },
+      { nome: 'Pro', ate: 3500, preco: 997 },
+      { nome: 'Business', ate: 10000, preco: 2497 }
+    ]
+    var $ = function (id) { return document.getElementById(id) }
+    var campos = ['c-pedidos', 'c-ticket', 'c-volta', 'c-taxa'].map($)
+    var num = function (v) { return Math.round(v).toLocaleString('pt-BR') }
+    var real = function (v) { return 'R$ ' + num(v) }
+
+    function pintarTrilha(el) {
+      var p = (el.value - el.min) / (el.max - el.min) * 100
+      el.style.setProperty('--p', p + '%')
+    }
+    function calcular() {
+      var pedidos = +$('c-pedidos').value, ticket = +$('c-ticket').value
+      var volta = +$('c-volta').value / 100, taxa = +$('c-taxa').value / 100
+      $('o-pedidos').textContent = num(pedidos)
+      $('o-ticket').textContent = real(ticket)
+      $('o-volta').textContent = Math.round(volta * 100) + '%'
+      $('o-taxa').textContent = Math.round(taxa * 100) + '%'
+
+      var vendas = Math.round(pedidos * volta)
+      var margem = vendas * ticket * taxa
+      var plano = PLANOS.filter(function (p) { return pedidos <= p.ate })[0]
+      $('r-vendas').textContent = num(vendas) + (vendas === 1 ? ' pedido' : ' pedidos') + ' · ' + real(vendas * ticket)
+      $('r-margem').textContent = real(margem) + '/mês'
+
+      var sobraEl = $('r-sobra'), nota = $('r-nota')
+      if (!plano) {
+        $('r-plano').textContent = 'Enterprise · sob medida'
+        sobraEl.textContent = real(margem)
+        sobraEl.classList.remove('neg')
+        nota.textContent = 'Antes da mensalidade, que nesse volume é negociada.'
+        return
+      }
+      var sobra = margem - plano.preco
+      $('r-plano').textContent = plano.nome + ' · ' + real(plano.preco)
+      sobraEl.textContent = (sobra < 0 ? '− ' : '') + real(Math.abs(sobra))
+      sobraEl.classList.toggle('neg', sobra < 0)
+      nota.textContent = sobra < 0
+        ? 'Nesse cenário a conta ainda não fecha. Fale com a gente antes de assinar.'
+        : 'Depois de pagar o Contatta.'
+    }
+    campos.forEach(function (el) {
+      pintarTrilha(el)
+      el.addEventListener('input', function () { pintarTrilha(el); calcular() })
+    })
+    calcular()
+  })()
+
+  // ---- Barra fixa no celular: aparece depois do topo e some no formulário ----
+  ;(function () {
+    var barra = document.getElementById('barra-cta')
+    if (!('IntersectionObserver' in window)) return
+    var heroVisivel = true, contatoVisivel = false
+    function atualizar() { barra.classList.toggle('on', !heroVisivel && !contatoVisivel) }
+    new IntersectionObserver(function (e) { heroVisivel = e[0].isIntersecting; atualizar() })
+      .observe(document.querySelector('.hero'))
+    new IntersectionObserver(function (e) { contatoVisivel = e[0].isIntersecting; atualizar() })
+      .observe(document.getElementById('contato'))
+  })()
 </script>
 </body>
 </html>
