@@ -356,6 +356,12 @@
   .campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;
     border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
   .form-card .btn{width:100%}
+  .form-card .check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--gray-600);line-height:1.45}
+  .form-card .check input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--brand-600)}
+  .form-card .check a{color:var(--brand-600)}
+  .form-card .isca{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .form-card .erro{background:#fef2f2;color:#b91c1c;border-radius:8px;padding:10px 12px;font-size:14px;margin:0}
+  .form-card .feito{background:#ecfdf5;color:#065f46;border-radius:10px;padding:14px 16px;font-size:15px;margin:0}
 
   footer{background:var(--ink-950);color:var(--gray-400);padding:28px 0;font-size:14px;border-top:1px solid rgba(255,255,255,.08)}
   .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
@@ -884,8 +890,18 @@
           <label for="msg">Alguma coisa que a gente deva saber (opcional)</label>
           <textarea id="msg" name="msg" rows="3"></textarea>
         </div>
+        <div class="isca" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
+        <label class="check full" style="grid-column:1/-1">
+          <input type="checkbox" name="consentimento" required>
+          <span>Quero que a Contatta fale comigo sobre a demonstração. Li o <a href="privacidade.html" target="_blank">aviso de privacidade</a>.</span>
+        </label>
+        <label class="check full" style="grid-column:1/-1">
+          <input type="checkbox" name="whats_ok">
+          <span>Pode me chamar no WhatsApp que informei. Posso pedir pra parar quando quiser.</span>
+        </label>
+        <p class="erro full" id="lead-erro" role="alert" hidden style="grid-column:1/-1"></p>
         <div class="campo full">
-          <button class="btn btn-primary btn-lg" type="submit">Quero ver funcionando</button>
+          <button class="btn btn-primary btn-lg" type="submit" id="lead-enviar">Quero ver funcionando</button>
           <p id="aviso" style="color:var(--gray-500);font-size:13.5px;margin:10px 0 0"></p>
         </div>
       </form>
@@ -897,7 +913,7 @@
 <footer>
   <div class="wrap foot">
     <span>© <span id="ano">2026</span> Contatta</span>
-    <span><a href="mailto:contato@arkynia.com">contato@arkynia.com</a></span>
+    <span><a href="privacidade.html">Privacidade</a> &nbsp; <a href="mailto:contato@arkynia.com">contato@arkynia.com</a></span>
   </div>
 </footer>
 
@@ -1009,27 +1025,72 @@
       .finally(function () { enviarA.disabled = false; enviarA.textContent = 'Ir para o pagamento' })
   })
 
-  // Sem backend ainda: monta um e-mail já preenchido com o que a pessoa digitou.
-  // Quando houver webhook de leads, trocar por um fetch() para ele.
-  document.getElementById('lead').addEventListener('submit', function (e) {
-    e.preventDefault()
-    var d = new FormData(e.target)
+  // ---- Origem da visita (utm) e formulário de contato ----------------------
+  // Quem chega por link com utm (post de grupo, anúncio) tem a visita contada uma vez por sessão.
+  // O formulário manda nome, contato, volume e a origem pro n8n; se falhar, cai no e-mail como antes.
+  var AQ = 'https://n8n-dev.arkynia.com.br/webhook/'
+  var CONSENT_VERSAO = 'form-2026-10', PRIV_VERSAO = 'priv-2026-10'
+  function idAleatorio(prefixo) {
+    try { return prefixo + crypto.randomUUID() } catch (e) { return prefixo + Date.now().toString(36) + Math.random().toString(36).slice(2, 10) }
+  }
+  var origem = {}
+  try { origem = JSON.parse(sessionStorage.getItem('ct-origem') || '{}') } catch (e) {}
+  ;(function () {
+    var q = new URLSearchParams(location.search), achou = false
+    ;['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'].forEach(function (k) {
+      var v = q.get(k); if (v) { origem[k] = v.slice(0, 80); achou = true }
+    })
+    if (!achou) return
+    if (!origem.visit_id) origem.visit_id = idAleatorio('v-')
+    try { sessionStorage.setItem('ct-origem', JSON.stringify(origem)) } catch (e) {}
+    if (origem.contada === origem.utm_content) return
+    fetch(AQ + 'contatta-visita', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ visit_id: origem.visit_id, utm_source: origem.utm_source, utm_medium: origem.utm_medium,
+        utm_campaign: origem.utm_campaign, utm_content: origem.utm_content, path: location.pathname }) })
+      .then(function () { origem.contada = origem.utm_content; try { sessionStorage.setItem('ct-origem', JSON.stringify(origem)) } catch (e) {} })
+      .catch(function () {})
+  })()
+
+  var formLead = document.getElementById('lead')
+  var envioId = idAleatorio('s-')
+  function porEmail(d) {
     var linhas = [
-      'Nome: ' + (d.get('nome') || ''),
-      'Empresa: ' + (d.get('empresa') || ''),
-      'E-mail: ' + (d.get('email') || ''),
-      'WhatsApp: ' + (d.get('whats') || ''),
-      'Pedidos por mês: ' + (d.get('volume') || ''),
-      'Onde vende: ' + (d.get('canais') || ''),
-      '',
-      (d.get('msg') || '')
+      'Nome: ' + (d.get('nome') || ''), 'Empresa: ' + (d.get('empresa') || ''), 'E-mail: ' + (d.get('email') || ''),
+      'WhatsApp: ' + (d.get('whats') || ''), 'Pedidos por mês: ' + (d.get('volume') || ''), 'Onde vende: ' + (d.get('canais') || ''),
+      '', (d.get('msg') || '')
     ].join('\n')
-    var url = 'mailto:contato@arkynia.com'
+    window.location.href = 'mailto:contato@arkynia.com'
       + '?subject=' + encodeURIComponent('Contatta · ' + (d.get('empresa') || d.get('nome') || 'contato'))
       + '&body=' + encodeURIComponent(linhas)
-    window.location.href = url
-    document.getElementById('aviso').textContent =
-      'Abrimos seu programa de e-mail com a mensagem pronta. Se não abrir, escreva para contato@arkynia.com.'
+  }
+  formLead.addEventListener('submit', function (e) {
+    e.preventDefault()
+    var d = new FormData(formLead), erro = document.getElementById('lead-erro'), botao = document.getElementById('lead-enviar')
+    erro.hidden = true
+    if (!formLead.reportValidity()) return
+    botao.disabled = true; botao.textContent = 'Enviando…'
+    fetch(AQ + 'contatta-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        submission_id: envioId, name: d.get('nome'), company: d.get('empresa'), email: d.get('email'), phone: d.get('whats'),
+        monthly_orders_range: d.get('volume'), marketplace: d.get('canais'), main_pain: d.get('msg'),
+        whatsapp_optin: !!d.get('whats_ok'), consent_status: d.get('consentimento') ? 'granted' : 'none',
+        consent_text_version: CONSENT_VERSAO, privacy_notice_version: PRIV_VERSAO, source: 'landing', site: d.get('site'),
+        visit_id: origem.visit_id, utm_source: origem.utm_source, utm_medium: origem.utm_medium,
+        utm_campaign: origem.utm_campaign, utm_content: origem.utm_content
+      }) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false } }) })
+      .then(function (j) {
+        if (j && j.ok) {
+          formLead.innerHTML = '<p class="feito" style="grid-column:1/-1">Recebido. A gente responde em até 1 dia útil' +
+            (d.get('whats_ok') && d.get('whats') ? ' pelo WhatsApp' : ' por e-mail') + ' pra marcar os 15 minutos.</p>'
+          return
+        }
+        erro.textContent = (j && j.error) || 'Não deu pra enviar agora. Vamos abrir seu e-mail com a mensagem pronta.'
+        erro.hidden = false
+        if (!(j && j.error)) porEmail(d)
+      })
+      .catch(function () { porEmail(d) })
+      .finally(function () { botao.disabled = false; botao.textContent = 'Quero ver funcionando' })
   })
 </script>
 <script>
