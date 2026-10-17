@@ -24,8 +24,8 @@ export default function ComprarPedidos() {
       ) : (
         <div className="card">
           <EmptyState
-            title="A recarga de pedidos é para quem tem assinatura ativa"
-            hint="No Enterprise os pedidos são combinados à parte. Se for o seu caso, fale com a gente."
+            title="A recarga de pedidos é para quem tem assinatura em dia"
+            hint="Com a assinatura suspensa ou cancelada não dá pra recarregar. No Enterprise os pedidos são combinados à parte: fale com a gente."
           />
         </div>
       )}

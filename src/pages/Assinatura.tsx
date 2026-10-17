@@ -403,7 +403,10 @@ export default function Assinatura() {
   }
 
   const podeTrocar = r.status === 'ativa' && !r.cancela_em && r.plan_code !== 'enterprise'
-  const podeComprarExtras = r.status === 'ativa' && !r.cancela_em
+  // Os botões aparecem sempre que há assinatura com preço por plano; se agora
+  // não dá pra comprar (cancelamento agendado, atraso...), a página explica.
+  const comprarPedidos = r.excedente_por_pedido != null ? { to: '/assinatura/pedidos', label: 'Comprar créditos de pedidos' } : undefined
+  const comprarUsuarios = r.limite_plano != null ? { to: '/assinatura/usuarios', label: 'Comprar usuários extras' } : undefined
   const franquia = saldo?.lotes.find((l) => l.origem === 'franquia') ?? null
   const outrosCreditos = saldo?.lotes.filter((l) => l.origem !== 'franquia' && l.restante > 0) ?? []
   const vitrine = (planos ?? []).filter((p) => p.monthly_price)
@@ -457,7 +460,7 @@ export default function Assinatura() {
             titulo="Franquia de pedidos do mês"
             usado={franquia.usado}
             limite={franquia.quantidade}
-            acao={podeComprarExtras && r.excedente_por_pedido != null ? { to: '/assinatura/pedidos', label: 'Comprar créditos de pedidos' } : undefined}
+            acao={comprarPedidos}
             rodape={
               (outrosCreditos.length > 0
                 ? `Além da franquia: ${outrosCreditos
@@ -475,13 +478,14 @@ export default function Assinatura() {
             usado={r.pedidos_no_mes}
             limite={r.franquia}
             rodape="A franquia volta todo dia 1º."
+            acao={comprarPedidos}
           />
         )}
         <Medidor
           titulo="Usuários"
           usado={r.usuarios}
           limite={r.limite_usuarios}
-          acao={podeComprarExtras && r.limite_plano != null && !r.troca_para ? { to: '/assinatura/usuarios', label: 'Comprar usuários extras' } : undefined}
+          acao={comprarUsuarios}
           rodape={
             r.limite_usuarios != null && r.usuarios >= r.limite_usuarios
               ? 'Limite atingido. Compre usuários extras ou suba de plano.'
