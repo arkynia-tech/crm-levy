@@ -4,7 +4,8 @@
 -- 1. Guarda o motivo que o cliente escolhe ao cancelar (e quem cancelou).
 -- 2. O painel do master ganha a lista "cancelamentos": quem agendou ou cancelou
 --    nos últimos 90 dias, com nome, telefone, e-mail e o motivo, pra você
---    chamar no WhatsApp e entender o que aconteceu.
+--    chamar no WhatsApp e entender o que aconteceu. O telefone vem da
+--    assinatura, senão do checkout do site, senão do WhatsApp conectado na loja.
 
 alter table public.billing_accounts add column if not exists cancel_reason        text;
 alter table public.billing_accounts add column if not exists cancel_reason_detail text;
@@ -48,10 +49,24 @@ begin
 
   with contas as (
     select b.*, c.name as loja, p.name as plano,
-           round(b.value / case b.cycle when 'SEMIANNUALLY' then 6 when 'YEARLY' then 12 else 1 end, 2) as mensal
+           round(b.value / case b.cycle when 'SEMIANNUALLY' then 6 when 'YEARLY' then 12 else 1 end, 2) as mensal,
+           -- telefone pra contato: o da assinatura, senão o do checkout do site,
+           -- senão o número do WhatsApp conectado na loja (costuma ser o de atendimento)
+           coalesce(nullif(b.phone, ''), sr.telefone, wa.phone) as telefone_contato,
+           case when nullif(b.phone, '') is not null then 'assinatura'
+                when sr.telefone is not null then 'checkout'
+                when wa.phone is not null then 'whatsapp_loja' end as telefone_origem
     from public.billing_accounts b
     join public.clients c on c.id = b.client_id
     join public.billing_plans p on p.code = b.plan_code
+    left join lateral (
+      select s.telefone from public.signup_requests s
+      where s.client_id = b.client_id and nullif(s.telefone, '') is not null
+      order by s.created_at desc limit 1) sr on true
+    left join lateral (
+      select w.phone from public.wa_instances w
+      where w.client_id = b.client_id and nullif(w.phone, '') is not null
+      order by (w.status = 'connected') desc, w.updated_at desc limit 1) wa on true
     where p_incluir_teste or b.environment = 'producao'
   ),
   vivas as (
@@ -121,12 +136,10 @@ begin
                'situacao', case when status = 'cancelada' then 'cancelado' else 'agendado' end,
                'data', coalesce(cancel_at, updated_at::date),
                'contato', billing_name, 'email', billing_email,
-               'telefone', coalesce(phone, (select s.telefone from public.signup_requests s
-                                            where s.client_id = x.client_id and s.telefone is not null
-                                            order by s.created_at desc limit 1)),
+               'telefone', telefone_contato, 'telefone_origem', telefone_origem,
                'motivo', cancel_reason, 'detalhe', cancel_reason_detail, 'pedido_por', cancel_requested_by)
              order by coalesce(cancel_reason_at, updated_at) desc)
-      from contas x
+      from contas
       where (status in ('ativa', 'em_atraso') and cancel_at is not null)
          or (status = 'cancelada' and coalesce(cancel_at, updated_at::date) >= v_hoje - 90)), '[]'::jsonb),
     'integracoes_pedidas', coalesce((
@@ -141,8 +154,14 @@ end;
 $$;
 grant execute on function public.crm_master_painel(boolean) to authenticated;
 
--- Conferência: quem agendou ou cancelou, com o telefone que o painel vai mostrar
-select c.name as loja, b.status, b.cancel_at, b.billing_name, b.phone, b.cancel_reason
+-- Conferência: quem agendou ou cancelou e de onde vem o telefone que o painel mostra
+select c.name as loja, b.status, b.cancel_at, b.billing_name,
+       b.phone as tel_assinatura,
+       (select s.telefone from public.signup_requests s where s.client_id = b.client_id
+         and nullif(s.telefone, '') is not null order by s.created_at desc limit 1) as tel_checkout,
+       (select w.phone from public.wa_instances w where w.client_id = b.client_id
+         and nullif(w.phone, '') is not null order by (w.status = 'connected') desc, w.updated_at desc limit 1) as tel_whatsapp_loja,
+       b.cancel_reason
 from public.billing_accounts b
 join public.clients c on c.id = b.client_id
 where b.cancel_at is not null or b.status = 'cancelada'

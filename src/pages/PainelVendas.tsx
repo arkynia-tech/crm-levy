@@ -54,6 +54,7 @@ interface Cancelamento {
   contato: string | null
   email: string | null
   telefone: string | null
+  telefone_origem?: 'assinatura' | 'checkout' | 'whatsapp_loja' | null
   motivo: string | null
   detalhe: string | null
   pedido_por: string | null
@@ -101,7 +102,10 @@ function Cancelamentos({ itens }: { itens: Cancelamento[] }) {
                   />
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {[c.contato, c.telefone, c.email].filter(Boolean).join(' · ') || 'Sem contato cadastrado'} · {c.plano},{' '}
+                  {[c.contato, c.telefone && (c.telefone_origem === 'whatsapp_loja' ? `${c.telefone} (WhatsApp da loja)` : c.telefone), c.email]
+                    .filter(Boolean)
+                    .join(' · ') || 'Sem contato cadastrado'}{' '}
+                  · {c.plano},{' '}
                   {formatCurrency(c.mensal)}/mês
                 </p>
                 <p className="mt-2 text-sm text-gray-700">
