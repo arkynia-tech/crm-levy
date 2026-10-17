@@ -21,6 +21,7 @@ import { TEMPLATE_CATEGORIA, useWaTemplates, type WaTemplate } from '../hooks/wa
 import { useCustomerSearch, type CustomerLite } from '../hooks/queries'
 import { SEGMENTS, segmentLabel } from '../lib/segments'
 import { formatDateTime, formatPhone, maskCpf } from '../lib/format'
+import { MetaLogo } from '../components/MetaLogo'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
 import { useCompany } from '../context/CompanyContext'
 
@@ -662,10 +663,10 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(
               [
-                ['oficial', BadgeCheck, 'API oficial', 'Modelo aprovado pela Meta, menos risco de bloqueio'],
-                ['qr', QrCode, 'Número do QR Code', 'Texto livre, com variações e ritmo controlado'],
+                ['oficial', 'API oficial da Meta', 'Modelo aprovado pela Meta, menos risco de bloqueio'],
+                ['qr', 'API não oficial', 'Texto livre, com variações e ritmo controlado'],
               ] as const
-            ).map(([valor, Icone, rotulo, dica]) => (
+            ).map(([valor, rotulo, dica]) => (
               <label
                 key={valor}
                 className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
@@ -683,11 +684,15 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
                     setPreview(null)
                   }}
                 />
-                <Icone className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+                {valor === 'oficial' ? (
+                  <MetaLogo className="mt-0.5 h-4 w-4 shrink-0" />
+                ) : (
+                  <QrCode className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" aria-hidden />
+                )}
                 <span>
                   <span className="block font-medium text-gray-900">{rotulo}</span>
                   <span className="block text-xs text-gray-500">
-                    {valor === 'qr' && !qrConectado ? 'Nenhum número conectado pelo QR Code' : dica}
+                    {valor === 'qr' && !qrConectado ? 'Nenhum número conectado pela API não oficial' : dica}
                   </span>
                 </span>
               </label>

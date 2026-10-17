@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug, X } from 'lucide-react'
 import {
@@ -14,6 +14,7 @@ import {
   type WaStatus,
 } from '../hooks/waInstances'
 import { formatPhone } from '../lib/format'
+import { MetaLogo } from '../components/MetaLogo'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
 import { oficialConfigurado, QUALIDADE_NUMERO, useWaOficial } from '../hooks/waOficial'
 import { abrirSignupDaMeta, metaSignupDisponivel, prepararSdkDaMeta } from '../lib/metaSignup'
@@ -390,7 +391,7 @@ function OpcaoConexao({
   ativo,
   desabilitado,
   onEscolher,
-  icone: Icone,
+  icone,
   titulo,
   selo,
   itens,
@@ -399,7 +400,7 @@ function OpcaoConexao({
   ativo: boolean
   desabilitado?: boolean
   onEscolher: () => void
-  icone: typeof BadgeCheck
+  icone: ReactNode
   titulo: string
   selo?: string
   itens: string[]
@@ -416,7 +417,7 @@ function OpcaoConexao({
       }`}
     >
       <span className="flex w-full items-center gap-2">
-        <Icone className="h-5 w-5 shrink-0 text-brand-600" aria-hidden />
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icone}</span>
         <span className="font-display text-sm font-semibold text-gray-900">{titulo}</span>
         {selo && (
           <span className="ml-auto rounded-full bg-brand-600 px-2 py-0.5 text-[0.7rem] font-medium text-white">{selo}</span>
@@ -586,7 +587,7 @@ function ConectarNumero({
           ativo={caminho === 'oficial'}
           desabilitado={!oficialLigado || ocupado}
           onEscolher={() => escolher('oficial')}
-          icone={BadgeCheck}
+          icone={<MetaLogo className="h-5 w-5" />}
           titulo="API oficial da Meta"
           selo={oficialLigado ? 'Recomendado' : 'Em breve'}
           itens={[
@@ -600,8 +601,8 @@ function ConectarNumero({
           ativo={caminho === 'qr'}
           desabilitado={ocupado}
           onEscolher={() => escolher('qr')}
-          icone={QrCode}
-          titulo="Pelo QR Code"
+          icone={<QrCode className="h-5 w-5 text-gray-500" aria-hidden />}
+          titulo="API não oficial"
           itens={[
             'Lê o QR Code em Aparelhos conectados e pronto',
             'Texto livre, com variações e ritmo controlado',
@@ -771,7 +772,7 @@ export default function WhatsApp() {
           {porQr.length > 0 && (
             <div>
               {oficiais.length > 0 && (
-                <h2 className="mb-2 font-display text-sm font-semibold text-gray-700">Pelo QR Code</h2>
+                <h2 className="mb-2 font-display text-sm font-semibold text-gray-700">API não oficial</h2>
               )}
               <div className="space-y-4">
                 {porQr.map((i) => (
