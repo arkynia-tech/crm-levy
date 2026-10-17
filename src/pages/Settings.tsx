@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, Clock, Plug, Save, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from 'lucide-react'
 import {
   DEFAULT_DELAY,
@@ -21,6 +22,7 @@ import {
   type GrantableRole,
 } from '../hooks/adminUsers'
 import { useCompany } from '../context/CompanyContext'
+import { useResumoAssinatura } from '../hooks/billing'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
@@ -43,6 +45,18 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
 
   const clientId = (isMaster ? targetClientId : activeClient?.id) ?? activeClient?.id ?? null
   const targetClient = clients.find((c) => c.id === clientId) ?? activeClient
+
+  // Limite de usuários do plano: o banco recusa o excedente, mas avisar antes
+  // evita criar um login que fica sem loja e dá uma mensagem que se entende.
+  const { data: resumo } = useResumoAssinatura(clientId ?? undefined)
+  const limite = resumo?.tem_assinatura && resumo.status !== 'cancelada' ? resumo.limite_usuarios : null
+  const jaTemAcesso = acessos.some((a) => a.email.toLowerCase() === email.trim().toLowerCase())
+  const lotado = limite != null && !loading && acessos.length >= limite
+  const mensagemLimite = limite != null
+    ? `O plano ${resumo?.plano ?? ''} permite até ${limite} ${limite === 1 ? 'usuário' : 'usuários'} e ${
+        targetClient?.name ?? 'esta loja'
+      } já ${acessos.length === 1 ? 'tem 1' : `tem ${acessos.length}`}. Remova alguém da lista ou mude de plano para liberar mais acessos.`
+    : ''
 
   useEffect(() => {
     if (!targetClientId && activeClient) setTargetClientId(activeClient.id)
@@ -85,6 +99,10 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
       setMsg({ tone: 'err', text: 'A senha precisa ter pelo menos 6 caracteres.' })
       return
     }
+    if (lotado && !jaTemAcesso) {
+      setMsg({ tone: 'err', text: mensagemLimite })
+      return
+    }
     setBusy(true)
     setMsg(null)
 
@@ -94,7 +112,15 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
       const criado = await createUser(email.trim(), password, role, clientId)
       if (!criado.ok) {
         setBusy(false)
-        setMsg({ tone: 'err', text: `Não deu para criar o login: ${criado.error}` })
+        const erro = criado.error ?? ''
+        setMsg({
+          tone: 'err',
+          text: /usuário|plano/i.test(erro)
+            ? erro
+            : /HTTP 5\d\d/.test(erro)
+              ? 'O serviço que cria logins não respondeu direito. Tente de novo em alguns minutos; se continuar, fale com o suporte.'
+              : `Não deu para criar o login: ${erro}`,
+        })
         return
       }
     }
@@ -159,6 +185,23 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
         <b>Colaborador</b> só importa NF-e e opera campanhas, sem acesso à base de clientes,
         vendas e produtos. Quem é master não aparece aqui: master enxerga todas as lojas.
       </p>
+
+      {limite != null && (
+        <p className={`mt-3 text-sm ${lotado ? 'text-amber-700' : 'text-gray-600'}`}>
+          <span className="font-medium tabular-nums">
+            {acessos.length} de {limite}
+          </span>{' '}
+          {limite === 1 ? 'usuário' : 'usuários'} do plano {resumo?.plano}
+          {lotado && (
+            <>
+              {' '}· limite atingido.{' '}
+              <Link to="/assinatura" className="font-medium text-brand-700 hover:underline">
+                Ver planos
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         {isMaster && (
