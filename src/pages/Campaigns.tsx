@@ -1,3 +1,4 @@
+import { AvisoApiOficial } from '../components/AvisoApiOficial'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
@@ -634,7 +635,12 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
 
   const handleStart = async () => {
     const n = Math.min(batchSize, counts.pending)
-    if (!window.confirm(`Disparar para ${n} contato${n === 1 ? '' : 's'} agora? (restam ${counts.pending} pendentes)`))
+    const aviso =
+      n > 80
+        ? '\n\nAtenção: são muitos contatos de uma vez. O envio segue o ritmo e o teto por turno, então leva dias, ' +
+          'e lote grande num número novo aumenta o risco de restrição. O ideal é começar com até 50 por vez.'
+        : ''
+    if (!window.confirm(`Disparar para ${n} contato${n === 1 ? '' : 's'} agora? (restam ${counts.pending} pendentes)${aviso}`))
       return
     setStarting(true)
     setError(null)
@@ -758,6 +764,11 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
                 />
                 por vez
               </label>
+              {Math.min(batchSize, counts.pending) > 80 && (
+                <span className="text-xs text-amber-700" title="Lote grande num número novo aumenta o risco de restrição. O ideal é até 50 por vez.">
+                  lote grande, mais risco
+                </span>
+              )}
               <button type="button" className="btn-primary !py-1.5" onClick={() => void handleStart()} disabled={starting}>
                 <Rocket className="h-4 w-4" aria-hidden />
                 {starting
@@ -913,6 +924,7 @@ export default function Campaigns() {
         proteger o número. Fora do horário, a campanha fica em andamento e continua sozinha no próximo
         turno. Ajuste em Configurações.
       </p>
+      <AvisoApiOficial />
     </div>
   )
 }

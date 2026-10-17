@@ -12,6 +12,7 @@ import {
 } from '../hooks/waInstances'
 import { formatPhone } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
+import { AvisoApiOficial } from '../components/AvisoApiOficial'
 
 /** O QR da uazapi vem em base64 ou já como data URI; a tela aceita os dois. */
 function qrSrc(qr: string): string {
@@ -377,6 +378,10 @@ export default function WhatsApp() {
           usados={(instancias ?? []).map((i) => i.label ?? i.instance_name)}
         />
       </PageHeader>
+
+      <div className="-mt-2 mb-4">
+        <AvisoApiOficial />
+      </div>
 
       {error && <ErrorState message={(error as Error).message} />}
 

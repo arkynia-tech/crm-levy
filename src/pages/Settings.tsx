@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Clock, Plug, Save, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from 'lucide-react'
+import { AlertTriangle, Clock, Plug, Save, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from 'lucide-react'
 import {
   DEFAULT_DELAY,
   DEFAULT_SCHEDULE,
@@ -379,11 +379,32 @@ function CampaignDelaySection() {
   const porDia =
     Math.min(turnos.limitePorTurno, cabe(turnos.manha)) + Math.min(turnos.limitePorTurno, cabe(turnos.tarde))
 
+  // Avisos de risco, comparando com o recomendado (90 a 180 s, até 40 por turno, segunda a sábado, horário comercial)
+  const riscos: { nivel: 'alto' | 'atencao'; texto: string }[] = []
+  if (min < 60) riscos.push({ nivel: 'alto', texto: `Intervalo mínimo de ${min}s é curto demais. Abaixo de 1 minuto o WhatsApp costuma identificar o disparo e restringir ou banir o número.` })
+  else if (min < 90) riscos.push({ nivel: 'atencao', texto: `Intervalo mínimo de ${min}s está abaixo do recomendado (90s). Quanto mais rápido, maior o risco de restrição do número.` })
+  if (max - min < 30) riscos.push({ nivel: 'atencao', texto: 'Mínimo e máximo muito próximos deixam o ritmo previsível, com cara de robô. Deixe pelo menos 30s de diferença.' })
+  if (turnos.limitePorTurno > 60) riscos.push({ nivel: 'alto', texto: `${turnos.limitePorTurno} mensagens por turno é muito volume para um número comum. Acima de 60 o risco de banimento sobe bastante.` })
+  else if (turnos.limitePorTurno > 40) riscos.push({ nivel: 'atencao', texto: `${turnos.limitePorTurno} mensagens por turno está acima do recomendado (40). Aumente aos poucos e observe se as pessoas respondem ou bloqueiam.` })
+  if (porDia > 150) riscos.push({ nivel: 'alto', texto: `Mais de 150 mensagens por dia (${porDia}) num mesmo número é o padrão que mais leva a bloqueio.` })
+  if (turnos.dias.includes(0)) riscos.push({ nivel: 'atencao', texto: 'Mensagem de loja no domingo tende a gerar mais denúncias de spam.' })
+  if (minutos(turnos.manha.inicio) < 8 * 60 || minutos(turnos.tarde.fim) > 20 * 60) riscos.push({ nivel: 'atencao', texto: 'Envio antes das 8h ou depois das 20h incomoda e aumenta denúncias.' })
+  const riscoAlto = riscos.some((r) => r.nivel === 'alto')
+
   const handleSave = async () => {
     if (min < 1 || max < min) {
       setMsg({ tone: 'err', text: 'O mínimo deve ser 1 ou mais, e o máximo não pode ser menor que o mínimo.' })
       return
     }
+    if (
+      riscoAlto &&
+      !window.confirm(
+        'Essa configuração tem risco alto de restrição ou banimento do número de WhatsApp.\n\n' +
+          riscos.filter((r) => r.nivel === 'alto').map((r) => '• ' + r.texto).join('\n') +
+          '\n\nSalvar mesmo assim?',
+      )
+    )
+      return
     for (const t of [turnos.manha, turnos.tarde]) {
       if (minutos(t.fim) <= minutos(t.inicio)) {
         setMsg({ tone: 'err', text: 'Em cada turno, o fim precisa ser depois do início.' })
@@ -406,12 +427,7 @@ function CampaignDelaySection() {
       setMsg({ tone: 'err', text: r1.error ?? r2.error ?? 'Falha ao salvar.' })
       return
     }
-    // avisa, mas não impede: pode haver motivo para acelerar num teste pequeno
-    setMsg(
-      min < 60
-        ? { tone: 'err', text: `Salvo, mas ${min}s é arriscado. Abaixo de 1 minuto o WhatsApp costuma restringir o número.` }
-        : { tone: 'ok', text: 'Salvo. Vale para as próximas mensagens, inclusive de campanhas em andamento.' },
-    )
+    setMsg({ tone: 'ok', text: 'Salvo. Vale para as próximas mensagens, inclusive de campanhas em andamento.' })
   }
 
   return (
@@ -517,6 +533,29 @@ function CampaignDelaySection() {
         Mil contatos levam cerca de{' '}
         <strong className="tabular-nums">{porDia > 0 ? Math.ceil(1000 / porDia) : '—'}</strong> dias de envio.
       </p>
+
+      {riscos.length > 0 ? (
+        <ul className="mt-3 space-y-2" aria-live="polite">
+          {riscos.map((r) => (
+            <li
+              key={r.texto}
+              className={`flex gap-2 rounded-md px-3 py-2 text-sm ${
+                r.nivel === 'alto' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900'
+              }`}
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                <b className="font-semibold">{r.nivel === 'alto' ? 'Risco alto. ' : 'Atenção. '}</b>
+                {r.texto}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 flex items-center gap-2 text-sm text-emerald-700">
+          <ShieldCheck className="h-4 w-4" aria-hidden /> Dentro do ritmo recomendado.
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button type="button" className="btn-primary" onClick={() => void handleSave()} disabled={saving || isLoading}>
