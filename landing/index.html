@@ -129,10 +129,46 @@
               font-variant-numeric:tabular-nums}
   .price .per{color:var(--gray-500);font-size:13.5px}
   .por-pedido{color:var(--gray-500);font-size:13px;margin-top:4px}
-  .plan ul{list-style:none;padding:0;margin:20px 0 24px;display:grid;gap:9px;flex:1}
-  .plan li{font-size:14.5px;color:var(--gray-600);display:flex;gap:8px;align-items:flex-start}
+  .plan ul{list-style:none;padding:0;margin:20px 0 24px;display:grid;gap:9px;flex:1;align-content:start}
+  .plan li{font-size:14.5px;color:var(--gray-600)}
   .plan li b{color:var(--gray-800);font-weight:600}
   .plan .btn{width:100%;justify-content:center}
+  .btn{transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease}
+  .btn:active{transform:scale(.97)}
+
+  /* ciclo de cobrança */
+  .ciclos{display:flex;justify-content:center;margin-top:28px}
+  .ciclos [role=group]{display:inline-flex;background:#fff;border:1px solid var(--gray-200);border-radius:999px;padding:4px;gap:2px}
+  .ciclos button{border:0;background:transparent;border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;
+                 color:var(--gray-600);cursor:pointer;transition:background-color 160ms ease,color 160ms ease}
+  .ciclos button[aria-pressed=true]{background:var(--ink-900);color:#fff}
+  .ciclos button small{font-size:11.5px;font-weight:600;color:var(--ok-600);margin-left:6px}
+  .ciclos button[aria-pressed=true] small{color:#6ee7b7}
+  .ciclo-total{color:var(--gray-500);font-size:12.5px;margin-top:2px;min-height:18px}
+
+  /* assinatura */
+  dialog.assinar{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 32px));
+                 box-shadow:0 30px 80px -20px rgba(12,16,27,.45);color:var(--gray-800)}
+  dialog.assinar::backdrop{background:rgba(12,16,27,.55)}
+  dialog.assinar[open]{animation:surgir 220ms cubic-bezier(.23,1,.32,1)}
+  @keyframes surgir{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){dialog.assinar[open]{animation:none}}
+  .assinar .topo{background:var(--ink-950);color:#fff;padding:22px 26px}
+  .assinar .topo p{color:var(--gray-400);font-size:13.5px;margin:4px 0 0}
+  .assinar .topo h3{font-family:Archivo;font-size:21px;letter-spacing:-.01em}
+  .assinar .resumo{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;
+                   border-top:1px solid rgba(255,255,255,.12);padding-top:14px;font-size:14px}
+  .assinar .resumo b{font-family:Archivo;font-size:20px;font-variant-numeric:tabular-nums}
+  .assinar form{padding:22px 26px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.assinar form{grid-template-columns:1fr}}
+  .assinar .acoes{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px}
+  .assinar .acoes .btn{flex:1;justify-content:center}
+  .assinar .fechar{background:none;border:0;color:var(--gray-500);font:inherit;font-size:14px;cursor:pointer;padding:8px}
+  .assinar .erro{grid-column:1/-1;background:#fef2f2;color:#b91c1c;border-radius:8px;padding:10px 12px;font-size:14px;margin:0}
+  .assinar .letra{grid-column:1/-1;color:var(--gray-500);font-size:12.5px;margin:0}
+  .assinar .isca{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .assinar .teste{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:600;
+                  padding:3px 9px;border-radius:999px}
 
   .modulos{background:#fff;padding:72px 0}
   .mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px}
@@ -419,11 +455,20 @@
       A franquia de pedidos vale por mês em qualquer ciclo.
     </p>
 
+    <div class="ciclos">
+      <div role="group" aria-label="Ciclo de cobrança">
+        <button type="button" data-ciclo="MONTHLY" aria-pressed="true">Mensal</button>
+        <button type="button" data-ciclo="SEMIANNUALLY" aria-pressed="false">Semestral<small>-10%</small></button>
+        <button type="button" data-ciclo="YEARLY" aria-pressed="false">Anual<small>2 meses grátis</small></button>
+      </div>
+    </div>
+
     <div class="plans">
       <div class="plan">
         <h3>Starter</h3>
         <p class="desc">Para quem está começando a olhar a própria base.</p>
-        <div class="price"><span class="val">R$ 397</span><span class="per">/mês</span></div>
+        <div class="price" data-mensal="397" data-pedidos="1000"><span class="val">R$ 397</span><span class="per">/mês</span></div>
+        <p class="ciclo-total">cobrado todo mês</p>
         <p class="por-pedido">R$ 0,397 por pedido incluído</p>
         <ul>
           <li><b>1.000</b> pedidos/mês</li>
@@ -431,13 +476,14 @@
           <li>Excedente a R$ 0,45/pedido</li>
           <li>Suporte padrão</li>
         </ul>
-        <a class="btn btn-outline" href="#contato">Falar com a gente</a>
+        <a class="btn btn-outline" href="#contato" data-assinar="starter">Falar com a gente</a>
       </div>
 
       <div class="plan">
         <h3>Pro</h3>
         <p class="desc">Para operação em mais de um canal, com equipe.</p>
-        <div class="price"><span class="val">R$ 997</span><span class="per">/mês</span></div>
+        <div class="price" data-mensal="997" data-pedidos="3500"><span class="val">R$ 997</span><span class="per">/mês</span></div>
+        <p class="ciclo-total">cobrado todo mês</p>
         <p class="por-pedido">R$ 0,285 por pedido incluído</p>
         <ul>
           <li><b>3.500</b> pedidos/mês</li>
@@ -445,13 +491,14 @@
           <li>Excedente a R$ 0,32/pedido</li>
           <li>Suporte prioritário</li>
         </ul>
-        <a class="btn btn-outline" href="#contato">Falar com a gente</a>
+        <a class="btn btn-outline" href="#contato" data-assinar="pro">Falar com a gente</a>
       </div>
 
       <div class="plan destaque">
         <h3>Business</h3>
         <p class="desc">Para volume alto e times separados por marca.</p>
-        <div class="price"><span class="val">R$ 2.497</span><span class="per">/mês</span></div>
+        <div class="price" data-mensal="2497" data-pedidos="10000"><span class="val">R$ 2.497</span><span class="per">/mês</span></div>
+        <p class="ciclo-total">cobrado todo mês</p>
         <p class="por-pedido">R$ 0,250 por pedido incluído</p>
         <ul>
           <li><b>10.000</b> pedidos/mês</li>
@@ -459,7 +506,7 @@
           <li>Excedente a R$ 0,27/pedido</li>
           <li>Suporte prioritário</li>
         </ul>
-        <a class="btn btn-primary" href="#contato">Falar com a gente</a>
+        <a class="btn btn-primary" href="#contato" data-assinar="business">Falar com a gente</a>
       </div>
 
       <div class="plan">
@@ -479,6 +526,44 @@
     </div>
   </div>
 </section>
+
+<dialog class="assinar" id="assinar" aria-labelledby="assinar-titulo">
+  <div class="topo">
+    <h3 id="assinar-titulo">Assinar o Contatta</h3>
+    <p>Depois do pagamento, a conta é criada e chega no seu e-mail o convite pra criar a senha.</p>
+    <span class="teste" id="assinar-teste" hidden>Ambiente de teste: a fatura não cobra de verdade</span>
+    <div class="resumo"><span id="assinar-plano">Starter mensal</span><b id="assinar-valor">R$ 397,00</b></div>
+  </div>
+  <form id="form-assinar" novalidate>
+    <div class="campo full">
+      <label for="a-empresa">Empresa</label>
+      <input id="a-empresa" name="empresa" required autocomplete="organization">
+    </div>
+    <div class="campo">
+      <label for="a-doc">CPF ou CNPJ</label>
+      <input id="a-doc" name="cpf_cnpj" required inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="campo">
+      <label for="a-nome">Seu nome</label>
+      <input id="a-nome" name="nome" required autocomplete="name">
+    </div>
+    <div class="campo">
+      <label for="a-email">E-mail</label>
+      <input id="a-email" name="email" type="email" required autocomplete="email">
+    </div>
+    <div class="campo">
+      <label for="a-whats">WhatsApp</label>
+      <input id="a-whats" name="telefone" inputmode="tel" autocomplete="tel">
+    </div>
+    <div class="isca" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
+    <p class="erro" id="assinar-erro" role="alert" hidden></p>
+    <div class="acoes">
+      <button type="submit" class="btn btn-primary" id="assinar-enviar">Ir para o pagamento</button>
+      <button type="button" class="fechar" id="assinar-fechar">Cancelar</button>
+    </div>
+    <p class="letra">Pix, boleto ou cartão, na página de pagamento. Dá pra cancelar quando quiser.</p>
+  </form>
+</dialog>
 
 <section class="modulos">
   <div class="wrap">
@@ -659,6 +744,104 @@
 
 <script>
   document.getElementById('ano').textContent = new Date().getFullYear()
+
+  // ---- Planos: ciclo de cobrança e assinatura -------------------------------
+  // Enquanto a cobrança estiver no ambiente de teste do Asaas, o botão Assinar só
+  // aparece com ?checkout=teste. Com a conta de produção, trocar para true.
+  var CHECKOUT_ABERTO = false
+  var CHECKOUT_URL = 'https://n8n-dev.arkynia.com.br/webhook/contatta-checkout'
+  var emTeste = /[?&]checkout=teste\b/.test(location.search)
+  var checkoutLigado = CHECKOUT_ABERTO || emTeste
+  var NOME_CICLO = { MONTHLY: 'mensal', SEMIANNUALLY: 'semestral', YEARLY: 'anual' }
+  var ciclo = 'MONTHLY'
+
+  function brl(v, centavos) {
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL',
+      minimumFractionDigits: centavos ? 2 : 0, maximumFractionDigits: centavos ? 2 : 0 })
+  }
+  // mesma conta do banco: semestral com 10% de desconto, anual com 2 meses grátis
+  function totalDoCiclo(mensal, c) {
+    var v = c === 'MONTHLY' ? mensal : c === 'SEMIANNUALLY' ? mensal * 6 * 0.9 : mensal * 10
+    return Math.round(v * 100) / 100
+  }
+  function mesesDoCiclo(c) { return c === 'MONTHLY' ? 1 : c === 'SEMIANNUALLY' ? 6 : 12 }
+
+  function pintarPrecos() {
+    document.querySelectorAll('.price[data-mensal]').forEach(function (el) {
+      var mensal = Number(el.dataset.mensal), pedidos = Number(el.dataset.pedidos)
+      var total = totalDoCiclo(mensal, ciclo), porMes = total / mesesDoCiclo(ciclo)
+      var inteiro = Math.abs(porMes - Math.round(porMes)) < 0.005
+      el.querySelector('.val').textContent = brl(porMes, !inteiro)
+      var card = el.closest('.plan')
+      card.querySelector('.ciclo-total').textContent = ciclo === 'MONTHLY' ? 'cobrado todo mês'
+        : 'cobrado ' + brl(total, true) + (ciclo === 'SEMIANNUALLY' ? ' a cada 6 meses' : ' por ano')
+      card.querySelector('.por-pedido').textContent =
+        'R$ ' + (porMes / pedidos).toFixed(3).replace('.', ',') + ' por pedido incluído'
+    })
+  }
+  document.querySelectorAll('[data-ciclo]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ciclo = b.dataset.ciclo
+      document.querySelectorAll('[data-ciclo]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)) })
+      pintarPrecos()
+    })
+  })
+
+  var dlg = document.getElementById('assinar')
+  var formA = document.getElementById('form-assinar')
+  var erroA = document.getElementById('assinar-erro')
+  var enviarA = document.getElementById('assinar-enviar')
+  var planoEscolhido = null
+  document.getElementById('assinar-teste').hidden = !emTeste
+
+  if (checkoutLigado) {
+    document.querySelectorAll('[data-assinar]').forEach(function (a) {
+      a.textContent = 'Assinar'
+      a.addEventListener('click', function (e) {
+        e.preventDefault()
+        var card = a.closest('.plan')
+        var mensal = Number(card.querySelector('.price').dataset.mensal)
+        planoEscolhido = a.dataset.assinar
+        document.getElementById('assinar-plano').textContent = card.querySelector('h3').textContent + ' ' + NOME_CICLO[ciclo]
+        document.getElementById('assinar-valor').textContent = brl(totalDoCiclo(mensal, ciclo), true)
+        erroA.hidden = true
+        dlg.showModal()
+        document.getElementById('a-empresa').focus()
+      })
+    })
+  }
+  document.getElementById('assinar-fechar').addEventListener('click', function () { dlg.close() })
+
+  formA.addEventListener('submit', function (e) {
+    e.preventDefault()
+    var d = new FormData(formA)
+    if (d.get('site')) return
+    var doc = String(d.get('cpf_cnpj') || '').replace(/\D/g, '')
+    var falta = !String(d.get('empresa') || '').trim() ? 'Preencha o nome da empresa.'
+      : (doc.length !== 11 && doc.length !== 14) ? 'O CPF ou CNPJ precisa ter 11 ou 14 dígitos.'
+      : !String(d.get('nome') || '').trim() ? 'Preencha o seu nome.'
+      : !/^\S+@\S+\.\S+$/.test(String(d.get('email') || '').trim()) ? 'Confira o e-mail.' : null
+    if (falta) { erroA.textContent = falta; erroA.hidden = false; return }
+    erroA.hidden = true
+    enviarA.disabled = true
+    enviarA.textContent = 'Gerando a fatura…'
+    fetch(CHECKOUT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empresa: d.get('empresa'), cpf_cnpj: doc, nome: d.get('nome'),
+        email: String(d.get('email')).trim(), telefone: d.get('telefone'), plan_code: planoEscolhido, cycle: ciclo })
+    }).then(function (r) { return r.json().catch(function () { return {} }) })
+      .then(function (j) {
+        if (j && j.ok && j.invoice_url) { window.location.href = j.invoice_url; return }
+        erroA.textContent = (j && j.error) || 'Não deu pra gerar a fatura agora. Tente de novo em instantes.'
+        erroA.hidden = false
+      })
+      .catch(function () {
+        erroA.textContent = 'Sem conexão agora. Confira a internet e tente de novo.'
+        erroA.hidden = false
+      })
+      .finally(function () { enviarA.disabled = false; enviarA.textContent = 'Ir para o pagamento' })
+  })
 
   // Sem backend ainda: monta um e-mail já preenchido com o que a pessoa digitou.
   // Quando houver webhook de leads, trocar por um fetch() para ele.
