@@ -55,7 +55,7 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
   const mensagemLimite = limite != null
     ? `O plano ${resumo?.plano ?? ''} permite até ${limite} ${limite === 1 ? 'usuário' : 'usuários'} e ${
         targetClient?.name ?? 'esta loja'
-      } já ${acessos.length === 1 ? 'tem 1' : `tem ${acessos.length}`}. Remova alguém da lista ou mude de plano para liberar mais acessos.`
+      } já ${acessos.length === 1 ? 'tem 1' : `tem ${acessos.length}`}. Remova alguém da lista, adicione um usuário extra (R$ 97/mês) ou mude de plano.`
     : ''
 
   useEffect(() => {
@@ -195,8 +195,8 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
           {lotado && (
             <>
               {' '}· limite atingido.{' '}
-              <Link to="/assinatura" className="font-medium text-brand-700 hover:underline">
-                Ver planos
+              <Link to="/assinatura#usuarios-extras" className="font-medium text-brand-700 hover:underline">
+                Adicionar usuário extra
               </Link>
             </>
           )}

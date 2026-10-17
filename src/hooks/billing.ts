@@ -34,6 +34,13 @@ export interface ResumoAssinatura {
   excedente_por_pedido: number | null
   usuarios: number
   limite_usuarios: number | null
+  /** usuários que o plano inclui (sem os extras) */
+  limite_plano?: number | null
+  usuarios_extras?: number
+  /** redução de extras agendada para a renovação */
+  usuarios_extras_pendente?: number | null
+  usuarios_extras_em?: string | null
+  preco_usuario_extra?: number
   nome: string | null
   cpf_cnpj: string | null
   email: string | null
@@ -65,6 +72,27 @@ export interface SimulacaoTroca {
   novo_vencimento?: string | null
   cartao_final?: string | null
   cartao_bandeira?: string | null
+}
+
+export interface SimulacaoExtras {
+  ok: boolean
+  error?: string
+  tipo?: 'adicionar' | 'remover'
+  extras?: number
+  limite_usuarios?: number
+  valor_ciclo?: number
+  mensal_extras?: number
+  prorata?: number
+  dias_restantes?: number
+  efetiva_em?: string
+  cartao_final?: string | null
+}
+
+/** Quanto custa ter N usuários extras (a tela simula; o n8n é quem cobra). */
+export async function simularExtras(clientId: string, extras: number): Promise<SimulacaoExtras> {
+  const { data, error } = await supabase.rpc('crm_extras_simular', { p_client_id: clientId, p_extras: extras })
+  if (error) return { ok: false, error: error.message }
+  return (data ?? { ok: false, error: 'Resposta vazia.' }) as SimulacaoExtras
 }
 
 export async function simularTroca(clientId: string, plano: string, ciclo: Ciclo): Promise<SimulacaoTroca> {
@@ -169,8 +197,8 @@ export interface RespostaAssinatura {
   /** cancelar: false quando o acesso segue até o fim do período */
   imediato?: boolean
   acesso_ate?: string | null
-  /** trocar de plano */
-  tipo?: 'imediata' | 'na_renovacao'
+  /** trocar de plano; usuários extras: 'adicionar' | 'remover' */
+  tipo?: 'imediata' | 'na_renovacao' | 'adicionar' | 'remover'
   efetiva_em?: string | null
   prorata?: number
   cobrado_no_cartao?: boolean
@@ -234,6 +262,12 @@ export function useAcoesAssinatura() {
     /** pacote de pedidos extras: no cartão guardado na hora, ou fatura */
     comprarPacote: async (clientId: string, quantidade: number) => {
       const r = await chamar({ action: 'pacote', client_id: clientId, quantidade })
+      void atualizar(clientId)
+      return r
+    },
+    /** usuários extras: adicionar vale na hora (cobra o proporcional), tirar vale na renovação */
+    usuarios: async (clientId: string, extras: number) => {
+      const r = await chamar({ action: 'usuarios', client_id: clientId, extras })
       void atualizar(clientId)
       return r
     },

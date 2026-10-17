@@ -7,6 +7,7 @@ import {
   CICLO_LABEL,
   MOTIVOS_CANCELAMENTO,
   STATUS_ASSINATURA,
+  simularExtras,
   simularTroca,
   useAcoesAssinatura,
   useFaturas,
@@ -17,6 +18,7 @@ import {
   type Fatura,
   type Plano,
   type ResumoAssinatura,
+  type SimulacaoExtras,
   type SimulacaoTroca,
 } from '../hooks/billing'
 import { formatCurrency, formatDate } from '../lib/format'
@@ -460,9 +462,17 @@ export default function Assinatura() {
           titulo="Usuários"
           usado={r.usuarios}
           limite={r.limite_usuarios}
-          rodape={r.limite_usuarios != null && r.usuarios >= r.limite_usuarios ? 'Limite do plano atingido. Pra liberar mais acessos, suba de plano.' : 'Gerencie os acessos em Configurações.'}
+          rodape={
+            r.limite_usuarios != null && r.usuarios >= r.limite_usuarios
+              ? 'Limite atingido. Adicione usuários extras logo abaixo ou suba de plano.'
+              : (r.usuarios_extras ?? 0) > 0
+                ? `${r.limite_plano} do plano + ${r.usuarios_extras} ${r.usuarios_extras === 1 ? 'extra' : 'extras'}. Gerencie os acessos em Configurações.`
+                : 'Gerencie os acessos em Configurações.'
+          }
         />
       </div>
+
+      <UsuariosExtras r={r} clientId={clientId} planos={planos ?? []} />
 
       <PedidosExtras clientId={clientId} />
 
@@ -732,6 +742,159 @@ function PedidosExtras({ clientId }: { clientId: string }) {
       </div>
       {msg && <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
 
+    </section>
+  )
+}
+
+/** Usuário extra: R$ 97/mês cada. Adicionar vale na hora; tirar, na renovação. */
+function UsuariosExtras({ r, clientId, planos }: { r: ResumoAssinatura; clientId: string; planos: Plano[] }) {
+  const acoes = useAcoesAssinatura()
+  const atual = r.usuarios_extras ?? 0
+  const alvoInicial = r.usuarios_extras_pendente ?? atual
+  const [extras, setExtras] = useState(alvoInicial)
+  const [sim, setSim] = useState<SimulacaoExtras | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+
+  useEffect(() => {
+    setExtras(r.usuarios_extras_pendente ?? r.usuarios_extras ?? 0)
+  }, [r.usuarios_extras, r.usuarios_extras_pendente])
+
+  useEffect(() => {
+    if (window.location.hash === '#usuarios-extras') {
+      document.getElementById('usuarios-extras')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [])
+
+  const mudou = extras !== alvoInicial
+  useEffect(() => {
+    setMsg(null)
+    if (!mudou) {
+      setSim(null)
+      return
+    }
+    let vivo = true
+    void simularExtras(clientId, extras).then((s) => vivo && setSim(s))
+    return () => {
+      vivo = false
+    }
+  }, [clientId, extras, mudou])
+
+  if (r.limite_plano == null || r.preco_usuario_extra == null || r.status !== 'ativa' || r.cancela_em || r.troca_para) return null
+  const preco = r.preco_usuario_extra
+  const base = r.limite_plano
+  const mensalHoje = (planos.find((p) => p.code === r.plan_code)?.monthly_price ?? 0) + extras * preco
+  const proximo = planos
+    .filter((p) => p.monthly_price != null && (p.users_limit ?? 0) > base)
+    .sort((a, b) => (a.monthly_price ?? 0) - (b.monthly_price ?? 0))[0]
+
+  const confirmar = async () => {
+    setEnviando(true)
+    setMsg(null)
+    const res = await acoes.usuarios(clientId, extras)
+    setEnviando(false)
+    if (!res.ok) {
+      setMsg({ tone: 'err', text: res.error ?? 'Não deu certo.' })
+      return
+    }
+    if (res.tipo === 'remover') {
+      setMsg({ tone: 'ok', text: `Pronto. A partir de ${formatDate(res.efetiva_em ?? r.proximo_vencimento)} a loja fica com ${base + extras} usuários e a assinatura cai de valor.` })
+      return
+    }
+    if (res.cobrado_no_cartao) {
+      setMsg({ tone: 'ok', text: `Pronto. Cobramos ${formatCurrency(res.prorata ?? 0)} no cartão final ${res.cartao_final ?? ''} e as vagas já estão liberadas.` })
+      return
+    }
+    if (res.invoice_url) {
+      window.location.href = res.invoice_url
+      return
+    }
+    setMsg({ tone: 'ok', text: `Pronto. A loja agora tem até ${base + extras} usuários.` })
+  }
+
+  return (
+    <section id="usuarios-extras" className="card p-5">
+      <h2 className="font-display text-base font-semibold text-gray-900">Usuários extras</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Seu plano inclui {base} {base === 1 ? 'usuário' : 'usuários'}. Cada extra sai {formatCurrency(preco)} por mês e libera a vaga na
+        hora; você paga só a parte proporcional até a renovação.
+      </p>
+
+      {r.usuarios_extras_pendente != null && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          Redução agendada: a partir de {formatDate(r.usuarios_extras_em)} ficam {r.usuarios_extras_pendente}{' '}
+          {r.usuarios_extras_pendente === 1 ? 'extra' : 'extras'} (hoje são {atual}).
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <div className="inline-flex items-center rounded-lg border border-gray-300 bg-white">
+          <button
+            type="button"
+            className="px-3 py-2 text-lg leading-none text-gray-700 transition-transform duration-150 hover:bg-gray-50 active:scale-[0.94] disabled:opacity-40"
+            onClick={() => setExtras((n) => Math.max(0, n - 1))}
+            disabled={extras <= 0 || enviando}
+            aria-label="Tirar um usuário extra"
+          >
+            −
+          </button>
+          <span className="min-w-[3rem] text-center font-display text-lg font-semibold tabular-nums text-gray-900">{extras}</span>
+          <button
+            type="button"
+            className="px-3 py-2 text-lg leading-none text-gray-700 transition-transform duration-150 hover:bg-gray-50 active:scale-[0.94] disabled:opacity-40"
+            onClick={() => setExtras((n) => Math.min(50, n + 1))}
+            disabled={extras >= 50 || enviando}
+            aria-label="Adicionar um usuário extra"
+          >
+            +
+          </button>
+        </div>
+        <p className="text-sm text-gray-600">
+          {extras === 1 ? 'extra' : 'extras'} · até <b className="font-semibold text-gray-900">{base + extras}</b> usuários ·{' '}
+          <span className="tabular-nums">{formatCurrency(extras * preco)}</span>/mês
+        </p>
+      </div>
+
+      {mudou && sim && (
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-700">
+          {!sim.ok ? (
+            <p className="text-red-700">{sim.error}</p>
+          ) : sim.tipo === 'adicionar' ? (
+            <p>
+              {sim.prorata && sim.prorata > 0 ? (
+                <>
+                  Você paga agora <b>{formatCurrency(sim.prorata)}</b> (proporcional a {sim.dias_restantes} dias)
+                  {sim.cartao_final ? ` no cartão final ${sim.cartao_final}` : ' numa fatura'}.{' '}
+                </>
+              ) : (
+                'Sem cobrança agora. '
+              )}
+              Da renovação em diante, a assinatura fica em <b>{formatCurrency(sim.valor_ciclo ?? 0)}</b> por{' '}
+              {r.ciclo === 'MONTHLY' ? 'mês' : 'ciclo'}.
+            </p>
+          ) : (
+            <p>
+              Vale na renovação, em {formatDate(sim.efetiva_em)}. Até lá os {base + atual} acessos continuam liberados. Depois, a
+              assinatura fica em <b>{formatCurrency(sim.valor_ciclo ?? 0)}</b>.
+            </p>
+          )}
+          {sim.ok && (
+            <button type="button" className="btn-primary mt-3" onClick={() => void confirmar()} disabled={enviando}>
+              {enviando && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {enviando ? 'Processando…' : sim.tipo === 'adicionar' ? 'Confirmar' : 'Agendar redução'}
+            </button>
+          )}
+        </div>
+      )}
+      {msg && <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
+
+      {extras > 0 && proximo && mensalHoje >= (proximo.monthly_price ?? 0) * 0.6 && (
+        <p className="mt-4 text-sm text-gray-600">
+          Com {extras} {extras === 1 ? 'extra' : 'extras'} o plano sai {formatCurrency(mensalHoje)}/mês. O {proximo.name} custa{' '}
+          {formatCurrency(proximo.monthly_price ?? 0)}/mês com {proximo.users_limit} usuários e{' '}
+          {(proximo.orders_per_month ?? 0).toLocaleString('pt-BR')} pedidos.
+        </p>
+      )}
     </section>
   )
 }
