@@ -192,7 +192,12 @@ as $$
 $$;
 grant execute on function public.crm_billing_resumo(uuid) to authenticated;
 
--- Conferência
-select f.vencimento, f.descricao, f.valor, f.status
-from public.clients c, lateral public.crm_billing_faturas(c.id) f
-order by f.vencimento desc limit 10;
+-- Conferência: as cobranças que o Asaas já avisou
+select distinct on (e.payload->'payment'->>'id')
+       c.name as loja, (e.payload->'payment'->>'dueDate')::date as vencimento,
+       e.payload->'payment'->>'description' as descricao,
+       (e.payload->'payment'->>'value')::numeric as valor,
+       e.payload->'payment'->>'status' as status
+from public.billing_events e join public.clients c on c.id = e.client_id
+where e.payload ? 'payment'
+order by e.payload->'payment'->>'id', e.received_at desc;
