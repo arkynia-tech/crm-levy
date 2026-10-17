@@ -748,9 +748,11 @@
   // ---- Planos: ciclo de cobrança e assinatura -------------------------------
   // Enquanto a cobrança estiver no ambiente de teste do Asaas, o botão Assinar só
   // aparece com ?checkout=teste. Com a conta de produção, trocar para true.
-  var CHECKOUT_ABERTO = false
+  var CHECKOUT_ABERTO = true
+  // true enquanto os fluxos apontam para api-sandbox.asaas.com: mostra o selo de teste no formulário
+  var SANDBOX = true
   var CHECKOUT_URL = 'https://n8n-dev.arkynia.com.br/webhook/contatta-checkout'
-  var emTeste = /[?&]checkout=teste\b/.test(location.search)
+  var emTeste = SANDBOX || /[?&]checkout=teste\b/.test(location.search)
   var checkoutLigado = CHECKOUT_ABERTO || emTeste
   var NOME_CICLO = { MONTHLY: 'mensal', SEMIANNUALLY: 'semestral', YEARLY: 'anual' }
   var ciclo = 'MONTHLY'
