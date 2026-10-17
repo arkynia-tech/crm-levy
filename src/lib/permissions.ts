@@ -26,16 +26,17 @@ export type Permission =
   | 'credits' // recarregar o saldo de notas do cliente
   | 'manageClients' // cadastrar cliente novo e as lojas dele
   | 'waInstances' // conectar e desconectar o WhatsApp do cliente
+  | 'billing' // ver a assinatura, trocar de plano e cancelar
 
 const BY_ROLE: Record<Role, Permission[]> = {
   master: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
     'importNfe', 'settings', 'customerData', 'manageUsers', 'credits', 'manageClients',
-    'waInstances',
+    'waInstances', 'billing',
   ],
   admin: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
-    'importNfe', 'settings', 'customerData', 'manageUsers', 'waInstances',
+    'importNfe', 'settings', 'customerData', 'manageUsers', 'waInstances', 'billing',
   ],
   collaborator: ['campaigns', 'importNfe'],
 }

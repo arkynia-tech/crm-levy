@@ -43,6 +43,7 @@ export interface ResumoAssinatura {
   troca_para: string | null
   troca_ciclo: Ciclo | null
   troca_em: string | null
+  troca_valor: number | null
 }
 
 /** O que crm_billing_simular_troca devolve, para mostrar antes de confirmar. */
@@ -55,6 +56,9 @@ export interface SimulacaoTroca {
   prorata?: number
   dias_restantes?: number
   efetiva_em?: string | null
+  reinicia_ciclo?: boolean
+  credito?: number
+  novo_vencimento?: string | null
 }
 
 export async function simularTroca(clientId: string, plano: string, ciclo: Ciclo): Promise<SimulacaoTroca> {
@@ -161,8 +165,10 @@ async function chamar(body: Record<string, unknown>): Promise<RespostaAssinatura
 
 export function useAcoesAssinatura() {
   const queryClient = useQueryClient()
-  const atualizar = (clientId: string) =>
-    queryClient.invalidateQueries({ queryKey: ['billing-resumo', clientId] })
+  const atualizar = (clientId: string) => {
+    void queryClient.invalidateQueries({ queryKey: ['billing-faturas', clientId] })
+    return queryClient.invalidateQueries({ queryKey: ['billing-resumo', clientId] })
+  }
   return {
     criar: async (input: CriarAssinaturaInput) => {
       const r = await chamar({ action: 'criar', ...input })
@@ -180,4 +186,33 @@ export function useAcoesAssinatura() {
       return r
     },
   }
+}
+
+export interface Fatura {
+  id: string
+  descricao: string | null
+  valor: number
+  vencimento: string | null
+  pago_em: string | null
+  status: 'paga' | 'em_aberto' | 'atrasada' | 'estornada' | 'removida'
+  fatura_url: string | null
+  avulsa: boolean
+}
+
+/** Histórico de faturas da loja, montado dos avisos do Asaas (crm_billing_faturas). */
+export function useFaturas(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['billing-faturas', clientId],
+    enabled: Boolean(clientId),
+    queryFn: async (): Promise<Fatura[]> => {
+      const { data, error } = await supabase.rpc('crm_billing_faturas', { p_client_id: clientId })
+      if (error) {
+        if (/crm_billing_faturas|does not exist|schema cache/i.test(error.message)) return []
+        throw new Error(error.message)
+      }
+      return ((data ?? []) as Fatura[])
+        .filter((f) => f.status !== 'removida')
+        .sort((a, b) => (b.vencimento ?? '').localeCompare(a.vencimento ?? ''))
+    },
+  })
 }

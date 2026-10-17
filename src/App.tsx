@@ -19,6 +19,7 @@ import Segments from './pages/Segments'
 import Products from './pages/Products'
 import Clients from './pages/Clients'
 import WhatsApp from './pages/WhatsApp'
+import Assinatura from './pages/Assinatura'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -159,6 +160,10 @@ function Rotas() {
         <Route
           path="/clientes-lojas"
           element={<RequirePermission permission="manageClients"><Clients /></RequirePermission>}
+        />
+        <Route
+          path="/assinatura"
+          element={<RequirePermission permission="billing"><Assinatura /></RequirePermission>}
         />
         <Route
           path="/configuracoes"

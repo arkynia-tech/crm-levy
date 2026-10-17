@@ -1,0 +1,448 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowUpRight, Check, ExternalLink, Loader2 } from 'lucide-react'
+import { useCompany } from '../context/CompanyContext'
+import { useUserRole } from '../hooks/settings'
+import {
+  CICLO_LABEL,
+  STATUS_ASSINATURA,
+  simularTroca,
+  useAcoesAssinatura,
+  useFaturas,
+  usePlanos,
+  useResumoAssinatura,
+  valorDoCiclo,
+  type Ciclo,
+  type Fatura,
+  type Plano,
+  type ResumoAssinatura,
+  type SimulacaoTroca,
+} from '../hooks/billing'
+import { formatCurrency, formatDate } from '../lib/format'
+import { EmptyState, PageHeader, StatusBadge } from '../components/ui'
+
+const CICLOS: Ciclo[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY']
+const MESES: Record<Ciclo, number> = { MONTHLY: 1, SEMIANNUALLY: 6, YEARLY: 12 }
+const EXTRA_CICLO: Partial<Record<Ciclo, string>> = { SEMIANNUALLY: '-10%', YEARLY: '2 meses grátis' }
+
+const STATUS_FATURA: Record<Fatura['status'], { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' }> = {
+  paga: { label: 'Paga', tone: 'ok' },
+  em_aberto: { label: 'Em aberto', tone: 'neutral' },
+  atrasada: { label: 'Atrasada', tone: 'bad' },
+  estornada: { label: 'Estornada', tone: 'warn' },
+  removida: { label: 'Removida', tone: 'neutral' },
+}
+
+/** O plano atual em destaque: o que é, como está e quando cobra de novo. */
+function Destaque({ r }: { r: ResumoAssinatura }) {
+  const st = r.status ? STATUS_ASSINATURA[r.status] : null
+  return (
+    <section className="relative overflow-hidden rounded-2xl bg-ink-900 p-6 text-white sm:p-8">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-600/30 blur-3xl"
+      />
+      <div className="relative flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <p className="text-sm text-white/60">Seu plano</p>
+          <h2 className="mt-1 font-display text-4xl font-semibold tracking-tight">{r.plano}</h2>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-white/70">
+            <span>{r.ciclo ? CICLO_LABEL[r.ciclo] : ''}</span>
+            {st && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  st.tone === 'ok'
+                    ? 'bg-emerald-400/15 text-emerald-300'
+                    : st.tone === 'bad'
+                      ? 'bg-red-400/15 text-red-300'
+                      : 'bg-amber-400/15 text-amber-200'
+                }`}
+              >
+                {st.label}
+              </span>
+            )}
+            {r.ambiente === 'sandbox' && (
+              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-white/70">Teste</span>
+            )}
+          </div>
+        </div>
+
+        <div className="text-left sm:text-right">
+          {r.cancela_em ? (
+            <>
+              <p className="text-sm text-white/60">Acesso até</p>
+              <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{formatDate(r.cancela_em)}</p>
+              <p className="mt-1 text-sm text-white/60">sem novas cobranças</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-white/60">Próxima cobrança</p>
+              <p className="mt-1 font-display text-3xl font-semibold tabular-nums">
+                {formatCurrency((r.troca_em && r.troca_em === r.proximo_vencimento ? r.troca_valor : null) ?? r.valor ?? 0)}
+              </p>
+              <p className="mt-1 text-sm text-white/60">
+                {r.proximo_vencimento ? `em ${formatDate(r.proximo_vencimento)}` : 'aguardando a primeira fatura'}
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {(r.troca_para || r.cancela_em || r.status === 'em_atraso' || r.status === 'suspensa') && (
+        <p className="relative mt-6 border-t border-white/10 pt-4 text-sm text-white/80">
+          {r.cancela_em
+            ? `Assinatura cancelada. Você segue usando o Contatta até ${formatDate(r.cancela_em)}.`
+            : r.troca_para && r.troca_em
+              ? `Em ${formatDate(r.troca_em)} o plano passa a ser ${r.troca_para}${r.troca_ciclo ? ` ${CICLO_LABEL[r.troca_ciclo].toLowerCase()}` : ''}.`
+              : r.status === 'suspensa'
+                ? 'Conta em modo somente leitura até a fatura em aberto ser paga.'
+                : `Fatura em aberto${r.atraso_desde ? ` desde ${formatDate(r.atraso_desde)}` : ''}${r.bloqueio_em ? `. Pague até ${formatDate(r.bloqueio_em)} para não pausar importação e campanhas.` : '.'}`}
+          {r.fatura_url && (r.status === 'em_atraso' || r.status === 'suspensa') && (
+            <a href={r.fatura_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 font-medium text-white underline underline-offset-2">
+              Pagar agora <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
+        </p>
+      )}
+    </section>
+  )
+}
+
+function Medidor({ titulo, usado, limite, rodape }: { titulo: string; usado: number; limite: number | null; rodape?: string }) {
+  const pct = limite ? Math.min(100, Math.round((usado / limite) * 100)) : 0
+  const tom = !limite ? 'bg-brand-600' : pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-brand-600'
+  return (
+    <div className="card p-5">
+      <p className="text-sm text-gray-500">{titulo}</p>
+      <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-gray-900">
+        {usado.toLocaleString('pt-BR')}
+        {limite != null && <span className="text-base font-normal text-gray-400"> de {limite.toLocaleString('pt-BR')}</span>}
+      </p>
+      {limite != null && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${tom}`} style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      {rodape && <p className="mt-2 text-xs text-gray-500">{rodape}</p>}
+    </div>
+  )
+}
+
+/** Um plano na vitrine: preço no ciclo escolhido e o que acontece se trocar. */
+function CartaoPlano({
+  plano,
+  ciclo,
+  atual,
+  clientId,
+  podeTrocar,
+}: {
+  plano: Plano
+  ciclo: Ciclo
+  atual: boolean
+  clientId: string
+  podeTrocar: boolean
+}) {
+  const acoes = useAcoesAssinatura()
+  const [sim, setSim] = useState<SimulacaoTroca | null>(null)
+  const [confirmando, setConfirmando] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string; fatura?: string | null } | null>(null)
+
+  const total = valorDoCiclo(plano.monthly_price ?? 0, ciclo)
+  const porMes = total / MESES[ciclo]
+
+  useEffect(() => {
+    let vivo = true
+    setSim(null)
+    setConfirmando(false)
+    setMsg(null)
+    if (atual || !podeTrocar) return
+    void simularTroca(clientId, plano.code, ciclo).then((r) => vivo && setSim(r))
+    return () => {
+      vivo = false
+    }
+  }, [clientId, plano.code, ciclo, atual, podeTrocar])
+
+  const confirmar = async () => {
+    setEnviando(true)
+    const r = await acoes.trocar(clientId, plano.code, ciclo)
+    setEnviando(false)
+    setConfirmando(false)
+    if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
+    setMsg(
+      r.tipo === 'imediata'
+        ? { tone: 'ok', text: 'Pronto, o plano novo já vale.', fatura: r.invoice_url }
+        : { tone: 'ok', text: `Agendado para ${formatDate(r.efetiva_em)}.` },
+    )
+  }
+
+  const subida = sim?.ok && sim.tipo === 'imediata'
+  const explicacao = !sim
+    ? null
+    : !sim.ok
+      ? sim.error
+      : subida
+        ? sim.prorata
+          ? sim.reinicia_ciclo
+            ? `Vale na hora. Você paga ${formatCurrency(sim.prorata)} agora (já descontado o que sobrou do plano atual) e o ciclo recomeça hoje.`
+            : `Vale na hora. Você paga ${formatCurrency(sim.prorata)} pelos ${sim.dias_restantes} dias que faltam.`
+          : 'Vale na hora, sem cobrança extra.'
+        : `Vale a partir de ${formatDate(sim.efetiva_em)}, na renovação.`
+
+  return (
+    <div
+      className={`flex flex-col rounded-2xl border bg-white p-5 transition-shadow ${
+        atual ? 'border-brand-600 shadow-[0_12px_32px_-16px_rgba(79,70,229,0.45)]' : 'border-gray-200'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-display text-lg font-semibold text-gray-900">{plano.name}</h3>
+        {atual && <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">Seu plano</span>}
+      </div>
+      <p className="mt-3 font-display text-3xl font-semibold tabular-nums text-gray-900">
+        {formatCurrency(porMes)}
+        <span className="text-sm font-normal text-gray-500">/mês</span>
+      </p>
+      <p className="mt-0.5 text-xs text-gray-500">
+        {ciclo === 'MONTHLY' ? 'cobrado todo mês' : `${formatCurrency(total)} ${ciclo === 'SEMIANNUALLY' ? 'a cada 6 meses' : 'por ano'}`}
+      </p>
+
+      <ul className="mt-4 space-y-2 text-sm text-gray-700">
+        <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden /><span><b className="font-semibold text-gray-900">{plano.orders_per_month?.toLocaleString('pt-BR')}</b> pedidos por mês</span></li>
+        <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden /><span><b className="font-semibold text-gray-900">{plano.users_limit}</b> {plano.users_limit === 1 ? 'usuário' : 'usuários'}</span></li>
+        <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden /><span>Excedente a {formatCurrency(plano.overage_per_order ?? 0)} por pedido</span></li>
+      </ul>
+
+      <div className="mt-auto pt-5">
+        {atual ? (
+          <p className="text-sm text-gray-500">É o que você usa hoje.</p>
+        ) : !podeTrocar ? (
+          <p className="text-sm text-gray-500">A troca fica disponível com a assinatura em dia.</p>
+        ) : (
+          <>
+            <p className={`min-h-[40px] text-xs ${sim && !sim.ok ? 'text-red-600' : 'text-gray-600'}`}>
+              {sim ? explicacao : <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" aria-label="Calculando" />}
+            </p>
+            {msg ? (
+              <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>
+                {msg.text}{' '}
+                {msg.fatura && (
+                  <a href={msg.fatura} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">Pagar</a>
+                )}
+              </p>
+            ) : confirmando ? (
+              <div className="mt-2 flex gap-2">
+                <button type="button" className="btn-primary flex-1 justify-center" disabled={enviando} onClick={() => void confirmar()}>
+                  {enviando ? 'Trocando…' : 'Confirmar'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setConfirmando(false)}>Voltar</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`${subida ? 'btn-primary' : 'btn-secondary'} mt-2 w-full justify-center`}
+                disabled={!sim?.ok}
+                onClick={() => setConfirmando(true)}
+              >
+                {subida ? <>Subir para o {plano.name} <ArrowUpRight className="h-4 w-4" aria-hidden /></> : 'Agendar troca'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Faturas({ clientId }: { clientId: string }) {
+  const { data: faturas, isLoading } = useFaturas(clientId)
+  return (
+    <section className="card overflow-hidden">
+      <div className="border-b border-gray-200 px-5 py-4">
+        <h2 className="font-display text-sm font-semibold text-gray-900">Faturas</h2>
+      </div>
+      {isLoading ? (
+        <p className="px-5 py-6 text-sm text-gray-500">Carregando…</p>
+      ) : !faturas || faturas.length === 0 ? (
+        <EmptyState title="Nenhuma fatura ainda" hint="As faturas aparecem aqui assim que forem emitidas." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 text-left text-xs text-gray-500">
+              <tr>
+                <th className="px-5 py-2.5 font-medium">Vencimento</th>
+                <th className="px-5 py-2.5 font-medium">Descrição</th>
+                <th className="px-5 py-2.5 text-right font-medium">Valor</th>
+                <th className="px-5 py-2.5 font-medium">Situação</th>
+                <th className="px-5 py-2.5" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {faturas.map((f) => {
+                const st = STATUS_FATURA[f.status]
+                return (
+                  <tr key={f.id}>
+                    <td className="whitespace-nowrap px-5 py-3 tabular-nums text-gray-700">{formatDate(f.vencimento)}</td>
+                    <td className="px-5 py-3 text-gray-700">{f.descricao ?? (f.avulsa ? 'Cobrança avulsa' : 'Mensalidade')}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums text-gray-900">{formatCurrency(f.valor)}</td>
+                    <td className="px-5 py-3">
+                      <StatusBadge status={f.status === 'paga' && f.pago_em ? `Paga em ${formatDate(f.pago_em)}` : st.label} tone={st.tone} />
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right">
+                      {f.fatura_url && (
+                        <a href={f.fatura_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
+                          {f.status === 'paga' ? 'Ver' : 'Pagar'} <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+export default function Assinatura() {
+  const { activeClient } = useCompany()
+  const { data: role } = useUserRole()
+  const clientId = activeClient?.id
+  const { data: r, isLoading } = useResumoAssinatura(clientId)
+  const { data: planos } = usePlanos()
+  const acoes = useAcoesAssinatura()
+  const [ciclo, setCiclo] = useState<Ciclo>('MONTHLY')
+  const [cancelando, setCancelando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (r?.ciclo) setCiclo(r.ciclo)
+  }, [r?.ciclo])
+
+  if (isLoading || !clientId) {
+    return <div className="card h-48 animate-pulse" />
+  }
+
+  if (!r || !r.tem_assinatura) {
+    return (
+      <div>
+        <PageHeader title="Assinatura" subtitle="Seu plano, o uso do mês e as faturas" />
+        <div className="card">
+          <EmptyState
+            title="Esta loja não tem assinatura pelo Contatta"
+            hint={role === 'master' ? 'Contrate pela tela Gerenciar Lojas.' : 'Fale com a gente pra ativar o plano.'}
+          />
+          {role === 'master' && (
+            <p className="-mt-8 pb-8 text-center text-sm">
+              <Link to="/clientes-lojas" className="font-medium text-brand-700 hover:underline">Abrir Gerenciar Lojas</Link>
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const podeTrocar = r.status === 'ativa' && !r.cancela_em && r.plan_code !== 'enterprise'
+  const vitrine = (planos ?? []).filter((p) => p.monthly_price)
+
+  const cancelar = async () => {
+    const ate = r.status === 'ativa' && r.proximo_vencimento ? formatDate(r.proximo_vencimento) : null
+    if (
+      !window.confirm(
+        'Cancelar a assinatura?\n\n' +
+          (ate ? `Não haverá novas cobranças, e você segue usando o Contatta até ${ate}.` : 'A conta fica somente leitura a partir de agora.'),
+      )
+    )
+      return
+    setCancelando(true)
+    setErro(null)
+    const res = await acoes.cancelar(clientId)
+    setCancelando(false)
+    if (!res.ok) setErro(res.error ?? 'Não deu certo.')
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Assinatura" subtitle="Seu plano, o uso do mês e as faturas" />
+
+      <Destaque r={r} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Medidor
+          titulo="Pedidos novos este mês"
+          usado={r.pedidos_no_mes}
+          limite={r.franquia}
+          rodape={
+            r.franquia != null && r.pedidos_no_mes > r.franquia && r.excedente_por_pedido != null
+              ? `Passou da franquia: o excedente sai a ${formatCurrency(r.excedente_por_pedido)} por pedido no início do mês que vem.`
+              : 'A franquia volta todo dia 1º.'
+          }
+        />
+        <Medidor
+          titulo="Usuários"
+          usado={r.usuarios}
+          limite={r.limite_usuarios}
+          rodape={r.limite_usuarios != null && r.usuarios >= r.limite_usuarios ? 'Limite do plano atingido. Pra liberar mais acessos, suba de plano.' : 'Gerencie os acessos em Configurações.'}
+        />
+      </div>
+
+      {r.plan_code !== 'enterprise' && (
+        <section>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold text-gray-900">Planos</h2>
+              <p className="mt-0.5 text-sm text-gray-500">Subir de plano vale na hora. Descer, ou só mudar o ciclo, vale na renovação.</p>
+            </div>
+            <div className="flex rounded-full border border-gray-200 bg-white p-1" role="group" aria-label="Ciclo">
+              {CICLOS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCiclo(c)}
+                  aria-pressed={ciclo === c}
+                  className={`rounded-full px-3.5 py-1.5 text-sm transition-colors active:scale-[0.97] ${
+                    ciclo === c ? 'bg-ink-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {CICLO_LABEL[c]}
+                  {EXTRA_CICLO[c] && (
+                    <span className={`ml-1.5 text-xs font-semibold ${ciclo === c ? 'text-emerald-300' : 'text-emerald-600'}`}>{EXTRA_CICLO[c]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {vitrine.map((p) => (
+              <CartaoPlano
+                key={p.code}
+                plano={p}
+                ciclo={ciclo}
+                atual={p.code === r.plan_code && ciclo === r.ciclo}
+                clientId={clientId}
+                podeTrocar={podeTrocar}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Faturas clientId={clientId} />
+
+      {r.status !== 'cancelada' && !r.cancela_em && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-5 text-sm">
+          <p className="text-gray-500">
+            Cancelar para as próximas cobranças.
+            {r.status === 'ativa' && r.proximo_vencimento && ` O acesso continua até ${formatDate(r.proximo_vencimento)}.`}
+          </p>
+          <button type="button" className="text-gray-500 underline-offset-2 hover:text-red-600 hover:underline" onClick={() => void cancelar()} disabled={cancelando}>
+            {cancelando ? 'Cancelando…' : 'Cancelar assinatura'}
+          </button>
+          {erro && <p className="w-full text-red-700">{erro}</p>}
+        </div>
+      )}
+    </div>
+  )
+}

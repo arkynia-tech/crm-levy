@@ -11,6 +11,7 @@ import {
   FileUp,
   Megaphone,
   Settings,
+  CreditCard,
   LogOut,
   Menu,
   X,
@@ -34,6 +35,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: bool
   { to: '/campanhas', label: 'Campanhas', icon: Megaphone, permission: 'campaigns' },
   { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, permission: 'waInstances' },
   { to: '/importar', label: 'Importar NF-e', icon: FileUp, permission: 'importNfe' },
+  { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
   { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
 ]
 

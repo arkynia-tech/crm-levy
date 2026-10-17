@@ -24,7 +24,6 @@ import { useCompany } from '../context/CompanyContext'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
-import { SeuPlano } from '../components/Assinatura'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -593,7 +592,6 @@ function EnrichStatsSection() {
 }
 
 export default function Settings() {
-  const { activeClient } = useCompany()
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
   const canManageUsers = can(role, 'manageUsers')
@@ -602,7 +600,6 @@ export default function Settings() {
       <PageHeader title="Configurações" subtitle="Ajustes da operação e status das integrações" />
 
       <div className="space-y-6">
-        <SeuPlano clientId={activeClient?.id} />
         {isMaster && <AdminCreditsSection />}
         {isMaster && <EnrichStatsSection />}
         {canManageUsers && <AdminUsersSection isMaster={isMaster} />}
