@@ -26,17 +26,41 @@ import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
 import Logo from './Logo'
 
-const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }[] = [
-  { to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' },
-  { to: '/clientes', label: 'Clientes', icon: Users, permission: 'customers' },
-  { to: '/segmentos', label: 'Segmentos', icon: Layers, permission: 'segments' },
-  { to: '/vendas', label: 'Vendas', icon: ShoppingCart, permission: 'orders' },
-  { to: '/produtos', label: 'Produtos', icon: Package, permission: 'products' },
-  { to: '/campanhas', label: 'Campanhas', icon: Megaphone, permission: 'campaigns' },
-  { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, permission: 'waInstances' },
-  { to: '/importar', label: 'Importar NF-e', icon: FileUp, permission: 'importNfe' },
-  { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
-  { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
+type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
+
+/** Menu em grupos: o que é da base de clientes, do relacionamento, dos dados e da conta. */
+const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
+  {
+    titulo: null,
+    itens: [{ to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' }],
+  },
+  {
+    titulo: 'Base de clientes',
+    itens: [
+      { to: '/clientes', label: 'Clientes', icon: Users, permission: 'customers' },
+      { to: '/segmentos', label: 'Segmentos', icon: Layers, permission: 'segments' },
+      { to: '/vendas', label: 'Vendas', icon: ShoppingCart, permission: 'orders' },
+      { to: '/produtos', label: 'Produtos', icon: Package, permission: 'products' },
+    ],
+  },
+  {
+    titulo: 'Relacionamento',
+    itens: [
+      { to: '/campanhas', label: 'Campanhas', icon: Megaphone, permission: 'campaigns' },
+      { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, permission: 'waInstances' },
+    ],
+  },
+  {
+    titulo: 'Dados',
+    itens: [{ to: '/importar', label: 'Importar NF-e', icon: FileUp, permission: 'importNfe' }],
+  },
+  {
+    titulo: 'Conta',
+    itens: [
+      { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
+      { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
+    ],
+  },
 ]
 
 const SOON: { label: string; icon: typeof Settings }[] = []
@@ -98,8 +122,20 @@ function SidebarContent({
         </div>
       )}
 
-      <nav className="flex-1 space-y-0.5 px-3 pt-2" aria-label="Navegação principal">
-        {NAV.filter(({ permission }) => can(role, permission)).map(({ to, label, icon: Icon, end }) => (
+      <nav className="flex-1 overflow-y-auto px-3 pt-2" aria-label="Navegação principal">
+        {NAV.map((grupo, gi) => {
+          const itens = grupo.itens.filter(({ permission }) => can(role, permission))
+          if (itens.length === 0) return null
+          return (
+            <div key={grupo.titulo ?? 'inicio'} className={gi === 0 ? '' : 'mt-5'}>
+              {grupo.titulo &&
+                (collapsed ? (
+                  <div className="mx-2 mb-2 h-px bg-white/10" aria-hidden />
+                ) : (
+                  <p className="mb-1 px-2.5 text-[11px] font-medium text-slate-500">{grupo.titulo}</p>
+                ))}
+              <div className="space-y-0.5">
+        {itens.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -120,6 +156,10 @@ function SidebarContent({
             )}
           </NavLink>
         ))}
+              </div>
+            </div>
+          )
+        })}
 
         {SOON.length > 0 && (
           <p className="px-2.5 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
