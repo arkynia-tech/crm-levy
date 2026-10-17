@@ -21,6 +21,47 @@ export interface ResultadoImportacao {
   nota_ate: string | null
   estoque_baixado: number
   itens_sem_produto: string[]
+  /** pedidos novos que ficaram de fora por falta de crédito */
+  sem_credito: number
+  /** crédito que havia antes de importar (null = loja sem trava) */
+  credito_antes: number | null
+}
+
+interface Preparo {
+  sem_trava: boolean
+  disponivel: number
+  existentes: { s: string; r: string }[]
+}
+
+/**
+ * Quantos pedidos novos cabem no crédito. Pergunta ao banco quais pedidos já
+ * existem (reimportar não gasta crédito) e quanto saldo há. null = banco ainda
+ * sem a trava de crédito: importa tudo, como antes.
+ */
+async function prepararCredito(
+  clientId: string,
+  pedidos: { s: string; r: string }[],
+): Promise<{ semTrava: boolean; disponivel: number; existentes: Set<string> } | null> {
+  const existentes = new Set<string>()
+  let semTrava = false
+  let disponivel = 0
+  const blocos = pedacos(pedidos, 1000)
+  for (const bloco of blocos.length ? blocos : [[]]) {
+    const { data, error } = await supabase.rpc('crm_creditos_preparar_importacao', {
+      p_client_id: clientId,
+      p_pedidos: bloco,
+    })
+    if (error) {
+      if (/crm_creditos_preparar_importacao|does not exist|schema cache/i.test(error.message)) return null
+      throw new Error(`Crédito: ${error.message}`)
+    }
+    if (!data) throw new Error('Você não tem permissão para importar nesta loja.')
+    const p = data as Preparo
+    semTrava = p.sem_trava
+    disponivel = Number(p.disponivel) || 0
+    for (const e of p.existentes ?? []) existentes.add(`${e.s}|${e.r}`)
+  }
+  return { semTrava, disponivel, existentes }
 }
 
 const MP_POR_CNPJ: Record<string, string> = {
@@ -60,11 +101,12 @@ function lojaDaNota(n: NotaLida): { marketplace: string; shopId: string; nome: s
  * mexe nesse campo.
  */
 export async function importarNotas(
-  notas: NotaLida[],
+  notasLidas: NotaLida[],
   clientId: string,
   descontarEstoque: boolean,
   aoProgredir: (p: Progresso) => void,
 ): Promise<ResultadoImportacao> {
+  let notas = notasLidas
   const inicio = Date.now() - 60_000 // folga para diferença de relógio com o banco
   const agora = new Date().toISOString()
 
@@ -89,6 +131,46 @@ export async function importarNotas(
       .select('id, marketplace, external_shop_id')
     if (error) throw new Error(`Lojas: ${error.message}`)
     for (const s of data ?? []) idPorLoja.set(`${s.marketplace}|${s.external_shop_id}`, s.id)
+  }
+
+  // -------------------------------------------------------------- crédito
+  // Cada pedido NOVO gasta 1 crédito. Os que não cabem no saldo saem aqui,
+  // antes de gravar cliente, pedido, item ou estoque: tem 100 e mandou 200,
+  // entram os 100 primeiros (pela data da nota). O banco recusa o que passar.
+  aoProgredir({ fase: 'Conferindo o crédito', feito: 0, total: 1 })
+  const chaveDaNota = (n: NotaLida): string | null => {
+    if (n.buyer_cpf.length !== 11) return null
+    const l = lojaDaNota(n)
+    const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
+    return storeId ? `${storeId}|${n.order_ref}` : null
+  }
+  const chaves = [...new Set(notas.map(chaveDaNota).filter((c): c is string => c !== null))]
+  const credito = await prepararCredito(
+    clientId,
+    chaves.map((c) => {
+      const i = c.indexOf('|')
+      return { s: c.slice(0, i), r: c.slice(i + 1) }
+    }),
+  )
+  let semCredito = 0
+  if (credito && !credito.semTrava) {
+    const primeiraData = new Map<string, string>()
+    for (const n of notas) {
+      const c = chaveDaNota(n)
+      if (!c || credito.existentes.has(c)) continue
+      const d = n.data_emissao ?? ''
+      const atual = primeiraData.get(c)
+      if (atual === undefined || d < atual) primeiraData.set(c, d)
+    }
+    const novas = [...primeiraData.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([c]) => c)
+    const cabem = new Set(novas.slice(0, Math.max(0, credito.disponivel)))
+    semCredito = novas.length - cabem.size
+    if (semCredito > 0) {
+      notas = notas.filter((n) => {
+        const c = chaveDaNota(n)
+        return c === null || credito.existentes.has(c) || cabem.has(c)
+      })
+    }
   }
 
   // ------------------------------------------------------------- clientes
@@ -152,7 +234,7 @@ export async function importarNotas(
       .from('orders')
       .upsert(bloco, { onConflict: 'store_id,external_order_id' })
       .select('id, store_id, external_order_id, created_at')
-    if (error) throw new Error(`Vendas: ${error.message}`)
+    if (error) throw new Error(/Sem crédito/i.test(error.message) ? error.message : `Vendas: ${error.message}`)
     for (const o of data ?? []) {
       idPorPedido.set(`${o.store_id}|${o.external_order_id}`, o.id as string)
       if (new Date(o.created_at as string).getTime() >= inicio) novosPedidos += 1
@@ -229,7 +311,7 @@ export async function importarNotas(
   const semCpf = notas.filter((n) => n.buyer_cpf.length !== 11).length
 
   return {
-    total_nfes: notas.length,
+    total_nfes: notasLidas.length,
     sem_cpf: semCpf,
     novos_clientes: novosClientes,
     novos_pedidos: novosPedidos,
@@ -238,10 +320,12 @@ export async function importarNotas(
     nota_ate: datas[datas.length - 1] ?? null,
     estoque_baixado: estoqueBaixado,
     itens_sem_produto: semProduto,
+    sem_credito: semCredito,
+    credito_antes: credito && !credito.semTrava ? credito.disponivel : null,
   }
 }
 
-/** Registra o resumo — e é este insert que desconta o saldo de notas. */
+/** Registra o resumo no histórico. O crédito já foi gasto pedido a pedido, no banco. */
 export async function registrarImportacao(
   clientId: string,
   fileName: string,

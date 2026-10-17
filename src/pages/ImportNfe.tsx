@@ -7,6 +7,8 @@ import { EmptyState, ErrorState, LoadingBlock, PageHeader } from '../components/
 import { useCompany } from '../context/CompanyContext'
 import { useNfeImportLog } from '../hooks/nfeImports'
 import { useResumoAssinatura } from '../hooks/billing'
+import { useSaldoCreditos } from '../hooks/creditos'
+import { SaldoCreditos } from '../components/SaldoCreditos'
 import { useUserRole } from '../hooks/settings'
 import { lerArquivo } from '../lib/nfe/zip'
 import { lerNota } from '../lib/nfe/parse'
@@ -83,7 +85,17 @@ function Resultado({ r, arquivo }: { r: ResultadoImportacao; arquivo: string }) 
         </p>
       )}
 
-      {nada && (
+      {r.sem_credito > 0 && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>
+            {r.sem_credito.toLocaleString('pt-BR')} {r.sem_credito === 1 ? 'pedido novo ficou' : 'pedidos novos ficaram'} de fora por falta de crédito.
+          </strong>{' '}
+          Entraram os {(r.novos_pedidos).toLocaleString('pt-BR')} primeiros, pela data da nota. Quando tiver crédito, importe o
+          mesmo arquivo de novo: o que já entrou não gasta crédito outra vez.
+        </div>
+      )}
+
+      {nada && r.sem_credito === 0 && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <strong>Nada de novo entrou.</strong> Todas as notas deste arquivo já estavam no sistema:
           foram regravadas por cima, sem criar venda nem cliente. Se você esperava novidades,
@@ -155,6 +167,7 @@ export default function ImportNfe() {
   const { data: cobranca } = useResumoAssinatura(activeClient?.id)
   const { data: papel } = useUserRole()
   const somenteLeitura = papel !== 'master' && (cobranca?.status === 'suspensa' || cobranca?.status === 'cancelada')
+  const { data: saldo } = useSaldoCreditos(activeClient?.id)
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [aba, setAba] = useState<'importar' | 'historico'>('importar')
@@ -275,6 +288,11 @@ export default function ImportNfe() {
       {aba === 'historico' && <HistoricoImportacoes />}
 
       <div className={aba === 'importar' ? '' : 'hidden'}>
+        {saldo && (
+          <div className="mb-4">
+            <SaldoCreditos saldo={saldo} papel={papel} />
+          </div>
+        )}
         <label className="mb-4 flex items-start gap-2.5 rounded-lg border border-gray-200 bg-white px-4 py-3">
           <input
             type="checkbox"

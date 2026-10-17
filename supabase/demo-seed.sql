@@ -42,6 +42,8 @@ declare
                           'Sérum fortalecedor 30ml','Primer facial matte','Batom líquido matte'];
   precos  numeric[] := array[39.90, 54.90, 89.90, 45.00, 32.50];
 begin
+  -- carga de demonstração: não gasta crédito de pedido (ver creditos-pedidos.sql)
+  perform set_config('contatta.ignorar_credito', 'on', true);
   -- 1) o login precisa existir
   select id into v_user from auth.users where lower(email) = 'demo@contatta.com';
   if v_user is null then

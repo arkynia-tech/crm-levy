@@ -56,6 +56,8 @@ declare
                          'Panela antiaderente 24cm'];
   precos numeric[] := array[69.90, 89.90, 49.90, 119.90, 99.90, 79.90, 59.90, 74.90, 89.90, 139.90];
 begin
+  -- carga de demonstração: não gasta crédito de pedido (ver creditos-pedidos.sql)
+  perform set_config('contatta.ignorar_credito', 'on', true);
   select id into v_client from public.clients where name = 'Loja Demonstração';
   if v_client is null then
     raise exception 'Loja Demonstração não existe. Rode demo-seed.sql antes.';

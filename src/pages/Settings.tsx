@@ -10,8 +10,6 @@ import {
   useSaveCampaignSchedule,
   type CampaignSchedule,
   useUserRole,
-  useEnrichmentCredits,
-  useSaveCredits,
 } from '../hooks/settings'
 import {
   concederAcesso,
@@ -23,6 +21,8 @@ import {
 } from '../hooks/adminUsers'
 import { useCompany } from '../context/CompanyContext'
 import { useResumoAssinatura } from '../hooks/billing'
+import { useDefinirCreditoAvulso, useSaldoCreditos } from '../hooks/creditos'
+import { SaldoCreditos } from '../components/SaldoCreditos'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
@@ -296,73 +296,63 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
 }
 
 function AdminCreditsSection() {
-  const { data: credits } = useEnrichmentCredits()
-  const save = useSaveCredits()
-  const [balance, setBalance] = useState(0)
-  const [validUntil, setValidUntil] = useState('')
+  const { activeClient } = useCompany()
+  const { data: saldo } = useSaldoCreditos(activeClient?.id)
+  const definir = useDefinirCreditoAvulso()
+  const avulsoAtual = saldo?.lotes.find((l) => l.origem === 'avulso')?.restante ?? 0
+  const [avulso, setAvulso] = useState(0)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
-    if (credits) {
-      setBalance(credits.balance)
-      setValidUntil(credits.validUntil ?? '')
-    }
-  }, [credits])
+    setAvulso(avulsoAtual)
+  }, [avulsoAtual])
 
   const handleSave = async () => {
+    if (!activeClient) return
     setSaving(true)
     setMsg(null)
-    const res = await save({ balance, validUntil: validUntil || null })
+    const res = await definir(activeClient.id, avulso)
     setSaving(false)
-    setMsg(res.ok ? { tone: 'ok', text: 'Saldo atualizado.' } : { tone: 'err', text: res.error ?? 'Falha ao salvar.' })
+    setMsg(res.ok ? { tone: 'ok', text: 'Crédito avulso atualizado.' } : { tone: 'err', text: res.error ?? 'Falha ao salvar.' })
   }
 
   return (
     <section className="card border-brand-100 p-5">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-4 w-4 text-brand-600" aria-hidden />
-        <h2 className="font-display text-sm font-semibold text-gray-900">Saldo de notas (master)</h2>
+        <h2 className="font-display text-sm font-semibold text-gray-900">Crédito de pedidos (master)</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        <b>1 crédito = 1 nota fiscal importada.</b> Cada importação desconta o total de notas lidas,
-        automaticamente. Recarregue aqui quando o cliente contratar mais.
+        <b>1 crédito = 1 pedido novo importado</b> (reimportar não gasta). Sem crédito, pedido novo não entra.
+        Quem assina usa a franquia do plano; o crédito avulso é o que você dá à mão, não vence e é gasto
+        depois da franquia e dos pacotes. Serve para a demo e para lojas sem assinatura.
       </p>
 
-      <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-brand-50 px-3 py-2 text-sm">
-        <Sparkles className="h-4 w-4 text-brand-600" aria-hidden />
-        <span className="text-gray-700">
-          Saldo atual:{' '}
-          <span className="font-semibold tabular-nums">{credits ? credits.balance : '…'}</span> créditos
-          {credits?.validUntil && (
-            <span className="text-gray-500"> · válido até {formatDate(credits.validUntil)}</span>
-          )}
-        </span>
-      </div>
+      {saldo === null ? (
+        <p className="mt-3 text-sm text-amber-700">Falta rodar o creditos-pedidos.sql no Supabase.</p>
+      ) : (
+        saldo && (
+          <div className="mt-3">
+            <SaldoCreditos saldo={saldo} papel="master" />
+          </div>
+        )
+      )}
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Novo saldo (notas)</span>
+          <span className="text-sm font-medium text-gray-700">Crédito avulso disponível (pedidos)</span>
           <input
             type="number"
             min={0}
-            className="input mt-1 w-32"
-            value={balance}
-            onChange={(e) => setBalance(Math.max(0, Number(e.target.value) || 0))}
+            className="input mt-1 w-40"
+            value={avulso}
+            onChange={(e) => setAvulso(Math.max(0, Number(e.target.value) || 0))}
           />
         </label>
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Válido até</span>
-          <input
-            type="date"
-            className="input mt-1"
-            value={validUntil}
-            onChange={(e) => setValidUntil(e.target.value)}
-          />
-        </label>
-        <button type="button" className="btn-primary" onClick={() => void handleSave()} disabled={saving}>
+        <button type="button" className="btn-primary" onClick={() => void handleSave()} disabled={saving || !saldo}>
           <Save className="h-4 w-4" aria-hidden />
-          {saving ? 'Salvando…' : 'Salvar saldo'}
+          {saving ? 'Salvando…' : 'Salvar crédito'}
         </button>
         {msg && (
           <span className={`text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</span>

@@ -21,6 +21,7 @@ import {
 } from '../hooks/billing'
 import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, PageHeader, StatusBadge } from '../components/ui'
+import { ORIGEM_CREDITO, useSaldoCreditos } from '../hooks/creditos'
 
 const CICLOS: Ciclo[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY']
 
@@ -347,6 +348,7 @@ export default function Assinatura() {
   const { data: role } = useUserRole()
   const clientId = activeClient?.id
   const { data: r, isLoading } = useResumoAssinatura(clientId)
+  const { data: saldo } = useSaldoCreditos(clientId)
   const { data: planos } = usePlanos()
   const acoes = useAcoesAssinatura()
   const [ciclo, setCiclo] = useState<Ciclo>('MONTHLY')
@@ -382,6 +384,8 @@ export default function Assinatura() {
   }
 
   const podeTrocar = r.status === 'ativa' && !r.cancela_em && r.plan_code !== 'enterprise'
+  const franquia = saldo?.lotes.find((l) => l.origem === 'franquia') ?? null
+  const outrosCreditos = saldo?.lotes.filter((l) => l.origem !== 'franquia' && l.restante > 0) ?? []
   const vitrine = (planos ?? []).filter((p) => p.monthly_price)
 
   const acessoAte = r.status === 'ativa' && r.proximo_vencimento ? formatDate(r.proximo_vencimento) : null
@@ -428,16 +432,30 @@ export default function Assinatura() {
       <Destaque r={r} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Medidor
-          titulo="Pedidos novos este mês"
-          usado={r.pedidos_no_mes}
-          limite={r.franquia}
-          rodape={
-            r.franquia != null && r.pedidos_no_mes > r.franquia && r.excedente_por_pedido != null
-              ? `Passou da franquia: o excedente sai a ${formatCurrency(r.excedente_por_pedido)} por pedido no início do mês que vem.`
-              : 'A franquia volta todo dia 1º.'
-          }
-        />
+        {franquia ? (
+          <Medidor
+            titulo="Franquia de pedidos do mês"
+            usado={franquia.usado}
+            limite={franquia.quantidade}
+            rodape={
+              (outrosCreditos.length > 0
+                ? `Além da franquia: ${outrosCreditos
+                    .map((l) => `${ORIGEM_CREDITO[l.origem].toLowerCase()} ${l.restante.toLocaleString('pt-BR')}`)
+                    .join(', ')}. `
+                : '') +
+              (saldo && saldo.disponivel <= 0
+                ? 'Sem crédito, pedidos novos não entram até a franquia renovar no dia 1º.'
+                : 'A franquia volta todo dia 1º. Reimportar o mesmo pedido não gasta crédito.')
+            }
+          />
+        ) : (
+          <Medidor
+            titulo="Pedidos novos este mês"
+            usado={r.pedidos_no_mes}
+            limite={r.franquia}
+            rodape="A franquia volta todo dia 1º."
+          />
+        )}
         <Medidor
           titulo="Usuários"
           usado={r.usuarios}
