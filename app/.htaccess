@@ -1,0 +1,9 @@
+# SPA fallback para Apache (Hostinger).
+# Se o app for servido de uma subpasta, ajuste o RewriteBase e o destino
+# (ex.: RewriteBase /crm/ e RewriteRule . /crm/index.html [L])
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
