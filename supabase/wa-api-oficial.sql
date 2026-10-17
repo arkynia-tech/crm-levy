@@ -20,8 +20,8 @@
 -- O app secret da Meta fica em dois lugares, nunca em arquivo:
 --   • credencial do n8n (troca do código pelo token)
 --   • Supabase Vault, com o nome meta_app_secret (conferência da assinatura
---     dos avisos que a Meta manda). Cadastre pelo painel: Project Settings →
---     Vault → Add new secret. Sem ele, os avisos da Meta são recusados.
+--     dos avisos que a Meta manda). Cadastre pelo painel: Integrations →
+--     Vault → Secrets → Add new secret. Sem ele, os avisos da Meta são recusados.
 -- O verify token do webhook é gerado aqui mesmo, no Vault.
 
 create extension if not exists pgcrypto with schema extensions;
