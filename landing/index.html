@@ -71,6 +71,33 @@
   .hero h1{font-size:clamp(32px,5vw,52px);font-weight:700;max-width:17ch}
   .hero p.lead{font-size:clamp(17px,2vw,20px);color:#cbd5e1;max-width:58ch;margin:20px 0 32px}
   .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .canais{display:flex;align-items:center;gap:20px 36px;flex-wrap:wrap;margin-top:44px}
+  .canais p{margin:0;font-size:14px;color:var(--gray-400)}
+  .canais ul{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:20px 40px;flex-wrap:wrap}
+  .canais li{display:flex;align-items:center}
+  /* logos oficiais em branco, pra conversar com o hero escuro */
+  .canais img{display:block;width:auto;filter:brightness(0) invert(1);opacity:.78}
+  .canais .mp-ml{height:36px}
+  .canais .mp-shopee{height:28px}
+  .canais .mp-amazon{height:26px;transform:translateY(4px)}
+  .canais .mp-tiktok{height:17px}
+  @media(max-width:560px){
+    .canais{gap:14px}
+    .canais ul{width:100%;justify-content:space-between;gap:16px}
+    .canais .mp-ml{height:28px}.canais .mp-shopee{height:22px}
+    .canais .mp-amazon{height:20px;transform:translateY(3px)}.canais .mp-tiktok{height:14px}
+  }
+
+  .incluso{margin:28px auto 0;background:#fff;border:1px solid var(--gray-200);border-radius:14px;
+           padding:22px 24px;display:grid;grid-template-columns:auto 1fr;gap:12px 32px;align-items:start}
+  @media(max-width:760px){.incluso{grid-template-columns:1fr}}
+  .incluso h3{font-size:16px;font-weight:600;padding-top:1px}
+  .incluso ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px}
+  @media(max-width:620px){.incluso ul{grid-template-columns:1fr}}
+  .incluso li{font-size:14.5px;color:var(--gray-600);padding-left:24px;position:relative}
+  .incluso li::before{content:"";position:absolute;left:0;top:5px;width:14px;height:14px;border-radius:50%;
+    background:var(--ok-50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M4 7.2l2 2 4-4.4' fill='none' stroke='%23059669' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat}
+
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.12);
          border-radius:12px;overflow:hidden;margin:56px 0 -44px;position:relative}
   @media(max-width:760px){.stats{grid-template-columns:1fr 1fr}}
@@ -170,16 +197,6 @@
   .assinar .teste{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:600;
                   padding:3px 9px;border-radius:999px}
 
-  .modulos{background:#fff;padding:72px 0}
-  .mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px}
-  @media(max-width:860px){.mod-grid{grid-template-columns:1fr 1fr}}
-  @media(max-width:560px){.mod-grid{grid-template-columns:1fr}}
-  .mod{border:1px solid var(--gray-200);border-radius:10px;padding:18px}
-  .mod h3{font-size:15.5px;font-weight:600}
-  .mod .preco{color:var(--brand-700);font-weight:600;font-size:14px;margin:4px 0 8px;
-              font-variant-numeric:tabular-nums}
-  .mod p{color:var(--gray-600);font-size:14px;margin:0}
-
   .produto{background:var(--ink-950);color:#fff;padding:72px 0}
   .produto .sec-title,.produto h3{color:#fff}
   .produto .eyebrow{color:var(--brand-500)}
@@ -276,6 +293,16 @@
     <div class="cta">
       <a class="btn btn-primary" href="#contato">Falar com a gente</a>
       <a class="btn btn-ghost" href="#produto">Ver por dentro</a>
+    </div>
+
+    <div class="canais">
+      <p>Junta numa base só os pedidos de</p>
+      <ul>
+        <li><img src="./img/mp/mercado-livre.svg" alt="Mercado Livre" class="mp-ml" width="91" height="36"></li>
+        <li><img src="./img/mp/shopee.svg" alt="Shopee" class="mp-shopee" width="88" height="28"></li>
+        <li><img src="./img/mp/amazon.svg" alt="Amazon" class="mp-amazon" width="86" height="26"></li>
+        <li><img src="./img/mp/tiktok.svg" alt="TikTok Shop" class="mp-tiktok" width="75" height="17"></li>
+      </ul>
     </div>
 
     <div class="stats">
@@ -446,11 +473,11 @@
   <div class="wrap">
     <p class="eyebrow" style="text-align:center">Planos</p>
     <h2 class="sec-title" style="text-align:center">A cobrança é por pedido processado</h2>
-    <p style="text-align:center;color:var(--gray-500);margin-top:12px">
-      Você escolhe pela faixa de volume. Todos incluem painel de pedidos, base de clientes
-      deduplicada, segmentos e indicadores.
+    <p style="text-align:center;color:var(--gray-500);margin:12px auto 0;max-width:64ch">
+      Você escolhe pela faixa de volume. Os planos mudam só na quantidade de pedidos e de
+      usuários: o sistema é o mesmo em todos, com o WhatsApp incluso.
     </p>
-    <p style="text-align:center;color:var(--gray-500);margin-top:6px">
+    <p style="text-align:center;color:var(--gray-500);margin:6px auto 0;max-width:64ch">
       Pague por mês, por semestre com <b>10% de desconto</b> ou por ano com <b>2 meses grátis</b>.
       A franquia de pedidos vale por mês em qualquer ciclo.
     </p>
@@ -524,6 +551,16 @@
         <a class="btn btn-outline" href="#contato">Falar com a gente</a>
       </div>
     </div>
+
+    <div class="incluso">
+      <h3>Em todos os planos</h3>
+      <ul>
+        <li>Campanhas de WhatsApp para quem autorizou contato</li>
+        <li>Segmentos prontos: recorrentes, alto valor, sumidos e aniversariantes</li>
+        <li>Base de clientes sem repetição, juntando todos os canais</li>
+        <li>Painel de pedidos e indicadores por loja</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -564,52 +601,6 @@
     <p class="letra">Pix, boleto ou cartão, na página de pagamento. Dá pra cancelar quando quiser.</p>
   </form>
 </dialog>
-
-<section class="modulos">
-  <div class="wrap">
-    <p class="eyebrow">Módulos adicionais</p>
-    <h2 class="sec-title">Ative só o que a sua operação usa</h2>
-    <p style="color:var(--gray-500);margin-top:12px;max-width:62ch">
-      Contratados por cima de qualquer plano, quando fizerem sentido.
-    </p>
-    <div class="mod-grid">
-      <div class="mod">
-        <h3>CRM de clientes</h3>
-        <p class="preco">R$ 149/mês</p>
-        <p>Ficha do cliente, histórico de compras, frequência e ticket médio.</p>
-      </div>
-      <div class="mod">
-        <h3>WhatsApp</h3>
-        <p class="preco">R$ 299/mês + consumo</p>
-        <p>Campanhas e automações para contatos que autorizaram receber mensagem.</p>
-      </div>
-      <div class="mod">
-        <h3>Analytics</h3>
-        <p class="preco">R$ 149/mês</p>
-        <p>Receita por canal e produto, relatórios gerenciais e exportação.</p>
-      </div>
-      <div class="mod">
-        <h3>Segmentação avançada</h3>
-        <p class="preco">R$ 199/mês</p>
-        <p>Grupos por recorrência, gasto e inatividade, prontos para campanha.</p>
-      </div>
-      <div class="mod">
-        <h3>Captura de permissões</h3>
-        <p class="preco">R$ 149/mês</p>
-        <p>Opt-in, formulários, preferências e pedidos de descadastramento.</p>
-      </div>
-      <div class="mod">
-        <h3>Integrações extras</h3>
-        <p class="preco">R$ 199/mês por canal</p>
-        <p>Conectar outro marketplace, a loja própria ou o ERP.</p>
-      </div>
-    </div>
-    <p class="nota">
-      Serviços pontuais de implantação assistida, migração de base e treinamento são cobrados à
-      parte, a partir de R$ 490.
-    </p>
-  </div>
-</section>
 
 <section class="faq" id="faq">
   <div class="wrap">
