@@ -217,6 +217,30 @@ export function AvisoCobranca() {
   const { activeClient } = useCompany()
   const { data: role } = useUserRole()
   const { data: r } = useResumoAssinatura(role && role !== 'master' ? activeClient?.id : undefined)
+  const av = r?.avulsa_aberta
+  // pagamento avulso em aberto (diferença de troca, excedente) com a assinatura em dia
+  if (r && av && r.status === 'ativa') {
+    return (
+      <div
+        role="status"
+        className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+          av.atrasada ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-900'
+        }`}
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+        <p className="flex-1">
+          Pagamento pendente de <strong className="tabular-nums">{formatCurrency(av.valor)}</strong>
+          {av.descricao ? ` (${av.descricao.replace(/^Contatta:\s*/, '')})` : ''}
+          {av.vencimento ? `, ${av.atrasada ? 'venceu' : 'vence'} em ${formatDate(av.vencimento)}` : ''}.
+        </p>
+        {av.fatura_url && (
+          <a href={av.fatura_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium underline underline-offset-2">
+            Pagar agora <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          </a>
+        )}
+      </div>
+    )
+  }
   if (!r || !r.status || !['em_atraso', 'suspensa', 'pendente'].includes(r.status)) return null
   if (r.status === 'pendente' && (!r.proximo_vencimento || r.proximo_vencimento >= new Date().toISOString().slice(0, 10))) return null
 

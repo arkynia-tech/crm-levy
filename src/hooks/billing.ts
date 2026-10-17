@@ -44,6 +44,8 @@ export interface ResumoAssinatura {
   troca_ciclo: Ciclo | null
   troca_em: string | null
   troca_valor: number | null
+  /** cobrança avulsa (diferença de troca, excedente) ainda não paga */
+  avulsa_aberta: { valor: number; vencimento: string | null; descricao: string | null; fatura_url: string | null; atrasada: boolean } | null
 }
 
 /** O que crm_billing_simular_troca devolve, para mostrar antes de confirmar. */

@@ -146,7 +146,7 @@ function CartaoPlano({
   const [sim, setSim] = useState<SimulacaoTroca | null>(null)
   const [confirmando, setConfirmando] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string; fatura?: string | null } | null>(null)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string; fatura?: string | null; valor?: number } | null>(null)
 
   const total = valorDoCiclo(plano.monthly_price ?? 0, ciclo)
   const porMes = total / MESES[ciclo]
@@ -171,7 +171,7 @@ function CartaoPlano({
     if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
     setMsg(
       r.tipo === 'imediata'
-        ? { tone: 'ok', text: 'Pronto, o plano novo já vale.', fatura: r.invoice_url }
+        ? { tone: 'ok', text: 'Pronto, o plano novo já vale.', fatura: r.invoice_url, valor: r.prorata }
         : { tone: 'ok', text: `Agendado para ${formatDate(r.efetiva_em)}.` },
     )
   }
@@ -224,16 +224,21 @@ function CartaoPlano({
               {sim ? explicacao : <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" aria-label="Calculando" />}
             </p>
             {msg ? (
-              <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>
-                {msg.text}{' '}
-                {msg.fatura && (
-                  <a href={msg.fatura} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">Pagar</a>
-                )}
-              </p>
+              msg.fatura ? (
+                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm font-medium text-amber-900">Plano trocado. Falta pagar a diferença.</p>
+                  <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-gray-900">{formatCurrency(msg.valor ?? 0)}</p>
+                  <a href={msg.fatura} target="_blank" rel="noreferrer" className="btn-primary mt-2 w-full justify-center">
+                    Pagar agora <ExternalLink className="h-4 w-4" aria-hidden />
+                  </a>
+                </div>
+              ) : (
+                <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>
+              )
             ) : confirmando ? (
               <div className="mt-2 flex gap-2">
                 <button type="button" className="btn-primary flex-1 justify-center" disabled={enviando} onClick={() => void confirmar()}>
-                  {enviando ? 'Trocando…' : 'Confirmar'}
+                  {enviando ? 'Trocando…' : sim?.prorata ? `Confirmar e pagar ${formatCurrency(sim.prorata)}` : 'Confirmar'}
                 </button>
                 <button type="button" className="btn-secondary" onClick={() => setConfirmando(false)}>Voltar</button>
               </div>
@@ -366,6 +371,32 @@ export default function Assinatura() {
   return (
     <div className="space-y-6">
       <PageHeader title="Assinatura" subtitle="Seu plano, o uso do mês e as faturas" />
+
+      {r.avulsa_aberta && (
+        <section
+          className={`flex flex-wrap items-center gap-4 rounded-2xl border p-5 ${
+            r.avulsa_aberta.atrasada ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+          }`}
+        >
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-medium ${r.avulsa_aberta.atrasada ? 'text-red-800' : 'text-amber-900'}`}>
+              {r.avulsa_aberta.atrasada ? 'Pagamento atrasado' : 'Pagamento pendente'}
+            </p>
+            <p className="mt-0.5 font-display text-2xl font-semibold tabular-nums text-gray-900">
+              {formatCurrency(r.avulsa_aberta.valor)}
+            </p>
+            <p className="mt-0.5 text-sm text-gray-700">
+              {r.avulsa_aberta.descricao?.replace(/^Contatta:\s*/, '') ?? 'Cobrança avulsa'}
+              {r.avulsa_aberta.vencimento && ` · ${r.avulsa_aberta.atrasada ? 'venceu' : 'vence'} em ${formatDate(r.avulsa_aberta.vencimento)}`}
+            </p>
+          </div>
+          {r.avulsa_aberta.fatura_url && (
+            <a href={r.avulsa_aberta.fatura_url} target="_blank" rel="noreferrer" className="btn-primary">
+              Pagar agora <ExternalLink className="h-4 w-4" aria-hidden />
+            </a>
+          )}
+        </section>
+      )}
 
       <Destaque r={r} />
 
