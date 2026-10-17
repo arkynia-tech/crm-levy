@@ -19,6 +19,7 @@ import Segments from './pages/Segments'
 import Products from './pages/Products'
 import Clients from './pages/Clients'
 import WhatsApp from './pages/WhatsApp'
+import Modelos from './pages/Modelos'
 import Assinatura from './pages/Assinatura'
 
 function ProtectedRoutes() {
@@ -156,6 +157,10 @@ function Rotas() {
         <Route
           path="/whatsapp"
           element={<RequirePermission permission="waInstances"><WhatsApp /></RequirePermission>}
+        />
+        <Route
+          path="/whatsapp/modelos"
+          element={<RequirePermission permission="waInstances"><Modelos /></RequirePermission>}
         />
         <Route
           path="/clientes-lojas"

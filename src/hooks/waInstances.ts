@@ -25,6 +25,18 @@ export interface WaInstance {
   last_status_at: string | null
   last_error: string | null
   created_at: string
+  /** 'uazapi' (QR Code) ou 'cloud_api' (API oficial da Meta). Ausente antes do wa-api-oficial.sql. */
+  provider?: 'uazapi' | 'cloud_api'
+  waba_id?: string | null
+  phone_number_id?: string | null
+  verified_name?: string | null
+  quality_rating?: string | null
+  messaging_limit?: string | null
+  coexistence?: boolean
+}
+
+export function ehOficial(i: Pick<WaInstance, 'provider'>): boolean {
+  return i.provider === 'cloud_api'
 }
 
 export interface WaQuota {

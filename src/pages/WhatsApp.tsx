@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug } from 'lucide-react'
 import {
+  ehOficial,
   esquecerInstancia,
   STATUS_HINT,
   STATUS_LABEL,
@@ -9,10 +11,13 @@ import {
   useWaInstances,
   useWaQuota,
   type WaInstance,
+  type WaStatus,
 } from '../hooks/waInstances'
 import { formatPhone } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
 import { AvisoApiOficial } from '../components/AvisoApiOficial'
+import { oficialConfigurado, QUALIDADE_NUMERO, useWaOficial } from '../hooks/waOficial'
+import { abrirSignupDaMeta, metaSignupDisponivel, prepararSdkDaMeta } from '../lib/metaSignup'
 
 /** O QR da uazapi vem em base64 ou já como data URI; a tela aceita os dois. */
 function qrSrc(qr: string): string {
@@ -263,6 +268,244 @@ function CartaoInstancia({ i }: { i: WaInstance }) {
   )
 }
 
+const STATUS_OFICIAL: Partial<Record<WaStatus, { label: string; hint: string }>> = {
+  connected: { label: 'Conectado', hint: 'Pronto pra campanha com modelo aprovado.' },
+  registering: {
+    label: 'Liberando o número',
+    hint: 'A Meta ainda está liberando o número. Se demorar, confira no WhatsApp Manager se falta cadastrar a forma de pagamento.',
+  },
+  disconnected: {
+    label: 'Parado na Meta',
+    hint: 'A Meta não está deixando esse número enviar agora. Clique em Conferir pra ver o motivo.',
+  },
+}
+
+/** "TIER_1K" vira "1 mil", "TIER_UNLIMITED" vira "sem limite" */
+function limiteLegivel(t: string): string {
+  const s = t.replace(/^TIER_/, '')
+  if (/unlimited/i.test(s)) return 'sem limite de pessoas por dia'
+  return `até ${s.replace(/K$/i, ' mil').replace(/^250$/, '250')} pessoas novas por dia`
+}
+
+function CartaoOficial({ i }: { i: WaInstance }) {
+  const oficial = useWaOficial()
+  const [ocupado, setOcupado] = useState<'conferir' | 'remover' | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const st = STATUS_OFICIAL[i.status] ?? { label: STATUS_LABEL[i.status], hint: STATUS_HINT[i.status] }
+  const qualidade = i.quality_rating ? QUALIDADE_NUMERO[i.quality_rating.toUpperCase()] : undefined
+
+  const conferir = async () => {
+    setOcupado('conferir')
+    setErro(null)
+    const r = await oficial.conferir(i.id)
+    setOcupado(null)
+    if (!r.ok) setErro(r.error ?? 'Não deu pra conferir agora.')
+  }
+
+  const remover = async () => {
+    if (
+      !window.confirm(
+        `Tirar ${i.label ?? 'este número'} do Contatta?\n\n` +
+          'O número continua seu na Meta e no WhatsApp Manager. Só para de disparar campanha por aqui. Pra voltar, é só conectar de novo.',
+      )
+    )
+      return
+    setOcupado('remover')
+    setErro(null)
+    const r = await oficial.remover(i.id)
+    setOcupado(null)
+    if (!r.ok) setErro(r.error ?? 'Não deu pra remover agora.')
+  }
+
+  return (
+    <div className="card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <BadgeCheck className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+            <h3 className="truncate font-display text-sm font-semibold text-gray-900">{i.label ?? 'WhatsApp oficial'}</h3>
+            <StatusBadge status={st.label} tone={STATUS_TONE[i.status]} />
+            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">API oficial</span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{st.hint}</p>
+          {i.phone && (
+            <p className="mt-1 text-sm font-medium tabular-nums text-gray-800">
+              {formatPhone(i.phone)}
+              {i.verified_name ? <span className="font-normal text-gray-500"> como {i.verified_name}</span> : null}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {qualidade && <StatusBadge status={qualidade.label} tone={qualidade.tone} />}
+            {i.messaging_limit && <span className="text-gray-500">Meta libera {limiteLegivel(i.messaging_limit)}</span>}
+            {i.coexistence && <span className="text-gray-500">Continua funcionando no app do celular</span>}
+          </div>
+          {i.last_error && i.status !== 'connected' && (
+            <p className="mt-1 text-xs text-red-700">Último aviso: {i.last_error}</p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/whatsapp/modelos" className="btn-secondary">
+            <FileText className="h-4 w-4" aria-hidden />
+            Modelos
+          </Link>
+          <button type="button" className="btn-secondary" onClick={() => void conferir()} disabled={ocupado !== null}>
+            {ocupado === 'conferir' ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw className="h-4 w-4" aria-hidden />
+            )}
+            Conferir
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-md border border-gray-300 p-2 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+            onClick={() => void remover()}
+            disabled={ocupado !== null}
+            title="Tirar do Contatta"
+            aria-label={`Tirar ${i.label ?? 'número oficial'} do Contatta`}
+          >
+            {ocupado === 'remover' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Trash2 className="h-4 w-4" aria-hidden />}
+          </button>
+        </div>
+      </div>
+
+      {erro && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+    </div>
+  )
+}
+
+/**
+ * Conectar pela API oficial: abre o Embedded Signup da Meta e, com o código
+ * que volta, pede ao n8n pra terminar (token, webhook, registro do número).
+ */
+function ConectarOficial({ podeCriar }: { podeCriar: boolean | undefined }) {
+  const oficial = useWaOficial()
+  const [coexistencia, setCoexistencia] = useState(false)
+  const [label, setLabel] = useState('')
+  const [etapa, setEtapa] = useState<'parado' | 'janela' | 'gravando'>('parado')
+  const [erro, setErro] = useState<string | null>(null)
+  const [pronto, setPronto] = useState(false)
+  const [sucesso, setSucesso] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!metaSignupDisponivel) return
+    prepararSdkDaMeta()
+      .then(() => setPronto(true))
+      .catch((e: Error) => setErro(e.message))
+  }, [])
+
+  const conectar = () => {
+    setErro(null)
+    setSucesso(null)
+    setEtapa('janela')
+    // abrirSignupDaMeta chama o FB.login na hora, ainda dentro do clique
+    void abrirSignupDaMeta({ coexistencia }).then(async (r) => {
+      if (!r.ok) {
+        setEtapa('parado')
+        if (!r.cancelado) setErro(r.error)
+        return
+      }
+      setEtapa('gravando')
+      const g = await oficial.conectar(r.dados, { label: label.trim(), coexistencia })
+      if (!g.ok) {
+        setEtapa('parado')
+        setErro(g.error ?? 'Não deu pra terminar a conexão.')
+        return
+      }
+      if (g.instance_id) await oficial.sincronizarModelos(g.instance_id)
+      setEtapa('parado')
+      setLabel('')
+      setSucesso(
+        g.status === 'connected'
+          ? 'Número oficial conectado. Agora crie um modelo em Modelos e espere a Meta aprovar pra disparar.'
+          : 'Número conectado. A Meta ainda está liberando: confira no WhatsApp Manager se a forma de pagamento já está cadastrada.',
+      )
+    })
+  }
+
+  if (!metaSignupDisponivel || !oficialConfigurado) {
+    return (
+      <div className="-mt-2 mb-4">
+        <AvisoApiOficial />
+      </div>
+    )
+  }
+
+  return (
+    <section className="card mb-6 overflow-hidden">
+      <div className="border-l-4 border-brand-600 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-xl">
+            <h2 className="flex items-center gap-2 font-display text-base font-semibold text-gray-900">
+              <BadgeCheck className="h-5 w-5 text-brand-600" aria-hidden />
+              API oficial do WhatsApp
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Conecte pela própria Meta, sem QR Code. A campanha sai por modelo aprovado e o risco de bloqueio do
+              número cai bastante. Cada mensagem é cobrada pela Meta direto no cartão que você cadastrar no WhatsApp
+              Manager.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Vai abrir uma janela da Meta: entre com o Facebook da empresa, escolha (ou crie) a conta do WhatsApp
+              Business e confirme o número.
+            </p>
+          </div>
+
+          <div className="w-full max-w-xs space-y-3">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Nome do número (opcional)</span>
+              <input
+                className="input mt-1"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Ex.: Loja oficial"
+                disabled={etapa !== 'parado'}
+              />
+            </label>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600"
+                checked={coexistencia}
+                onChange={(e) => setCoexistencia(e.target.checked)}
+                disabled={etapa !== 'parado'}
+              />
+              <span>
+                Esse número já usa o app WhatsApp Business no celular
+                <span className="block text-xs text-gray-500">
+                  Ele continua funcionando no celular e no Contatta ao mesmo tempo.
+                </span>
+              </span>
+            </label>
+            <button
+              type="button"
+              className="btn-primary w-full transition-transform duration-150 ease-out active:scale-[0.98]"
+              onClick={conectar}
+              disabled={etapa !== 'parado' || !pronto || podeCriar === false}
+            >
+              {etapa !== 'parado' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {etapa === 'janela'
+                ? 'Esperando a janela da Meta…'
+                : etapa === 'gravando'
+                  ? 'Terminando a conexão…'
+                  : 'Conectar WhatsApp oficial'}
+            </button>
+            {podeCriar === false && (
+              <p className="text-xs text-gray-500">
+                O limite de números desta loja já foi usado. Fale com o suporte pra aumentar.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {sucesso && <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{sucesso}</p>}
+      </div>
+    </section>
+  )
+}
+
 function NovaInstancia({
   podeCriar,
   limite,
@@ -351,6 +594,9 @@ export default function WhatsApp() {
   const { data: instancias, isLoading, error } = useWaInstances()
   const { data: quota } = useWaQuota()
   const acoes = useWaActions()
+  const oficial = useWaOficial()
+  const oficiais = (instancias ?? []).filter(ehOficial)
+  const porQr = (instancias ?? []).filter((i) => !ehOficial(i))
 
   // O status guardado envelhece: se o número cair de madrugada, a tabela
   // continua dizendo "conectado" até alguém perguntar. Ao abrir a tela,
@@ -361,17 +607,15 @@ export default function WhatsApp() {
     if (jaConferiu.current || !instancias || instancias.length === 0) return
     jaConferiu.current = true
     for (const i of instancias) {
-      if (i.status !== 'creating') void acoes.atualizarStatus(i.id)
+      if (ehOficial(i)) void oficial.conferir(i.id)
+      else if (i.status !== 'creating') void acoes.atualizarStatus(i.id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instancias])
 
   return (
     <div>
-      <PageHeader
-        title="WhatsApp"
-        subtitle="Conecte o número que vai disparar as campanhas, lendo um QR Code"
-      >
+      <PageHeader title="WhatsApp" subtitle="Conecte o número que vai disparar as campanhas">
         <NovaInstancia
           podeCriar={quota?.pode_criar}
           limite={quota?.limite ?? 1}
@@ -379,9 +623,7 @@ export default function WhatsApp() {
         />
       </PageHeader>
 
-      <div className="-mt-2 mb-4">
-        <AvisoApiOficial />
-      </div>
+      <ConectarOficial podeCriar={quota?.pode_criar} />
 
       {error && <ErrorState message={(error as Error).message} />}
 
@@ -397,14 +639,30 @@ export default function WhatsApp() {
         <div className="card">
           <EmptyState
             title="Nenhum número conectado"
-            hint="Conecte um número e leia o QR Code com o WhatsApp que vai enviar as campanhas."
+            hint="Conecte pela API oficial ali em cima, ou pelo QR Code no botão Conectar um número."
           />
         </div>
       ) : (
-        <div className="space-y-4">
-          {instancias.map((i) => (
-            <CartaoInstancia key={i.id} i={i} />
-          ))}
+        <div className="space-y-6">
+          {oficiais.length > 0 && (
+            <div className="space-y-4">
+              {oficiais.map((i) => (
+                <CartaoOficial key={i.id} i={i} />
+              ))}
+            </div>
+          )}
+          {porQr.length > 0 && (
+            <div>
+              {oficiais.length > 0 && (
+                <h2 className="mb-2 font-display text-sm font-semibold text-gray-700">Pelo QR Code</h2>
+              )}
+              <div className="space-y-4">
+                {porQr.map((i) => (
+                  <CartaoInstancia key={i.id} i={i} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,8 +1,8 @@
 import { AvisoApiOficial } from '../components/AvisoApiOficial'
 import { useEffect, useState, type FormEvent } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Cake, CheckCheck, Sparkles, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
+import { BadgeCheck, Cake, CheckCheck, QrCode, Sparkles, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
 import { useBirthdaySettings, useCan, useSaveBirthdaySettings } from '../hooks/settings'
 import {
   gerarVariacoes,
@@ -13,8 +13,11 @@ import {
   uploadCampaignImage,
   useWaCampaigns,
   type AudienceInput,
+  type TemplateParams,
   type WaCampaign,
 } from '../hooks/campaigns'
+import { ehOficial, useWaInstances } from '../hooks/waInstances'
+import { TEMPLATE_CATEGORIA, useWaTemplates, type WaTemplate } from '../hooks/waOficial'
 import { useCustomerSearch, type CustomerLite } from '../hooks/queries'
 import { SEGMENTS, segmentLabel } from '../lib/segments'
 import { formatDateTime, formatPhone, maskCpf } from '../lib/format'
@@ -269,6 +272,123 @@ function BirthdayCard() {
   )
 }
 
+/** Variável que, pelo nome, claramente é o nome do cliente */
+function ehVariavelDeNome(v: string): boolean {
+  return v === 'nome' || v === 'primeiro_nome' || v === 'name' || v === '1'
+}
+
+function paramsIniciais(t: WaTemplate): TemplateParams {
+  return Object.fromEntries(
+    t.params.map((v) => [v, ehVariavelDeNome(v) ? { fonte: 'nome' as const, padrao: 'cliente' } : { fonte: 'texto' as const, valor: '' }]),
+  )
+}
+
+/** Campanha pela API oficial: escolher o modelo aprovado e o que vai em cada variável. */
+function EscolhaModelo({
+  modelos,
+  modelo,
+  onModelo,
+  params,
+  onParams,
+  podeGerenciar,
+}: {
+  modelos: WaTemplate[]
+  modelo: WaTemplate | undefined
+  onModelo: (t: WaTemplate | undefined) => void
+  params: TemplateParams
+  onParams: (p: TemplateParams) => void
+  podeGerenciar: boolean
+}) {
+  if (modelos.length === 0) {
+    return (
+      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        Ainda não tem modelo aprovado pela Meta.{' '}
+        {podeGerenciar ? (
+          <Link to="/whatsapp/modelos" className="font-medium underline underline-offset-2 hover:no-underline">
+            Criar um modelo
+          </Link>
+        ) : (
+          'Peça a um administrador pra criar um em Modelos.'
+        )}
+      </div>
+    )
+  }
+
+  const mudar = (v: string, patch: Partial<TemplateParams[string]>) =>
+    onParams({ ...params, [v]: { ...params[v], ...patch } as TemplateParams[string] })
+
+  return (
+    <div className="mt-3 space-y-3">
+      <label className="block">
+        <span className="text-sm font-medium text-gray-700">Modelo aprovado</span>
+        <select
+          className="input mt-1"
+          value={modelo?.id ?? ''}
+          onChange={(e) => onModelo(modelos.find((t) => t.id === e.target.value))}
+        >
+          <option value="">Escolha um modelo…</option>
+          {modelos.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({TEMPLATE_CATEGORIA[t.category] ?? t.category})
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {modelo && (
+        <>
+          <p className="whitespace-pre-wrap rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">{modelo.body_text}</p>
+          {modelo.params.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium text-gray-700">O que vai em cada variável</span>
+              {modelo.params.map((v) => {
+                const p = params[v] ?? { fonte: 'texto' as const, valor: '' }
+                return (
+                  <div key={v} className="flex flex-wrap items-center gap-2">
+                    <code className="w-28 shrink-0 truncate rounded bg-gray-100 px-1 text-xs">{`{{${v}}}`}</code>
+                    <select
+                      className="input w-52 !py-1.5"
+                      value={p.fonte}
+                      onChange={(e) => mudar(v, { fonte: e.target.value as 'nome' | 'texto' })}
+                      aria-label={`De onde vem ${v}`}
+                    >
+                      <option value="nome">Primeiro nome do cliente</option>
+                      <option value="texto">Texto fixo</option>
+                    </select>
+                    {p.fonte === 'texto' ? (
+                      <input
+                        className="input min-w-0 flex-1 !py-1.5"
+                        value={p.valor ?? ''}
+                        onChange={(e) => mudar(v, { valor: e.target.value })}
+                        placeholder="O mesmo pra todo mundo, ex.: VOLTA10"
+                        aria-label={`Valor de ${v}`}
+                      />
+                    ) : (
+                      <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-gray-500">
+                        Sem nome, usar
+                        <input
+                          className="input min-w-0 flex-1 !py-1.5"
+                          value={p.padrao ?? ''}
+                          onChange={(e) => mudar(v, { padrao: e.target.value })}
+                          placeholder="cliente"
+                        />
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <p className="text-xs text-gray-500">
+            Cada mensagem entregue é cobrada pela Meta no cartão do WhatsApp Manager da loja. Modelo de marketing custa
+            mais que o de utilidade.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
 function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?: CampaignPreset }) {
   // O colaborador monta campanha sem enxergar a base: nada de escolher cliente
   // na mão e nada de amostra com nome/telefone na prévia.
@@ -289,6 +409,28 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
   const [variando, setVariando] = useState(false)
   const [avisoVar, setAvisoVar] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // API oficial: só aparece com número oficial conectado
+  const podeGerenciarWa = useCan('waInstances')
+  const { data: instancias } = useWaInstances()
+  const oficialConectado = (instancias ?? []).some((i) => ehOficial(i) && i.status === 'connected')
+  const qrConectado = (instancias ?? []).some((i) => !ehOficial(i) && i.status === 'connected')
+  const { data: modelos } = useWaTemplates(oficialConectado)
+  const aprovados = (modelos ?? []).filter((t) => t.status === 'APPROVED' && t.suportado)
+  const [canal, setCanal] = useState<'qr' | 'oficial'>('qr')
+  const [modelo, setModelo] = useState<WaTemplate | undefined>()
+  const [params, setParams] = useState<TemplateParams>({})
+  const usandoOficial = canal === 'oficial' && oficialConectado
+
+  // Só o oficial conectado: já começa por ele
+  useEffect(() => {
+    if (oficialConectado && !qrConectado) setCanal('oficial')
+  }, [oficialConectado, qrConectado])
+
+  const escolherModelo = (t: WaTemplate | undefined) => {
+    setModelo(t)
+    setParams(t ? paramsIniciais(t) : {})
+  }
 
   const handleImage = async (file: File | undefined) => {
     if (!file) return
@@ -371,8 +513,26 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !message.trim()) {
-      setError('Dê um nome e escreva a mensagem da campanha.')
+    if (!name.trim()) {
+      setError('Dê um nome pra campanha.')
+      return
+    }
+    if (usandoOficial) {
+      if (!modelo) {
+        setError('Escolha o modelo aprovado que vai ser enviado.')
+        return
+      }
+      const vazia = modelo.params.find((v) => (params[v]?.fonte ?? 'texto') === 'texto' && !params[v]?.valor?.trim())
+      if (vazia) {
+        setError(`Preencha o valor de {{${vazia}}}. A Meta não aceita variável vazia.`)
+        return
+      }
+      if (modelo.header_format === 'IMAGE' && !mediaUrl) {
+        setError('Esse modelo tem foto no topo: anexe a imagem.')
+        return
+      }
+    } else if (!message.trim()) {
+      setError('Escreva a mensagem da campanha.')
       return
     }
     if (choice === 'manual' && selected.length === 0) {
@@ -384,9 +544,11 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
     const res = await campaignAction({
       action: 'create',
       name: name.trim(),
-      message_body: message.trim(),
+      message_body: usandoOficial ? (modelo?.body_text ?? modelo?.name ?? '') : message.trim(),
       media_url: mediaUrl,
       audience: buildAudience(),
+      template_id: usandoOficial ? modelo?.id ?? null : null,
+      template_params: usandoOficial ? params : undefined,
     })
     setBusy(null)
     if (!res.ok) {
@@ -400,6 +562,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
     setChoice('test')
     setMediaUrl(null)
     setPreview(null)
+    escolherModelo(undefined)
     onCreated()
   }
 
@@ -493,6 +656,59 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
       )}
       {choice === 'manual' && canSeeCustomers && <CustomerPicker selected={selected} onChange={setSelected} />}
 
+      {oficialConectado && (
+        <fieldset className="mt-3">
+          <legend className="text-sm font-medium text-gray-700">Enviar por</legend>
+          <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['oficial', BadgeCheck, 'API oficial', 'Modelo aprovado pela Meta, menos risco de bloqueio'],
+                ['qr', QrCode, 'Número do QR Code', 'Texto livre, com variações e ritmo controlado'],
+              ] as const
+            ).map(([valor, Icone, rotulo, dica]) => (
+              <label
+                key={valor}
+                className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                  canal === valor ? 'border-brand-600 bg-brand-50' : 'border-gray-300 hover:bg-gray-50'
+                } ${valor === 'qr' && !qrConectado ? 'opacity-60' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="canal"
+                  className="sr-only"
+                  checked={canal === valor}
+                  disabled={valor === 'qr' && !qrConectado}
+                  onChange={() => {
+                    setCanal(valor)
+                    setPreview(null)
+                  }}
+                />
+                <Icone className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+                <span>
+                  <span className="block font-medium text-gray-900">{rotulo}</span>
+                  <span className="block text-xs text-gray-500">
+                    {valor === 'qr' && !qrConectado ? 'Nenhum número conectado pelo QR Code' : dica}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      {usandoOficial && (
+        <EscolhaModelo
+          modelos={aprovados}
+          modelo={modelo}
+          onModelo={escolherModelo}
+          params={params}
+          onParams={setParams}
+          podeGerenciar={podeGerenciarWa}
+        />
+      )}
+
+      {!usandoOficial && (
+        <>
       <div className="mt-3">
         {/* O botão fica na linha do rótulo, ao lado do campo que ele altera:
             embaixo da ajuda ninguém via, e o recurso existia sem ser usado. */}
@@ -533,11 +749,17 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
         </p>
       </div>
 
+        </>
+      )}
+
+      {(!usandoOficial || modelo?.header_format === 'IMAGE') && (
+        <>
       <div className="mt-3">
-        <span className="text-sm font-medium text-gray-700">Imagem (opcional)</span>
+        <span className="text-sm font-medium text-gray-700">{usandoOficial ? 'Foto do topo do modelo' : 'Imagem (opcional)'}</span>
         <p className="mb-1 text-xs text-gray-500">
-          Se anexar, a campanha vai como foto + legenda (a mensagem acima vira a legenda), o que chama mais
-          atenção e o link fica tocável.
+          {usandoOficial
+            ? 'Esse modelo foi aprovado com uma foto no topo. Ela vai igual pra todo mundo.'
+            : 'Se anexar, a campanha vai como foto + legenda (a mensagem acima vira a legenda), o que chama mais atenção e o link fica tocável.'}
         </p>
         {mediaUrl ? (
           <div className="flex items-center gap-3">
@@ -567,6 +789,9 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
           </label>
         )}
       </div>
+
+        </>
+      )}
 
       {preview && (
         <div className="mt-3 rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-gray-800">
@@ -662,7 +887,10 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
       action: 'create',
       name: `${campaign.name} (cópia)`,
       message_body: campaign.message_body,
+      media_url: campaign.media_url ?? null,
       audience: campaign.audience as AudienceInput,
+      template_id: campaign.template_id ?? null,
+      template_params: campaign.template_params ?? undefined,
     })
     setDuplicating(false)
     if (!res.ok) {
@@ -724,7 +952,15 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={statusInfo.label} tone={statusInfo.tone} />
-          {campaign.status === 'draft' && !editing && (
+          {campaign.template_name && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700"
+              title={`Modelo ${campaign.template_name}`}
+            >
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> API oficial
+            </span>
+          )}
+          {campaign.status === 'draft' && !editing && !campaign.template_id && (
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
