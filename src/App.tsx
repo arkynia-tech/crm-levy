@@ -21,6 +21,8 @@ import Clients from './pages/Clients'
 import WhatsApp from './pages/WhatsApp'
 import Modelos from './pages/Modelos'
 import Assinatura from './pages/Assinatura'
+import ComprarPedidos from './pages/ComprarPedidos'
+import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
 
 function ProtectedRoutes() {
@@ -174,6 +176,14 @@ function Rotas() {
         <Route
           path="/assinatura"
           element={<RequirePermission permission="billing"><Assinatura /></RequirePermission>}
+        />
+        <Route
+          path="/assinatura/pedidos"
+          element={<RequirePermission permission="billing"><ComprarPedidos /></RequirePermission>}
+        />
+        <Route
+          path="/assinatura/usuarios"
+          element={<RequirePermission permission="billing"><ComprarUsuarios /></RequirePermission>}
         />
         <Route
           path="/configuracoes"

@@ -123,7 +123,19 @@ function Destaque({ r }: { r: ResumoAssinatura }) {
   )
 }
 
-function Medidor({ titulo, usado, limite, rodape }: { titulo: string; usado: number; limite: number | null; rodape?: string }) {
+function Medidor({
+  titulo,
+  usado,
+  limite,
+  rodape,
+  acao,
+}: {
+  titulo: string
+  usado: number
+  limite: number | null
+  rodape?: string
+  acao?: { to: string; label: string }
+}) {
   const pct = limite ? Math.min(100, Math.round((usado / limite) * 100)) : 0
   const tom = !limite ? 'bg-brand-600' : pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-brand-600'
   return (
@@ -139,6 +151,11 @@ function Medidor({ titulo, usado, limite, rodape }: { titulo: string; usado: num
         </div>
       )}
       {rodape && <p className="mt-2 text-xs text-gray-500">{rodape}</p>}
+      {acao && (
+        <Link to={acao.to} className="btn-secondary mt-4 inline-flex">
+          {acao.label} <ArrowUpRight className="h-4 w-4" aria-hidden />
+        </Link>
+      )}
     </div>
   )
 }
@@ -386,6 +403,7 @@ export default function Assinatura() {
   }
 
   const podeTrocar = r.status === 'ativa' && !r.cancela_em && r.plan_code !== 'enterprise'
+  const podeComprarExtras = r.status === 'ativa' && !r.cancela_em
   const franquia = saldo?.lotes.find((l) => l.origem === 'franquia') ?? null
   const outrosCreditos = saldo?.lotes.filter((l) => l.origem !== 'franquia' && l.restante > 0) ?? []
   const vitrine = (planos ?? []).filter((p) => p.monthly_price)
@@ -439,6 +457,7 @@ export default function Assinatura() {
             titulo="Franquia de pedidos do mês"
             usado={franquia.usado}
             limite={franquia.quantidade}
+            acao={podeComprarExtras && r.excedente_por_pedido != null ? { to: '/assinatura/pedidos', label: 'Comprar créditos de pedidos' } : undefined}
             rodape={
               (outrosCreditos.length > 0
                 ? `Além da franquia: ${outrosCreditos
@@ -462,9 +481,10 @@ export default function Assinatura() {
           titulo="Usuários"
           usado={r.usuarios}
           limite={r.limite_usuarios}
+          acao={podeComprarExtras && r.limite_plano != null && !r.troca_para ? { to: '/assinatura/usuarios', label: 'Comprar usuários extras' } : undefined}
           rodape={
             r.limite_usuarios != null && r.usuarios >= r.limite_usuarios
-              ? 'Limite atingido. Adicione usuários extras logo abaixo ou suba de plano.'
+              ? 'Limite atingido. Compre usuários extras ou suba de plano.'
               : (r.usuarios_extras ?? 0) > 0
                 ? `${r.limite_plano} do plano + ${r.usuarios_extras} ${r.usuarios_extras === 1 ? 'extra' : 'extras'}. Gerencie os acessos em Configurações.`
                 : 'Gerencie os acessos em Configurações.'
@@ -472,9 +492,6 @@ export default function Assinatura() {
         />
       </div>
 
-      <UsuariosExtras r={r} clientId={clientId} planos={planos ?? []} />
-
-      <PedidosExtras clientId={clientId} />
 
       {r.plan_code !== 'enterprise' && (
         <section>
@@ -627,7 +644,7 @@ function DialogoCancelar({
 }
 
 /** Recarga de pedidos: pacotes que valem 45 dias. */
-function PedidosExtras({ clientId }: { clientId: string }) {
+export function PedidosExtras({ clientId }: { clientId: string }) {
   const { data: x } = useCreditosExtras(clientId)
   const { data: saldo } = useSaldoCreditos(clientId)
   const acoes = useAcoesAssinatura()
@@ -747,7 +764,7 @@ function PedidosExtras({ clientId }: { clientId: string }) {
 }
 
 /** Usuário extra: R$ 97/mês cada. Adicionar vale na hora; tirar, na renovação. */
-function UsuariosExtras({ r, clientId, planos }: { r: ResumoAssinatura; clientId: string; planos: Plano[] }) {
+export function UsuariosExtras({ r, clientId, planos }: { r: ResumoAssinatura; clientId: string; planos: Plano[] }) {
   const acoes = useAcoesAssinatura()
   const atual = r.usuarios_extras ?? 0
   const alvoInicial = r.usuarios_extras_pendente ?? atual

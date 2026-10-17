@@ -195,7 +195,7 @@ function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
           {lotado && (
             <>
               {' '}· limite atingido.{' '}
-              <Link to="/assinatura#usuarios-extras" className="font-medium text-brand-700 hover:underline">
+              <Link to="/assinatura/usuarios" className="font-medium text-brand-700 hover:underline">
                 Adicionar usuário extra
               </Link>
             </>
