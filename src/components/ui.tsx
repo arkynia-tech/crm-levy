@@ -65,13 +65,13 @@ function friendlyError(message: string): string {
   return message
 }
 
-export function ErrorState({ message }: { message: string }) {
+export function ErrorState({ message, title = 'Não foi possível carregar os dados' }: { message: string; title?: string }) {
   console.error('[Contatta]', message)
   return (
     <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <div>
-        <p className="font-medium">Não foi possível carregar os dados</p>
+        <p className="font-medium">{title}</p>
         <p className="mt-0.5 text-red-700">{friendlyError(message)}</p>
       </div>
     </div>

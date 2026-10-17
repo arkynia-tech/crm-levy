@@ -25,6 +25,9 @@ export interface ResultadoImportacao {
   sem_credito: number
   /** crédito que havia antes de importar (null = loja sem trava) */
   credito_antes: number | null
+  /** notas de lojas do marketplace que já estão ligadas a outra conta */
+  outra_conta: number
+  lojas_outra_conta: string[]
 }
 
 interface Preparo {
@@ -112,6 +115,47 @@ export async function importarNotas(
 
   // ---------------------------------------------------------------- lojas
   aoProgredir({ fase: 'Identificando as lojas', feito: 0, total: 1 })
+
+  // Cada loja do marketplace pertence a uma conta só. Nota de loja que já é de
+  // outra conta fica de fora: gravar daria erro de permissão (ou, para o
+  // master, mudaria a loja de conta).
+  let outraConta = 0
+  let lojasOutraConta: string[] = []
+  {
+    const unicas = new Map<string, { m: string; s: string }>()
+    for (const n of notas) {
+      const l = lojaDaNota(n)
+      unicas.set(`${l.marketplace}|${l.shopId}`, { m: l.marketplace, s: l.shopId })
+    }
+    const { data, error } = await supabase.rpc('crm_lojas_de_outra_conta', {
+      p_client_id: clientId,
+      p_lojas: [...unicas.values()],
+    })
+    if (error && !/crm_lojas_de_outra_conta|does not exist|schema cache/i.test(error.message)) {
+      throw new Error(`Lojas: ${error.message}`)
+    }
+    const alheias = new Set(((data ?? []) as { m: string; s: string }[]).map((x) => `${x.m}|${x.s}`))
+    if (alheias.size > 0) {
+      const antes = notas.length
+      notas = notas.filter((n) => {
+        const l = lojaDaNota(n)
+        return !alheias.has(`${l.marketplace}|${l.shopId}`)
+      })
+      outraConta = antes - notas.length
+      lojasOutraConta = [...alheias].map((k) => {
+        const [m, shop] = k.split('|')
+        return `${ROTULO_MP[m] ?? m} · ${shop.startsWith('emit:') ? `emitente ${shop.slice(5)}` : shop}`
+      })
+      if (notas.length === 0) {
+        throw new Error(
+          `Nenhuma nota entrou: ${lojasOutraConta.length === 1 ? 'a loja' : 'as lojas'} ${lojasOutraConta.join(', ')} ` +
+            `já ${lojasOutraConta.length === 1 ? 'está ligada' : 'estão ligadas'} a outra conta do Contatta. ` +
+            'Cada loja do marketplace só pode estar em uma conta. Se ela é sua, fale com o suporte.',
+        )
+      }
+    }
+  }
+
   const lojasPorChave = new Map<string, { client_id: string; marketplace: string; name: string; external_shop_id: string; updated_at: string }>()
   for (const n of notas) {
     const l = lojaDaNota(n)
@@ -322,6 +366,8 @@ export async function importarNotas(
     itens_sem_produto: semProduto,
     sem_credito: semCredito,
     credito_antes: credito && !credito.semTrava ? credito.disponivel : null,
+    outra_conta: outraConta,
+    lojas_outra_conta: lojasOutraConta,
   }
 }
 

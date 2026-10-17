@@ -85,6 +85,17 @@ function Resultado({ r, arquivo }: { r: ResultadoImportacao; arquivo: string }) 
         </p>
       )}
 
+      {r.outra_conta > 0 && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>
+            {r.outra_conta.toLocaleString('pt-BR')} {r.outra_conta === 1 ? 'nota ficou' : 'notas ficaram'} de fora:
+          </strong>{' '}
+          {r.lojas_outra_conta.length === 1 ? 'são da loja' : 'são das lojas'} {r.lojas_outra_conta.join(', ')}, que já{' '}
+          {r.lojas_outra_conta.length === 1 ? 'está ligada' : 'estão ligadas'} a outra conta do Contatta. Cada loja do
+          marketplace só pode estar em uma conta.
+        </div>
+      )}
+
       {r.sem_credito > 0 && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <strong>
@@ -95,7 +106,7 @@ function Resultado({ r, arquivo }: { r: ResultadoImportacao; arquivo: string }) 
         </div>
       )}
 
-      {nada && r.sem_credito === 0 && (
+      {nada && r.sem_credito === 0 && r.outra_conta === 0 && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <strong>Nada de novo entrou.</strong> Todas as notas deste arquivo já estavam no sistema:
           foram regravadas por cima, sem criar venda nem cliente. Se você esperava novidades,
@@ -380,7 +391,7 @@ export default function ImportNfe() {
 
         {erro && (
           <div className="mt-4">
-            <ErrorState message={erro} />
+            <ErrorState title="A importação não foi concluída" message={erro} />
           </div>
         )}
 
