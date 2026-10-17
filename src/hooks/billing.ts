@@ -125,6 +125,31 @@ export function useResumoAssinatura(clientId: string | undefined) {
   })
 }
 
+export interface ContatoCobranca {
+  nome: string | null
+  email: string | null
+  telefone: string | null
+  tem_cliente_asaas: boolean
+  /** login do admin da loja, pra quando o e-mail de cobrança não é o do cliente */
+  email_admin: string | null
+}
+
+/** Contato da cobrança de uma loja (só o master lê). null se o banco ainda não tem a função. */
+export function useContatoCobranca(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['billing-contato', clientId],
+    enabled: Boolean(clientId),
+    queryFn: async (): Promise<ContatoCobranca | null> => {
+      const { data, error } = await supabase.rpc('crm_billing_contato', { p_client_id: clientId })
+      if (error) {
+        if (/crm_billing_contato|does not exist|schema cache/i.test(error.message)) return null
+        throw new Error(error.message)
+      }
+      return (data ?? null) as ContatoCobranca | null
+    },
+  })
+}
+
 export interface CriarAssinaturaInput {
   client_id: string
   plan_code: string
@@ -175,6 +200,8 @@ export function useAcoesAssinatura() {
   const queryClient = useQueryClient()
   const atualizar = (clientId: string) => {
     void queryClient.invalidateQueries({ queryKey: ['billing-faturas', clientId] })
+    void queryClient.invalidateQueries({ queryKey: ['billing-contato', clientId] })
+    void queryClient.invalidateQueries({ queryKey: ['master-painel'] })
     return queryClient.invalidateQueries({ queryKey: ['billing-resumo', clientId] })
   }
   return {
@@ -193,6 +220,12 @@ export function useAcoesAssinatura() {
         })
       }
       const r = await chamar({ action: 'cancelar', client_id: clientId })
+      void atualizar(clientId)
+      return r
+    },
+    /** e-mail e WhatsApp da cobrança: vão pro Asaas e pro banco (só master) */
+    atualizarContato: async (clientId: string, email: string, telefone: string) => {
+      const r = await chamar({ action: 'contato', client_id: clientId, email, telefone })
       void atualizar(clientId)
       return r
     },

@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { AlertTriangle, CreditCard, ExternalLink, Lock } from 'lucide-react'
+import { AlertTriangle, CreditCard, ExternalLink, Lock, Mail, MessageCircle, Pencil } from 'lucide-react'
 import {
   CICLO_LABEL,
   STATUS_ASSINATURA,
   useAcoesAssinatura,
+  useContatoCobranca,
   usePlanos,
   useResumoAssinatura,
   simularTroca,
@@ -120,6 +121,7 @@ export function AssinaturaDoCliente({ clientId, nomeCliente, cnpj }: { clientId:
           </button>
           {erro && <span className="text-sm text-red-700">{erro}</span>}
         </div>
+        <ContatoDaCobranca clientId={clientId} />
       </div>
     )
   }
@@ -472,5 +474,107 @@ export function SeuPlano({ clientId }: { clientId: string | undefined }) {
 
       {trocando && <MudarPlano clientId={clientId} atual={r.plan_code} cicloAtual={r.ciclo} onFechar={() => setTrocando(false)} />}
     </section>
+  )
+}
+
+function formatarFone(digitos: string | null): string {
+  if (!digitos) return ''
+  const d = digitos.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return digitos
+}
+
+/** WhatsApp e e-mail da cobrança da loja: o master corrige aqui e o n8n leva pro Asaas. */
+function ContatoDaCobranca({ clientId }: { clientId: string }) {
+  const { data: c } = useContatoCobranca(clientId)
+  const acoes = useAcoesAssinatura()
+  const [editando, setEditando] = useState(false)
+  const [email, setEmail] = useState('')
+  const [fone, setFone] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  if (!c) return null
+
+  const abrir = () => {
+    setEmail(c.email ?? '')
+    setFone(formatarFone(c.telefone))
+    setErro(null)
+    setEditando(true)
+  }
+
+  const salvar = async (e: FormEvent) => {
+    e.preventDefault()
+    const digitos = fone.replace(/\D/g, '')
+    if (digitos && (digitos.length < 10 || digitos.length > 13)) {
+      setErro('WhatsApp com DDD, por exemplo (11) 98765-4321.')
+      return
+    }
+    setSalvando(true)
+    setErro(null)
+    const r = await acoes.atualizarContato(clientId, email.trim(), digitos)
+    setSalvando(false)
+    if (!r.ok) setErro(r.error ?? 'Não deu certo.')
+    else setEditando(false)
+  }
+
+  const emailDoAdminDiferente = c.email_admin && c.email_admin.toLowerCase() !== (c.email ?? '').toLowerCase()
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Contato da cobrança</p>
+        {!editando && (
+          <button type="button" onClick={abrir} className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline">
+            <Pencil className="h-3.5 w-3.5" aria-hidden /> Editar
+          </button>
+        )}
+      </div>
+
+      {!editando ? (
+        <div className="mt-2 space-y-1 text-sm text-gray-700">
+          <p className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-gray-400" aria-hidden />
+            {c.telefone ? formatarFone(c.telefone) : <span className="text-gray-500">Sem WhatsApp</span>}
+          </p>
+          <p className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-gray-400" aria-hidden />
+            {c.email || <span className="text-gray-500">Sem e-mail</span>}
+          </p>
+          {emailDoAdminDiferente && (
+            <p className="pt-1 text-xs text-gray-500">
+              O login do admin da loja é {c.email_admin}.{' '}
+              <button type="button" className="font-medium text-brand-700 hover:underline" onClick={() => { abrir(); setEmail(c.email_admin ?? '') }}>
+                Usar esse e-mail
+              </button>
+            </p>
+          )}
+        </div>
+      ) : (
+        <form onSubmit={(e) => void salvar(e)} className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600">WhatsApp</span>
+            <input className="input mt-1 w-44" inputMode="tel" placeholder="(11) 98765-4321" value={fone} onChange={(e) => setFone(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600">E-mail</span>
+            <input type="email" className="input mt-1 w-64" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary" disabled={salvando}>
+              {salvando ? 'Salvando…' : 'Salvar'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setEditando(false)} disabled={salvando}>
+              Cancelar
+            </button>
+          </div>
+          <p className="w-full text-xs text-gray-500">
+            {c.tem_cliente_asaas ? 'Vale também no Asaas: os avisos de fatura passam a ir pra esse e-mail.' : 'Esta loja ainda não tem cadastro no Asaas.'}
+          </p>
+          {erro && <p className="w-full text-sm text-red-700">{erro}</p>}
+        </form>
+      )}
+    </div>
   )
 }
