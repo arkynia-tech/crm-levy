@@ -261,7 +261,10 @@ Enquanto não aprova, o app aceita até 10 contas e não aparece na Central de E
 **Cadastro (revisão manual do Bling):** logo, nome, descrição, descrição curta, categoria,
 link de redirecionamento (`/bling/retorno`, com tela de sucesso e de erro), homepage
 (`contatta.pro/bling`), manual (`contatta.pro/bling/como-conectar`), vídeo no YouTube
-ou Vimeo e escopos ligados ao propósito.
+ou Vimeo e escopos ligados ao propósito. A homepage e o manual são páginas estáticas da
+landing (`landing/bling/index.html` e `landing/bling/como-conectar/index.html`, com o CSS
+em `landing/bling/estilo.css`) e sobem com o deploy normal do site. Se a tela do cartão do
+Bling mudar (nome de botão, aviso), atualize os recortes do manual junto.
 
 **Teste técnico:** no Contatta, como master, em Configurações, cartão do Bling, botão
 **Rodar teste de homologação** (ação `homologacao` da `bling-conexao`, com a conta do
@@ -290,5 +293,5 @@ Roteiro:
 
 ## Fora da fase 2
 
-Histórico pago (R$ 0,20 por pedido), páginas contatta.pro/bling, vídeo de demonstração e abrir para
+Histórico pago (R$ 0,20 por pedido), vídeo de demonstração e abrir para
 todas as lojas (`BLING_ABERTO_PARA_LOJAS = true` e o secret `BLING_ABERTO_PARA_LOJAS=1`).
