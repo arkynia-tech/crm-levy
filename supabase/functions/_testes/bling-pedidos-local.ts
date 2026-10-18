@@ -278,6 +278,11 @@ pedidos = {
   '6': nota({ id: 6, numero: '15', numeroPedidoLoja: 'SHP-6', situacao: 1, loja: { id: 777 }, contato: { id: 501 } }), // pendente
   '7': nota({ id: 7, numero: '16', numeroPedidoLoja: 'SHP-7', tipo: 0, loja: { id: 777 }, contato: { id: 501 } }), // entrada
   '8': nota({ id: 8, numero: '17', numeroPedidoLoja: 'SHP-8', finalidade: 4, loja: { id: 777 }, contato: { id: 501 } }), // devolução
+  // venda da Shopee por uma loja do Bling ainda sem loja do Contatta: o intermediador diz qual é
+  '9': nota({ id: 9, numero: '18', numeroPedidoLoja: 'SHP-9', loja: { id: 999 }, contato: { id: 501, nome: 'Ana' },
+    intermediador: { cnpj: '35.635.824/0001-12', nomeUsuario: 'lojaleo' } }),
+  '10': nota({ id: 10, numero: '19', numeroPedidoLoja: 'X-10', loja: { id: 999 }, contato: { id: 501, nome: 'Ana' },
+    intermediador: { cnpj: '11111111000191', nomeUsuario: 'lojaleo' } }),
   // nota de outra conta do Bling: só abre com o token dela
   '70': nota({ _token: 'tok-2', id: 70, numero: '10', numeroPedidoLoja: 'X-70', loja: { id: 777 }, contato: { id: 501, nome: 'Ana' } }),
 }
@@ -354,6 +359,42 @@ for (const [id, nome, motivo] of [['6', 'nota pendente', 'nota_nao_autorizada'],
     },
   })
 }
+
+// ---- loja ligada sozinha pelo intermediador da nota
+const esperando999 = () => ({ id: 77, provider: 'bling', event_id: 'w999', connection_id: 'cx1', event: 'invoice.created', resource_id: '1',
+  external_store_id: '999', status: 'aguardando_loja', tentativas: 1, proxima_em: em(-1000), received_at: em(-5000) })
+cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(), stores: [], erp_order_events: [esperando999()] } })
+await webhook('nota da Shopee de loja não ligada → cria a loja do Contatta pela chave do XML, liga e grava', ev('e9', 9), {
+  status: 200,
+  conferir: () => {
+    const loja = tabelas.stores.find((x) => x.marketplace === 'shopee' && x.external_shop_id === 'lojaleo')
+    if (!loja || loja.client_id !== 'c1' || loja.name !== 'Shopee · lojaleo') return 'loja: ' + JSON.stringify(tabelas.stores)
+    const link = tabelas.erp_store_links.find((l) => l.external_store_id === '999')
+    if (link?.store_id !== loja.id || link?.name !== 'Shopee · lojaleo') return 'vínculo: ' + JSON.stringify(link)
+    if (!gravados.some((g) => g.external_order_id === 'SHP-9')) return 'não gravou a nota'
+    const antiga = tabelas.erp_order_events.find((e) => e.event_id === 'w999')
+    return antiga?.status === 'feito' ? null : 'a venda que esperava não entrou: ' + antiga?.status
+  },
+})
+cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(),
+  stores: [{ id: 's-xml', client_id: 'c1', marketplace: 'shopee', external_shop_id: 'lojaleo', name: 'Shopee · lojaleo' }] } })
+await webhook('loja da Shopee que já veio pelo XML → liga nela, sem criar outra', ev('e9', 9), {
+  status: 200,
+  conferir: () => (tabelas.stores.length === 1 && tabelas.erp_store_links.find((l) => l.external_store_id === '999')?.store_id === 's-xml'
+    && gravados.length === 1 ? null : JSON.stringify({ stores: tabelas.stores, links: tabelas.erp_store_links })),
+})
+cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(),
+  stores: [{ id: 's-alheia', client_id: 'c2', marketplace: 'shopee', external_shop_id: 'lojaleo' }] } })
+await webhook('loja da Shopee de outra conta → não mexe, espera o lojista', ev('e9', 9), {
+  status: 200, semChamadas: ['rpc crm_erp_gravar_pedido'],
+  conferir: () => (tabelas.erp_order_events[0].status === 'aguardando_loja' && tabelas.stores.length === 1
+    && !tabelas.erp_store_links.find((l) => l.external_store_id === '999')?.store_id ? null : 'mexeu'),
+})
+cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(), stores: [] } })
+await webhook('intermediador desconhecido → espera o lojista', ev('e10', 10), {
+  status: 200, semChamadas: ['rpc crm_erp_gravar_pedido'],
+  conferir: () => (tabelas.erp_order_events[0].status === 'aguardando_loja' && tabelas.stores.length === 0 ? null : 'criou loja'),
+})
 
 cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links() } })
 statusPedido['1'] = 500

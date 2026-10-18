@@ -119,6 +119,70 @@ export function montarNota(n: Json, ct: Json | null): Json {
 }
 
 // ---------------------------------------------------------------------------
+// ligar a loja do Bling sozinho, pelo intermediador da nota
+
+// CNPJ do intermediador -> marketplace. Mesma tabela da importação por XML
+// (src/lib/nfe/importar.ts, MP_POR_CNPJ): é isso que faz as duas fontes caírem
+// na mesma loja do Contatta.
+const MP_POR_CNPJ: Record<string, string> = {
+  '35635824000112': 'shopee',
+  '03361252000134': 'mercado_livre',
+  '15436940000103': 'amazon',
+}
+const ROTULO_MP: Record<string, string> = { shopee: 'Shopee', mercado_livre: 'Mercado Livre', amazon: 'Amazon' }
+
+/**
+ * Loja do Bling ainda sem loja do Contatta: se a nota traz o intermediador de
+ * um marketplace conhecido, a loja do Contatta é a mesma que a importação por
+ * XML usaria (marketplace + usuário do vendedor no intermediador, o
+ * idCadIntTran da NF-e). Existe na conta: liga nela. Não existe: cria com essa
+ * chave e liga. Loja dessa chave em outra conta, loja já recebendo de outra loja
+ * do Bling, intermediador desconhecido ou sem usuário: não faz nada e a venda
+ * espera o lojista escolher na tela. Acontece uma vez por loja do Bling.
+ */
+export async function ligarPeloIntermediador(con: Json, lojaExterna: string, n: Json): Promise<string | null> {
+  const marketplace = MP_POR_CNPJ[digitos(n.intermediador?.cnpj)]
+  const usuario = texto(n.intermediador?.nomeUsuario)
+  if (!marketplace || !usuario) return null
+
+  const lerLoja = async () => {
+    const { data, error } = await banco
+      .from('stores').select('id, client_id')
+      .eq('marketplace', marketplace).eq('external_shop_id', usuario).maybeSingle()
+    if (error) throw new Error('stores: ' + error.message)
+    return data as Json | null
+  }
+  let loja = await lerLoja()
+  if (!loja) {
+    const { error } = await banco.from('stores').upsert({
+      client_id: con.client_id, marketplace, external_shop_id: usuario,
+      name: `${ROTULO_MP[marketplace]} · ${usuario}`, updated_at: new Date().toISOString(),
+    }, { onConflict: 'marketplace,external_shop_id', ignoreDuplicates: true })
+    if (error) throw new Error('stores: ' + error.message)
+    loja = await lerLoja()
+  }
+  if (!loja || loja.client_id !== con.client_id) {
+    if (loja) console.error('loja do intermediador é de outra conta', marketplace, usuario, con.connection_id)
+    return null
+  }
+
+  const { data: ligada, error } = await banco
+    .from('erp_store_links')
+    .update({ store_id: loja.id, name: `${ROTULO_MP[marketplace]} · ${usuario}`, updated_at: new Date().toISOString() })
+    .eq('connection_id', con.connection_id).eq('external_store_id', lojaExterna).is('store_id', null)
+    .select('store_id')
+  if (error) {
+    // índice erp_store_links_uma_fonte: essa loja do Contatta já recebe de outra loja do Bling
+    if (error.code === '23505') return null
+    throw new Error('erp_store_links: ' + error.message)
+  }
+  if (!ligada?.length) return null
+  // o que esperava por esta loja do Bling entra também
+  await liberarAguardando(con.connection_id, lojaExterna)
+  return loja.id
+}
+
+// ---------------------------------------------------------------------------
 // fila
 
 async function marcar(ids: number[], campos: Json) {
@@ -171,6 +235,11 @@ async function processarNota(
         { onConflict: 'connection_id,external_store_id', ignoreDuplicates: true },
       )
     }
+  }
+  if (!lojas.get(lojaExterna) && lojaExterna !== LOJA_MANUAL) {
+    // Venda de marketplace: liga sozinho pela loja que o intermediador da nota indica
+    const auto = await ligarPeloIntermediador(con, lojaExterna, n)
+    if (auto) lojas.set(lojaExterna, auto)
   }
   if (!lojas.get(lojaExterna)) return { status: 'aguardando_loja', resultado: null, lojaExterna }
 
