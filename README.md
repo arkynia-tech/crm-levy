@@ -112,6 +112,9 @@ Precisa da variável `VITE_N8N_WA_INSTANCE_URL`.
 O Asaas é o dono da cobrança; o banco guarda o espelho (`billing_accounts`) e o
 n8n fica no meio. A chave do Asaas vive só na credencial "Asaas Sandbox" do n8n.
 
+Em migração para Edge Functions (`supabase/functions/asaas-*`), uma etapa por
+vez com o n8n de reserva: ver `docs/cobranca-edge-functions.md`.
+
 - Planos em `billing_plans`: Starter, Pro, Business e Enterprise (valor livre).
   Ciclos mensal, semestral (10% de desconto) e anual (2 meses grátis). A franquia
   de pedidos é sempre mensal; o excedente vira cobrança avulsa no início do mês.
