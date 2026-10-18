@@ -20,7 +20,8 @@ URL de cada uma: `https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/<funçã
 - 18/10/2026: funções publicadas; no app as 6 ações da assinatura já vão pela
   função (`VITE_COBRANCA_FN_ACOES=contato,criar,pacote,usuarios,trocar_plano,cancelar`),
   testadas no sandbox. Checkout do site trocado neste mesmo dia.
-- Falta: webhook do Asaas e rotina diária.
+- Webhook e rotina diária trocados no mesmo dia.
+- 18/10/2026: produção (chave e URL de produção nos secrets, webhook no Asaas de produção, site sem selo de teste).
 
 ## Segredos
 
