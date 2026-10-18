@@ -31,7 +31,7 @@ function Previa({
 }: {
   titulo: string
   corpo: string
-  rodape: string
+  rodape?: string
   botaoSair: boolean
 }) {
   return (
@@ -59,7 +59,6 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
   const [categoria, setCategoria] = useState<'MARKETING' | 'UTILITY'>('MARKETING')
   const [titulo, setTitulo] = useState('')
   const [corpo, setCorpo] = useState('Oi, {{nome}}! ')
-  const [rodape, setRodape] = useState('')
   const [botaoSair, setBotaoSair] = useState(true)
   const [exemplos, setExemplos] = useState<Record<string, string>>({ nome: 'Maria' })
   const [enviando, setEnviando] = useState(false)
@@ -81,7 +80,6 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
       category: categoria,
       header_text: titulo.trim() || undefined,
       body_text: corpo.trim(),
-      footer_text: rodape.trim() || undefined,
       examples: Object.fromEntries(vars.map((v) => [v, exemplos[v] || (v === 'nome' ? 'Maria' : '')])),
       botao_sair: comBotao,
     })
@@ -91,7 +89,6 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
     setNome('')
     setTitulo('')
     setCorpo('Oi, {{nome}}! ')
-    setRodape('')
     onCriado()
   }
 
@@ -175,14 +172,6 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
             </div>
           )}
 
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Rodapé (opcional)</span>
-            <input className="input mt-1" value={rodape} maxLength={60} onChange={(e) => setRodape(e.target.value)} placeholder="Ex.: Loja Exemplo" />
-            <span className="mt-1 block text-xs text-gray-500">
-              Aparece pro cliente, em letra pequena no fim da mensagem. Deixe em branco se não quiser nada ali.
-            </span>
-          </label>
-
           {categoria === 'MARKETING' && (
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input
@@ -203,7 +192,7 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
 
         <div className="space-y-2">
           <span className="text-sm font-medium text-gray-700">Como o cliente vê</span>
-          <Previa titulo={titulo.trim()} corpo={comExemplos(corpo.trim(), exemplos)} rodape={rodape.trim()} botaoSair={comBotao} />
+          <Previa titulo={titulo.trim()} corpo={comExemplos(corpo.trim(), exemplos)} botaoSair={comBotao} />
         </div>
       </div>
 
