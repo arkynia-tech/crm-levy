@@ -1027,7 +1027,7 @@
 
   // ---- Origem da visita (utm) e formulário de contato ----------------------
   // Quem chega por link com utm (post de grupo, anúncio) tem a visita contada uma vez por sessão.
-  // O formulário manda nome, contato, volume e a origem pro n8n; se falhar, cai no e-mail como antes.
+  // O formulário manda nome, contato, volume e a origem pro n8n e abre o WhatsApp do Mohamad com a mensagem pronta.
   var AQ = 'https://n8n-dev.arkynia.com.br/webhook/'
   var CONSENT_VERSAO = 'form-2026-10', PRIV_VERSAO = 'priv-2026-10'
   function idAleatorio(prefixo) {
@@ -1053,23 +1053,34 @@
 
   var formLead = document.getElementById('lead')
   var envioId = idAleatorio('s-')
-  function porEmail(d) {
-    var linhas = [
-      'Nome: ' + (d.get('nome') || ''), 'Empresa: ' + (d.get('empresa') || ''), 'E-mail: ' + (d.get('email') || ''),
-      'WhatsApp: ' + (d.get('whats') || ''), 'Pedidos por mês: ' + (d.get('volume') || ''), 'Onde vende: ' + (d.get('canais') || ''),
-      '', (d.get('msg') || '')
-    ].join('\n')
-    window.location.href = 'mailto:contato@arkynia.com'
-      + '?subject=' + encodeURIComponent('Contatta · ' + (d.get('empresa') || d.get('nome') || 'contato'))
-      + '&body=' + encodeURIComponent(linhas)
+  // "Quero ver funcionando" leva pro WhatsApp do Mohamad com a mensagem pronta (pedido dele em 17/10/2026).
+  // O lead continua indo pro n8n antes; se o n8n falhar ou demorar, o WhatsApp abre do mesmo jeito.
+  var WHATS_MOHAMAD = '5511922223558'
+  function linkWhats(d) {
+    var nome = (d.get('nome') || '').trim(), empresa = (d.get('empresa') || '').trim(), canais = (d.get('canais') || '').trim()
+    var texto = 'Oi! Quero ver o Contatta funcionando.'
+      + (nome ? ' Sou ' + nome + (empresa ? ', da ' + empresa : '') + '.' : '')
+      + (canais ? ' Vendo em ' + canais + '.' : '')
+      + ' Faço ' + (d.get('volume') || '') + ' pedidos por mês.'
+      + ((d.get('msg') || '').trim() ? ' ' + d.get('msg').trim() : '')
+    return 'https://wa.me/' + WHATS_MOHAMAD + '?text=' + encodeURIComponent(texto)
+  }
+  function abrirWhats(d) {
+    var url = linkWhats(d)
+    formLead.innerHTML = '<p class="feito" style="grid-column:1/-1">Abrindo o WhatsApp pra marcar os 15 minutos. '
+      + 'Se não abrir, <a href="' + url + '">toque aqui</a>.</p>'
+    window.location.href = url
   }
   formLead.addEventListener('submit', function (e) {
     e.preventDefault()
     var d = new FormData(formLead), erro = document.getElementById('lead-erro'), botao = document.getElementById('lead-enviar')
     erro.hidden = true
     if (!formLead.reportValidity()) return
-    botao.disabled = true; botao.textContent = 'Enviando…'
-    fetch(AQ + 'contatta-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    botao.disabled = true; botao.textContent = 'Abrindo o WhatsApp…'
+    var foi = false
+    function seguir() { if (!foi) { foi = true; abrirWhats(d) } }
+    setTimeout(seguir, 2500)
+    fetch(AQ + 'contatta-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
       body: JSON.stringify({
         submission_id: envioId, name: d.get('nome'), company: d.get('empresa'), email: d.get('email'), phone: d.get('whats'),
         monthly_orders_range: d.get('volume'), marketplace: d.get('canais'), main_pain: d.get('msg'),
@@ -1078,19 +1089,7 @@
         visit_id: origem.visit_id, utm_source: origem.utm_source, utm_medium: origem.utm_medium,
         utm_campaign: origem.utm_campaign, utm_content: origem.utm_content
       }) })
-      .then(function (r) { return r.json().catch(function () { return { ok: false } }) })
-      .then(function (j) {
-        if (j && j.ok) {
-          formLead.innerHTML = '<p class="feito" style="grid-column:1/-1">Recebido. A gente responde em até 1 dia útil' +
-            (d.get('whats_ok') && d.get('whats') ? ' pelo WhatsApp' : ' por e-mail') + ' pra marcar os 15 minutos.</p>'
-          return
-        }
-        erro.textContent = (j && j.error) || 'Não deu pra enviar agora. Vamos abrir seu e-mail com a mensagem pronta.'
-        erro.hidden = false
-        if (!(j && j.error)) porEmail(d)
-      })
-      .catch(function () { porEmail(d) })
-      .finally(function () { botao.disabled = false; botao.textContent = 'Quero ver funcionando' })
+      .then(function () { seguir() }, function () { seguir() })
   })
 </script>
 <script>
