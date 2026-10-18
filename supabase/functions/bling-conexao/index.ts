@@ -8,12 +8,18 @@
 //   diagnostico   só master: lê os 50 pedidos mais recentes e os contatos deles
 //                 para responder o que a fase 2 precisa saber (CPF, telefone,
 //                 loja, número no marketplace). Não grava pedido nem cliente.
+//   lojas         admin ou master: lojas do Bling desta conexão (achadas nos
+//                 canais de venda e nos pedidos desde a data de corte), a loja do
+//                 Contatta ligada a cada uma e quantos pedidos esperam por ela.
+//   ligar         admin ou master: liga uma loja do Bling a uma loja do Contatta
+//                 (ou cria uma nova), ou desliga. O que esperava entra na fila.
 
 import { type Json } from '../_shared/asaas.ts'
 import {
   bling, claimsDoJwt, configurado, erroDoBling, PROVEDOR, revogar, tokenDaConexao, trocarCode, urlDeAutorizacao,
 } from '../_shared/bling.ts'
-import { banco, cors, responder, rpc } from '../_shared/comum.ts'
+import { LOJA_MANUAL, liberarAguardando, processarFila } from '../_shared/bling-pedidos.ts'
+import { banco, cors, depoisDeResponder, responder, rpc } from '../_shared/comum.ts'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
@@ -47,6 +53,10 @@ Deno.serve(async (req) => {
         return podeConectar ? await autorizar(b.client_id, userId) : semPermissao()
       case 'desconectar':
         return podeConectar ? await desconectar(b.client_id) : semPermissao()
+      case 'lojas':
+        return podeConectar ? await lojas(b.client_id, b.procurar === true) : semPermissao()
+      case 'ligar':
+        return podeConectar ? await ligar(b.client_id, b) : semPermissao()
       case 'diagnostico':
         return papel === 'master' ? await diagnostico(b.client_id) : falha(403, 'Só o master roda o diagnóstico.')
       default:
@@ -286,4 +296,168 @@ async function diagnostico(clientId: string) {
       empresa: c.account_id ?? null,
     },
   })
+}
+
+// ---------------------------------------------------------------------------
+// lojas do Bling -> lojas do Contatta
+
+// Tipo do canal de venda no Bling -> marketplace do Contatta (sugestão ao criar loja)
+const CANAL_PARA_MARKETPLACE: Record<string, string> = {
+  shopee: 'shopee', mercadolivre: 'mercado_livre', mercado_livre: 'mercado_livre',
+  amazon: 'amazon', tiktok: 'tiktok_shop', tiktokshop: 'tiktok_shop',
+}
+const MARKETPLACES = new Set(['shopee', 'mercado_livre', 'amazon', 'tiktok_shop', 'outro'])
+
+const marketplaceDoCanal = (canal: unknown) =>
+  CANAL_PARA_MARKETPLACE[String(canal ?? '').toLowerCase().replace(/[^a-z_]/g, '')] ?? 'outro'
+
+/** Acha as lojas do Bling: canais de venda (se o escopo deixar) e pedidos desde a data de corte. */
+async function procurarLojas(c: Json): Promise<void> {
+  const t = await tokenDaConexao(c.id)
+  if (!t.ok) return
+  const linhas = new Map<string, Json>()
+  const canais = await bling(t.tokens.access_token, '/canais-venda?pagina=1&limite=100')
+  if (canais.status === 200) {
+    for (const x of canais.json.data ?? []) {
+      if (x?.id) linhas.set(String(x.id), { name: x.descricao ?? null, canal: x.tipo ?? null })
+    }
+  }
+  const desde = c.cutoff_at
+    ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(c.cutoff_at))
+    : null
+  const q = new URLSearchParams({ pagina: '1', limite: '100', ...(desde ? { dataInicial: desde } : {}) })
+  const pedidos = await bling(t.tokens.access_token, `/pedidos/vendas?${q}`)
+  if (pedidos.status === 200) {
+    for (const p of pedidos.json.data ?? []) {
+      const k = p?.loja?.id ? String(p.loja.id) : LOJA_MANUAL
+      if (!linhas.has(k)) linhas.set(k, {})
+    }
+  }
+  for (const [k, v] of linhas) {
+    // nome e canal só preenchem o que estava vazio; o vínculo nunca é mexido aqui
+    await banco.from('erp_store_links').upsert(
+      { connection_id: c.id, external_store_id: k },
+      { onConflict: 'connection_id,external_store_id', ignoreDuplicates: true },
+    )
+    if (v.name || v.canal) {
+      await banco.from('erp_store_links')
+        .update({ name: v.name ?? null, canal: v.canal ?? null, updated_at: new Date().toISOString() })
+        .eq('connection_id', c.id).eq('external_store_id', k)
+    }
+  }
+}
+
+async function lojas(clientId: string, procurar: boolean) {
+  const c = await conexaoDaLoja(clientId)
+  if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com o Bling conectado.')
+
+  const lerLinks = async () => {
+    const { data, error } = await banco
+      .from('erp_store_links')
+      .select('external_store_id, store_id, name, canal, first_seen_at')
+      .eq('connection_id', c.id)
+      .order('first_seen_at')
+    if (error) throw new Error('erp_store_links: ' + error.message)
+    return data ?? []
+  }
+  let links = await lerLinks()
+  if (procurar || links.length === 0) {
+    await procurarLojas(c)
+    links = await lerLinks()
+  }
+  // a linha dos pedidos digitados à mão aparece sempre: o lojista decide se entram
+  if (!links.some((l: Json) => l.external_store_id === LOJA_MANUAL)) {
+    await banco.from('erp_store_links').upsert(
+      { connection_id: c.id, external_store_id: LOJA_MANUAL },
+      { onConflict: 'connection_id,external_store_id', ignoreDuplicates: true },
+    )
+    links = await lerLinks()
+  }
+
+  const { data: esperando } = await banco
+    .from('erp_order_events').select('external_store_id')
+    .eq('connection_id', c.id).eq('status', 'aguardando_loja').limit(10000)
+  const conta = new Map<string, number>()
+  for (const e of esperando ?? []) conta.set(e.external_store_id, (conta.get(e.external_store_id) ?? 0) + 1)
+
+  const { data: stores, error } = await banco
+    .from('stores').select('id, name, marketplace').eq('client_id', clientId).order('name')
+  if (error) throw new Error('stores: ' + error.message)
+  // loja do Contatta já ligada a outra conexão (outro ERP ou outra conta do Bling) não aparece livre
+  const ids = (stores ?? []).map((s: Json) => s.id)
+  const { data: ocupadas } = ids.length
+    ? await banco.from('erp_store_links').select('store_id, connection_id, external_store_id').in('store_id', ids)
+    : { data: [] as Json[] }
+  const ligadaA = new Map<string, Json>()
+  for (const o of ocupadas ?? []) ligadaA.set(o.store_id, o)
+
+  return ok({
+    ok: true,
+    lojas_bling: links.map((l: Json) => ({
+      id: l.external_store_id,
+      manual: l.external_store_id === LOJA_MANUAL,
+      nome: l.name,
+      canal: l.canal,
+      marketplace_sugerido: marketplaceDoCanal(l.canal),
+      store_id: l.store_id,
+      aguardando: conta.get(l.external_store_id) ?? 0,
+    })),
+    lojas_contatta: (stores ?? []).map((s: Json) => {
+      const o = ligadaA.get(s.id)
+      return {
+        id: s.id, nome: s.name, marketplace: s.marketplace,
+        ligada_a: o ? (o.connection_id === c.id ? o.external_store_id : 'outra_conexao') : null,
+      }
+    }),
+  })
+}
+
+async function ligar(clientId: string, b: Json) {
+  const c = await conexaoDaLoja(clientId)
+  if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com o Bling conectado.')
+  const ext = String(b.external_store_id ?? '').trim()
+  const { data: link } = await banco
+    .from('erp_store_links').select('id, store_id, name')
+    .eq('connection_id', c.id).eq('external_store_id', ext).maybeSingle()
+  if (!ext || !link) return falha(404, 'Essa loja do Bling não foi encontrada. Atualize a lista e tente de novo.')
+
+  let storeId: string | null = null
+  if (b.nova && typeof b.nova === 'object') {
+    const nome = String(b.nova.nome ?? '').trim().slice(0, 80)
+    const marketplace = String(b.nova.marketplace ?? 'outro')
+    if (!nome) return falha(400, 'Dê um nome para a loja nova.')
+    if (!MARKETPLACES.has(marketplace)) return falha(400, 'Canal inválido.')
+    const { data: nova, error } = await banco
+      .from('stores')
+      .upsert({
+        client_id: clientId, marketplace, name: nome,
+        external_shop_id: `bling:${c.id}:${ext}`, updated_at: new Date().toISOString(),
+      }, { onConflict: 'marketplace,external_shop_id' })
+      .select('id, client_id')
+      .single()
+    if (error || !nova || nova.client_id !== clientId) throw new Error('stores: ' + (error?.message ?? 'loja de outra conta'))
+    storeId = nova.id
+  } else if (b.store_id) {
+    const { data: s } = await banco.from('stores').select('id').eq('id', String(b.store_id)).eq('client_id', clientId).maybeSingle()
+    if (!s) return falha(404, 'Essa loja do Contatta não foi encontrada.')
+    storeId = s.id
+  }
+
+  if (storeId === link.store_id) return ok({ ok: true })
+
+  const { error } = await banco
+    .from('erp_store_links')
+    .update({ store_id: storeId, updated_at: new Date().toISOString() })
+    .eq('id', link.id)
+  if (error) {
+    // índice erp_store_links_uma_fonte: uma loja do Contatta tem uma fonte só
+    if (error.code === '23505') return falha(409, 'Essa loja do Contatta já recebe pedidos de outra loja do Bling. Escolha outra ou crie uma nova.')
+    throw new Error('erp_store_links: ' + error.message)
+  }
+
+  if (storeId) {
+    await liberarAguardando(c.id, ext)
+    depoisDeResponder(processarFila(Date.now() + 25_000))
+  }
+  return ok({ ok: true, store_id: storeId })
 }

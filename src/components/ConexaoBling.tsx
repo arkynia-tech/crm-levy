@@ -4,11 +4,12 @@ import { AlertTriangle, CheckCircle2, Link2, Search, Unplug } from 'lucide-react
 import { useCompany } from '../context/CompanyContext'
 import { chamarBling, useConexaoBling, type Diagnostico } from '../hooks/bling'
 import { formatDate, formatDateTime } from '../lib/format'
+import { LojasBling } from './LojasBling'
 
 /**
- * Fase 1 da integração: só o master vê o cartão, para ligar uma conta real e
- * olhar o dado antes de abrir para as lojas. Virar para true quando a entrada
- * automática dos pedidos (fase 2) estiver no ar.
+ * Até abrir para todas as lojas, só o master vê o cartão (ou o admin de uma loja
+ * que o master liberou). Virar para true depois do primeiro lojista real com a
+ * entrada automática dos pedidos (fase 2) funcionando.
  */
 export const BLING_ABERTO_PARA_LOJAS = false
 
@@ -89,9 +90,11 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
                   depois dela entram sozinhos; os anteriores ficam como histórico.
                 </p>
               )}
-              {!BLING_ABERTO_PARA_LOJAS && (
-                <p className="text-gray-500">A entrada automática dos pedidos chega na próxima etapa.</p>
-              )}
+              <p className="text-gray-500">
+                {conexao?.last_order_at
+                  ? <>Último pedido recebido do Bling em {formatDateTime(conexao.last_order_at)}.</>
+                  : 'Nenhum pedido recebido do Bling ainda.'}
+              </p>
             </div>
           ) : status === 'reconectar' ? (
             <p className="mt-1.5 text-sm text-gray-600">
@@ -146,6 +149,8 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
           continua a mesma.
         </p>
       )}
+
+      {status === 'conectado' && <LojasBling clientId={activeClient.id} />}
 
       {isMaster && status === 'conectado' && <DiagnosticoBling clientId={activeClient.id} />}
     </div>
@@ -228,8 +233,8 @@ function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
       <div>
         <p className="text-sm font-medium text-gray-900">Lojas do Bling nesses pedidos</p>
         <p className="text-xs text-gray-500">
-          Cada uma vai ser ligada a uma loja do Contatta na próxima etapa. Pedido digitado à mão no Bling não tem loja nem
-          número no marketplace.
+          Cada uma é ligada a uma loja do Contatta na lista acima. Pedido digitado à mão no Bling não tem loja nem número no
+          marketplace.
         </p>
         <ul className="mt-2 divide-y divide-gray-100 rounded-md border border-gray-200 text-sm">
           {d.lojas.map((l) => (
