@@ -301,7 +301,18 @@ Roteiro:
 3. Se passou, clicar em **Solicitar revisão** no Bling. Se parou, o passo mostra o motivo
    que o Bling devolveu.
 
+## Histórico: só pela importação de NF-e (decidido em 18/10/2026)
+
+Pela integração entra só o que foi emitido a partir da data de corte (a conexão).
+As vendas de antes o lojista traz pela tela **Importar NF-e**, com os XML das notas
+baixados do Bling. A chave é a mesma (número do pedido no marketplace ou chave de
+acesso), então XML e Bling não duplicam, e o pedido novo gasta crédito como qualquer
+importação. O histórico pago pela API (R$ 0,20 por venda) foi descartado.
+
+O **Diagnóstico** da fase 1 saiu da tela em 18/10: lia os pedidos sem gravar nada e
+confundia o lojista. A ação `diagnostico` continua na `bling-conexao`, só para o master.
+
 ## Fora da fase 2
 
-Histórico pago (R$ 0,20 por pedido), vídeo de demonstração e abrir para
-todas as lojas (`BLING_ABERTO_PARA_LOJAS = true` e o secret `BLING_ABERTO_PARA_LOJAS=1`).
+Abrir para todas as lojas depois da aprovação do app e da trava contra duplicar
+com a Shopee do n8n (`BLING_ABERTO_PARA_LOJAS = true` e o secret `BLING_ABERTO_PARA_LOJAS=1`).
