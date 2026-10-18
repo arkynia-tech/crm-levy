@@ -96,7 +96,6 @@ export function storeStatusLabel(status: string | null | undefined): string {
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
   importado_nfe: 'Faturado (NF-e)',
-  pedido_bling: 'Pedido (Bling)',
   cancelado: 'Cancelado',
   cancelled: 'Cancelado',
   completed: 'Concluído',

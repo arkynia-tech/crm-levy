@@ -1,11 +1,16 @@
-// Pedidos do Bling entrando no Contatta (fase 2). Usado pelo bling-webhook
+// Vendas do Bling entrando no Contatta (fase 2). Usado pelo bling-webhook
 // (logo depois de responder ao Bling) e pelo bling-pedidos (pg_cron).
 //
-// Caminho de um pedido:
-//   aviso do Bling ou busca agendada -> erp_order_events (fila, idempotente)
-//   -> GET do pedido inteiro e do contato -> crm_erp_gravar_pedido (banco)
+// A fonte é a NOTA FISCAL autorizada de saída (decidido com o Mohamad em
+// 18/10/2026): pedido criado e não pago não é cliente; nota autorizada é venda
+// de verdade. É a mesma regra e a mesma chave da importação de NF-e por XML
+// (src/lib/nfe): número do pedido no marketplace, ou a chave de acesso.
 //
-// O aviso só diz "o pedido X mudou": o pedido é sempre lido de novo no Bling,
+// Caminho de uma nota:
+//   aviso do Bling (invoice) ou busca agendada -> erp_order_events (fila, idempotente)
+//   -> GET da nota e do contato -> crm_erp_gravar_pedido (banco)
+//
+// O aviso só diz "a nota X mudou": a nota é sempre lida de novo no Bling,
 // então aviso repetido ou fora de ordem não estraga nada.
 //
 // Limite do Bling de 3 req/s por conta: crm_erp_fila_pegar entrega uma conexão
@@ -15,10 +20,13 @@ import type { Json } from './asaas.ts'
 import { bling, PROVEDOR, tokenDaConexao } from './bling.ts'
 import { banco, rpc } from './comum.ts'
 
-export const LOJA_MANUAL = '0' // loja.id do pedido digitado à mão no Bling
-const SITUACAO_CANCELADO = 12 // situação padrão "Cancelado" do Bling
+export const LOJA_MANUAL = '0' // loja.id da venda sem marketplace (digitada no Bling)
+const NOTA_SAIDA = 1
+const FINALIDADE_NORMAL = 1
+const NOTA_CANCELADA = 2
+const NOTA_AUTORIZADA = new Set([5, 6]) // Autorizada, Emitida DANFE
 const PRAZO_FILA_S = 90 // quanto tempo um processo segura a fila de uma conexão
-const POR_VEZ = 40 // pedidos por conexão a cada vez que pega a fila
+const POR_VEZ = 40 // notas por conexão a cada vez que pega a fila
 const MAX_TENTATIVAS = 12
 
 const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
@@ -38,24 +46,36 @@ export function horaBling(d: Date): string {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`
 }
 
-/** Chave do pedido no Contatta: o número no marketplace; sem ele, o número do Bling. */
-export function chaveDoPedido(p: Json): string | null {
-  const noMarketplace = String(p.numeroLoja ?? '').trim()
+/** Chave do pedido no Contatta, igual à do XML: número do pedido no marketplace (xPed) ou a chave de acesso. */
+export function chaveDaNota(n: Json): string | null {
+  const noMarketplace = String(n.numeroPedidoLoja ?? '').trim()
   if (noMarketplace) return noMarketplace
-  return p.numero != null && String(p.numero).trim() ? `BLING-${String(p.numero).trim()}` : null
+  const chave = digitos(n.chaveAcesso)
+  return chave.length === 44 ? chave : null
 }
 
-export const lojaDoPedido = (p: Json): string => (p.loja?.id ? String(p.loja.id) : LOJA_MANUAL)
+export const lojaDaNota = (n: Json): string => (n.loja?.id ? String(n.loja.id) : LOJA_MANUAL)
 
-/** Pedido + contato do Bling no formato que crm_erp_gravar_pedido espera. */
-export function montarPedido(p: Json, ct: Json | null): Json {
-  const docPedido = digitos(p.contato?.numeroDocumento)
-  const doc = docPedido || digitos(ct?.numeroDocumento)
-  const data = dataDeVerdade(p.data) ? String(p.data).slice(0, 10) : null
-  const cancelado = Number(p.situacao?.id) === SITUACAO_CANCELADO
+/** Por que esta nota não é venda que entra (null = é). Cancelada passa: o banco marca o pedido como cancelado. */
+export function notaQueNaoEntra(n: Json): string | null {
+  if (Number(n.tipo) !== NOTA_SAIDA) return 'nota_de_entrada'
+  if (n.finalidade != null && Number(n.finalidade) !== FINALIDADE_NORMAL) return 'nota_nao_e_venda'
+  const sit = Number(n.situacao)
+  if (sit !== NOTA_CANCELADA && !NOTA_AUTORIZADA.has(sit)) return 'nota_nao_autorizada'
+  return null
+}
+
+/** Nota + contato do Bling no formato que crm_erp_gravar_pedido espera. */
+export function montarNota(n: Json, ct: Json | null): Json {
+  const doc = digitos(n.contato?.numeroDocumento) || digitos(ct?.numeroDocumento)
+  const emissao = String(n.dataEmissao ?? '')
+  const data = dataDeVerdade(emissao) ? emissao.slice(0, 10) : null
+  const hora = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(emissao) ? emissao.replace(' ', 'T') : null
+  const cancelado = Number(n.situacao) === NOTA_CANCELADA
+  const dest = n.contato?.endereco ?? {}
   const geral = ct?.endereco?.geral ?? {}
-  const etiqueta = p.transporte?.etiqueta ?? {}
-  const end = texto(etiqueta.endereco) ? etiqueta : geral
+  const etiqueta = n.transporte?.etiqueta ?? {}
+  const end = texto(dest.endereco) ? dest : texto(etiqueta.endereco) ? etiqueta : geral
   const endereco = texto(end.endereco)
     ? {
       logradouro: texto(end.endereco) ?? '', numero: texto(end.numero) ?? '', complemento: texto(end.complemento) ?? '',
@@ -64,33 +84,35 @@ export function montarPedido(p: Json, ct: Json | null): Json {
     : null
   const nascimento = ct?.dadosAdicionais?.dataNascimento
   return {
-    external_store_id: lojaDoPedido(p),
-    external_order_id: chaveDoPedido(p),
-    bling_id: p.id ?? null,
+    external_store_id: lojaDaNota(n),
+    external_order_id: chaveDaNota(n),
+    bling_id: n.id ?? null,
     data,
-    // o Bling só dá o dia; meio-dia de São Paulo não muda de dia em nenhuma tela
-    ordered_at: data ? `${data}T12:00:00-03:00` : null,
+    // dataEmissao do Bling vem na hora de Brasília, sem fuso
+    ordered_at: hora ? `${hora.length === 16 ? hora + ':00' : hora}-03:00` : data ? `${data}T12:00:00-03:00` : null,
     cancelado,
-    status: cancelado ? 'cancelado' : 'pedido_bling',
-    total: numero(p.total),
+    // mesmo status da importação por XML ("Faturado (NF-e)")
+    status: cancelado ? 'cancelado' : 'importado_nfe',
+    total: numero(n.valorNota),
     cpf: doc.length === 11 ? doc : null,
-    nome: texto(p.contato?.nome) ?? texto(ct?.nome),
-    email: texto(ct?.email),
-    telefone: digitos(ct?.celular) || digitos(ct?.telefone) || null,
+    nome: texto(n.contato?.nome) ?? texto(ct?.nome),
+    email: texto(n.contato?.email) ?? texto(ct?.email),
+    telefone: digitos(ct?.celular) || digitos(n.contato?.telefone) || digitos(ct?.telefone) || null,
     nascimento: dataDeVerdade(nascimento) ? String(nascimento).slice(0, 10) : null,
-    cidade: texto(geral.municipio) ?? texto(etiqueta.municipio),
-    uf: texto(geral.uf) ?? texto(etiqueta.uf),
+    cidade: texto(dest.municipio) ?? texto(geral.municipio) ?? texto(etiqueta.municipio),
+    uf: texto(dest.uf) ?? texto(geral.uf) ?? texto(etiqueta.uf),
     endereco,
-    itens: (Array.isArray(p.itens) ? p.itens : []).map((i: Json) => {
+    // igual ao XML: o item é identificado pelo código do produto (cProd)
+    itens: (Array.isArray(n.itens) ? n.itens : []).map((i: Json) => {
       const qtd = numero(i.quantidade) ?? 1
       const unit = numero(i.valor)
       return {
-        external_item_id: i.id != null ? String(i.id) : null,
+        external_item_id: texto(i.codigo),
         sku: texto(i.codigo),
         product_name: texto(i.descricao),
         quantity: qtd,
         unit_price: unit,
-        total_price: unit == null ? null : Math.round((unit * qtd - (numero(i.desconto) ?? 0)) * 100) / 100,
+        total_price: numero(i.valorTotal) ?? (unit == null ? null : Math.round(unit * qtd * 100) / 100),
       }
     }),
   }
@@ -116,21 +138,26 @@ type Desfecho = { status: string; resultado: string | null; adiar?: string }
 const IGNORADOS = new Set(['sem_cpf', 'antes_do_corte', 'cancelado', 'sem_numero', 'loja_de_outra_conta', 'sem_conexao'])
 
 /**
- * Um pedido: lê no Bling, lê o contato (telefone só vem nele), grava.
- * Não lê o contato quando a loja ainda não está ligada ou o pedido é antigo.
+ * Uma nota: lê no Bling, lê o contato (celular e nascimento só vêm nele), grava.
+ * Não lê o contato quando a nota não entra, a loja ainda não está ligada ou a nota é antiga.
  */
-async function processarPedido(
+async function processarNota(
   token: string,
   con: Json,
   resourceId: string,
   contatos: Map<string, Json | null>,
   lojas: Map<string, string | null>,
 ): Promise<Desfecho & { lojaExterna?: string }> {
-  const r = await bling(token, `/pedidos/vendas/${encodeURIComponent(resourceId)}`)
-  if (r.status === 404) return { status: 'ignorado', resultado: 'apagado_no_bling' }
+  const r = await bling(token, `/nfe/${encodeURIComponent(resourceId)}`)
+  if (r.status === 404) return { status: 'ignorado', resultado: 'apagada_no_bling' }
   if (r.status !== 200 || !r.json?.data) return { status: 'pendente', resultado: `bling ${r.status}`, adiar: 'sim' }
-  const p = r.json.data as Json
-  const lojaExterna = lojaDoPedido(p)
+  const n = r.json.data as Json
+  const lojaExterna = lojaDaNota(n)
+
+  // Nota pendente, rejeitada, de entrada ou de devolução: não entra. Quando a
+  // nota for autorizada, o Bling manda outro aviso e ela é lida de novo.
+  const fora = notaQueNaoEntra(n)
+  if (fora) return { status: 'ignorado', resultado: fora, lojaExterna }
 
   // Loja do Bling sem loja do Contatta: nem lê o contato, espera ligar
   if (!lojas.has(lojaExterna)) {
@@ -147,13 +174,15 @@ async function processarPedido(
   }
   if (!lojas.get(lojaExterna)) return { status: 'aguardando_loja', resultado: null, lojaExterna }
 
-  // Pedido anterior à data de corte: o banco decide (pode já existir), mas sem gastar GET do contato
+  // Nota anterior à data de corte ou cancelada: o banco decide (o pedido pode já
+  // existir), mas sem gastar GET do contato
   const corte = con.cutoff_at ? String(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(con.cutoff_at))) : null
-  const antigo = corte && dataDeVerdade(p.data) && String(p.data).slice(0, 10) < corte
+  const antiga = corte && dataDeVerdade(n.dataEmissao) && String(n.dataEmissao).slice(0, 10) < corte
+  const cancelada = Number(n.situacao) === NOTA_CANCELADA
 
   let ct: Json | null = null
-  const idContato = p.contato?.id
-  if (idContato && !antigo) {
+  const idContato = n.contato?.id
+  if (idContato && !antiga && !cancelada) {
     const k = String(idContato)
     if (!contatos.has(k)) {
       const c = await bling(token, `/contatos/${encodeURIComponent(k)}`)
@@ -163,7 +192,7 @@ async function processarPedido(
     ct = contatos.get(k) ?? null
   }
 
-  const g = await rpc('crm_erp_gravar_pedido', { p_connection_id: con.connection_id, p: montarPedido(p, ct) })
+  const g = await rpc('crm_erp_gravar_pedido', { p_connection_id: con.connection_id, p: montarNota(n, ct) })
   const res = String(g.resultado ?? '')
   if (res === 'novo' || res === 'atualizado') return { status: 'feito', resultado: res, lojaExterna }
   if (res === 'aguardando_loja') return { status: 'aguardando_loja', resultado: null, lojaExterna }
@@ -191,7 +220,9 @@ async function processarConexao(con: Json, ate: number): Promise<{ feitos: numbe
     if (Date.now() > ate) break
     let d: Desfecho & { lojaExterna?: string }
     try {
-      d = await processarPedido(t.tokens.access_token, con, String(x.resource_id), contatos, lojas)
+      d = String(x.evento ?? '').startsWith('order.')
+        ? { status: 'ignorado', resultado: 'aviso_de_pedido' } // a fonte agora é a nota
+        : await processarNota(t.tokens.access_token, con, String(x.resource_id), contatos, lojas)
     } catch (e) {
       console.error('pedido', x.resource_id, e)
       d = { status: 'pendente', resultado: String((e as Error)?.message ?? e).slice(0, 300), adiar: 'sim' }
@@ -216,7 +247,7 @@ async function processarConexao(con: Json, ate: number): Promise<{ feitos: numbe
 
 /**
  * Aviso com companyId que nenhuma conexão tem ainda. O dados-basicos do Bling
- * não respondeu no teste, então o Contatta aprende: tenta abrir o pedido do
+ * não respondeu no teste, então o Contatta aprende: tenta abrir a nota do
  * aviso com cada conexão sem companyId; a que conseguir é a dona da conta.
  */
 export async function reconhecerContas(ate: number): Promise<number> {
@@ -247,7 +278,7 @@ export async function reconhecerContas(ate: number): Promise<number> {
       for (const c of candidatas ?? []) {
         const t = await tokenDaConexao(c.id)
         if (!t.ok) continue
-        const r = await bling(t.tokens.access_token, `/pedidos/vendas/${encodeURIComponent(String(ev.resource_id))}`)
+        const r = await bling(t.tokens.access_token, `/nfe/${encodeURIComponent(String(ev.resource_id))}`)
         const numeroAviso = ev.payload?.data?.numero
         if (r.status === 200 && r.json?.data && (numeroAviso == null || String(r.json.data.numero) === String(numeroAviso))) {
           dona = c.id
@@ -306,9 +337,10 @@ const POR_PAGINA = 100
 const MAX_PAGINAS = 30
 
 /**
- * Pedidos alterados no Bling desde a última busca (ou desde a data de corte),
- * em janelas de 6 h: cobre o tempo desconectado e aviso que não chegou.
- * Só enfileira; quem grava é a fila.
+ * Notas de saída emitidas no Bling desde a última busca (ou desde a data de
+ * corte), em janelas de 6 h: cobre o tempo desconectado e aviso que não chegou.
+ * Cancelamento depois chega pelo aviso de nota alterada. Só enfileira; quem
+ * grava é a fila.
  */
 export async function buscarConexao(con: Json, ate: number): Promise<{ enfileirados: number; janelas: number }> {
   const t = await tokenDaConexao(con.id)
@@ -337,9 +369,9 @@ export async function buscarConexao(con: Json, ate: number): Promise<{ enfileira
     for (let pagina = 1; pagina <= MAX_PAGINAS; pagina++) {
       const q = new URLSearchParams({
         pagina: String(pagina), limite: String(POR_PAGINA),
-        dataAlteracaoInicial: horaBling(de), dataAlteracaoFinal: horaBling(ateQuando),
+        tipo: '1', dataEmissaoInicial: horaBling(de), dataEmissaoFinal: horaBling(ateQuando),
       })
-      const r = await bling(token, `/pedidos/vendas?${q}`)
+      const r = await bling(token, `/nfe?${q}`)
       if (r.status !== 200) {
         console.error('busca', con.id, r.status)
         return { enfileirados, janelas } // tenta a mesma janela na próxima hora
@@ -347,11 +379,11 @@ export async function buscarConexao(con: Json, ate: number): Promise<{ enfileira
       const lista: Json[] = r.json?.data ?? []
       const linhas = lista
         .filter((p) => p?.id != null)
-        // alteração em pedido antigo não interessa: é histórico
-        .filter((p) => !corte || !dataDeVerdade(p.data) || String(p.data).slice(0, 10) >= corte)
+        // nota de antes da data de corte é histórico
+        .filter((p) => !corte || !dataDeVerdade(p.dataEmissao) || String(p.dataEmissao).slice(0, 10) >= corte)
         .map((p) => ({
           provider: PROVEDOR, event_id: `busca:${p.id}:${horaBling(de)}`, connection_id: con.id,
-          event: 'order.busca', resource_id: String(p.id), external_store_id: lojaDoPedido(p),
+          event: 'invoice.busca', resource_id: String(p.id), external_store_id: lojaDaNota(p),
         }))
       if (linhas.length) {
         const { error } = await banco.from('erp_order_events')
@@ -362,7 +394,7 @@ export async function buscarConexao(con: Json, ate: number): Promise<{ enfileira
       if (lista.length < POR_PAGINA) break
       if (pagina === MAX_PAGINAS) completa = false
     }
-    if (!completa) console.error('busca: janela com mais de', MAX_PAGINAS * POR_PAGINA, 'pedidos', con.id, horaBling(de))
+    if (!completa) console.error('busca: janela com mais de', MAX_PAGINAS * POR_PAGINA, 'notas', con.id, horaBling(de))
     janelas++
     await banco.from('erp_connections').update({ sync_until: ateQuando.toISOString() }).eq('id', con.id)
     inicio = fim

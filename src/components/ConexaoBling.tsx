@@ -86,14 +86,14 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
               </p>
               {conexao?.cutoff_at && (
                 <p>
-                  Data de corte: <span className="font-medium text-gray-900">{formatDate(conexao.cutoff_at)}</span>. Pedidos
-                  depois dela entram sozinhos; os anteriores ficam como histórico.
+                  Data de corte: <span className="font-medium text-gray-900">{formatDate(conexao.cutoff_at)}</span>. Vendas com
+                  nota fiscal autorizada depois dela entram sozinhas; as anteriores ficam como histórico.
                 </p>
               )}
               <p className="text-gray-500">
                 {conexao?.last_order_at
-                  ? <>Último pedido recebido do Bling em {formatDateTime(conexao.last_order_at)}.</>
-                  : 'Nenhum pedido recebido do Bling ainda.'}
+                  ? <>Última venda recebida do Bling em {formatDateTime(conexao.last_order_at)}.</>
+                  : 'Nenhuma venda recebida do Bling ainda.'}
               </p>
             </div>
           ) : status === 'reconectar' ? (

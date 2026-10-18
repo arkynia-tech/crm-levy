@@ -1,4 +1,4 @@
-// Testa a fase 2 do Bling (bling-webhook, bling-pedidos e as ações lojas/ligar
+// Testa a fase 2 do Bling, vendas pela nota fiscal (bling-webhook, bling-pedidos e as ações lojas/ligar
 // do bling-conexao) contra um Supabase (tabelas em memória) e um Bling falsos,
 // sem chave nenhuma e sem tocar no banco. A gravação em si
 // (crm_erp_gravar_pedido) é SQL: aqui se confere o que a função manda para ela.
@@ -111,10 +111,12 @@ function filaPegar(args: any) {
   con.fila_ate = new Date(Date.now() + args.p_segundos * 1000).toISOString()
   const grupos = new Map<string, any>()
   for (const e of tabelas.erp_order_events.filter((e) => e.connection_id === con.id && vencido(e))) {
-    const g = grupos.get(e.resource_id) ?? { resource_id: e.resource_id, ids: [], tentativas: 0 }
+    const k = e.resource_id + '|' + String(e.event).split('.')[0]
+    const g = grupos.get(k) ?? { resource_id: e.resource_id, evento: e.event, ids: [], tentativas: 0 }
     g.ids.push(e.id)
     g.tentativas = Math.max(g.tentativas, e.tentativas ?? 0)
-    grupos.set(e.resource_id, g)
+    if (e.event > g.evento) g.evento = e.event
+    grupos.set(k, g)
   }
   return { connection_id: con.id, client_id: con.client_id, cutoff_at: con.cutoff_at, account_id: con.account_id, pedidos: [...grupos.values()].slice(0, args.p_limite) }
 }
@@ -152,9 +154,9 @@ Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
     chamadas.push(`bling GET ${a}${u.search} ${auth.slice(7)}`)
     if (a === '/empresas/me/dados-basicos') return j(403, { error: { description: 'escopo' } }) // como no teste real
     if (a === '/canais-venda') return j(200, { data: [{ id: 777, descricao: 'Minha Shopee', tipo: 'Shopee', situacao: 1 }] })
-    if (a === '/pedidos/vendas') return j(200, { data: listaBusca })
-    if (a.startsWith('/pedidos/vendas/')) {
-      const id = a.split('/')[3]
+    if (a === '/nfe') return j(200, { data: listaBusca })
+    if (a.startsWith('/nfe/')) {
+      const id = a.split('/')[2]
       const ped = pedidos[id]
       // pedido de outra conta não abre com este token
       if (statusPedido[id]) return j(statusPedido[id], { error: {} })
@@ -257,23 +259,27 @@ const links = (o: any[] = []) => [
   ...o,
 ]
 const ev = (eventId: string, id: number | string, o: any = {}) => ({
-  eventId, date: '2026-10-18T14:00:00Z', version: 'v1', event: 'order.created', companyId: 'emp-9', data: { id, numero: 10 }, ...o,
+  eventId, date: '2026-10-18T14:00:00Z', version: 'v1', event: 'invoice.created', companyId: 'emp-9', data: { id, numero: 10 }, ...o,
 })
 
+// notas fiscais do Bling (a fonte da fase 2)
+const nota = (o: any) => ({ tipo: 1, finalidade: 1, situacao: 5, dataEmissao: '2026-10-18 14:30:00', valorNota: 10, ...o })
 pedidos = {
-  '1': { id: 1, numero: 10, numeroLoja: 'SHP-111', data: '2026-10-18', total: 50, loja: { id: 777 }, situacao: { id: 6, valor: 1 },
-    contato: { id: 501, nome: 'Ana', tipoPessoa: 'F', numeroDocumento: '' },
-    itens: [{ id: 91, codigo: 'SKU1', descricao: 'Batom', quantidade: 2, valor: 30, desconto: 10 }],
-    transporte: { etiqueta: { endereco: 'Rua A', numero: '10', municipio: 'Campinas', uf: 'SP', cep: '13000-000', bairro: 'Centro' } } },
-  '2': { id: 2, numero: 11, numeroLoja: 'ML-2', data: '2026-10-18', total: 80, loja: { id: 888 }, situacao: { id: 6 },
-    contato: { id: 502, nome: 'Bia', numeroDocumento: '98765432100' } },
-  '4': { id: 4, numero: 13, numeroLoja: '', data: '2026-10-18', total: 30, loja: { id: 0 }, situacao: { id: 6 },
-    contato: { id: 501, nome: 'Ana' } },
-  '5': { id: 5, numero: 14, numeroLoja: 'SHP-5', data: '2026-10-18', total: 10, loja: { id: 777 }, situacao: { id: 12 },
-    contato: { id: 501, nome: 'Ana' } },
-  // pedido de outra conta do Bling: só abre com o token dela
-  '70': { _token: 'tok-2', id: 70, numero: 10, numeroLoja: 'X-70', data: '2026-10-18', total: 5, loja: { id: 777 }, situacao: { id: 6 },
-    contato: { id: 501, nome: 'Ana' } },
+  '1': nota({ id: 1, numero: '10', numeroPedidoLoja: 'SHP-111', chaveAcesso: '35261012345678000199550010000000101000000105', valorNota: 50, loja: { id: 777 },
+    contato: { id: 501, nome: 'Ana', numeroDocumento: '', telefone: '(11) 3333-4444',
+      endereco: { endereco: 'Rua A', numero: '10', municipio: 'Campinas', uf: 'SP', cep: '13000-000', bairro: 'Centro' } },
+    itens: [{ codigo: 'SKU1', descricao: 'Batom', quantidade: 2, valor: 30, valorTotal: 60 }] }),
+  '2': nota({ id: 2, numero: '11', numeroPedidoLoja: 'ML-2', valorNota: 80, loja: { id: 888 },
+    contato: { id: 502, nome: 'Bia', numeroDocumento: '98765432100' } }),
+  // venda sem marketplace: sem loja e sem número do pedido na loja, a chave é a chave de acesso (igual ao XML)
+  '4': nota({ id: 4, numero: '13', numeroPedidoLoja: '', chaveAcesso: '35261012345678000199550010000000131000000135', valorNota: 30, loja: { id: 0 },
+    contato: { id: 501, nome: 'Ana' } }),
+  '5': nota({ id: 5, numero: '14', numeroPedidoLoja: 'SHP-5', situacao: 2, loja: { id: 777 }, contato: { id: 501, nome: 'Ana' } }),
+  '6': nota({ id: 6, numero: '15', numeroPedidoLoja: 'SHP-6', situacao: 1, loja: { id: 777 }, contato: { id: 501 } }), // pendente
+  '7': nota({ id: 7, numero: '16', numeroPedidoLoja: 'SHP-7', tipo: 0, loja: { id: 777 }, contato: { id: 501 } }), // entrada
+  '8': nota({ id: 8, numero: '17', numeroPedidoLoja: 'SHP-8', finalidade: 4, loja: { id: 777 }, contato: { id: 501 } }), // devolução
+  // nota de outra conta do Bling: só abre com o token dela
+  '70': nota({ _token: 'tok-2', id: 70, numero: '10', numeroPedidoLoja: 'X-70', loja: { id: 777 }, contato: { id: 501, nome: 'Ana' } }),
 }
 contatos = {
   '501': { id: 501, nome: 'Ana', numeroDocumento: '123.456.789-01', celular: '(11) 98888-7777', telefone: '(11) 3333-4444', email: 'ana@x.com',
@@ -290,12 +296,13 @@ await webhook('webhook com assinatura de outro secret → 401', ev('e1', 1), { s
 await webhook('aviso de produto → 200 e ignorado', ev('e0', 1, { event: 'product.updated' }), {
   status: 200, body: { ignorado: true }, conferir: () => (tabelas.erp_order_events?.length ? 'gravou' : null),
 })
-await webhook('pedido apagado de vez → 200 e ignorado', ev('e0b', 1, { event: 'order.deleted' }), { status: 200, body: { ignorado: true } })
+await webhook('aviso de pedido → 200 e ignorado (a fonte é a nota)', ev('e0b', 1, { event: 'order.created' }), { status: 200, body: { ignorado: true } })
+await webhook('nota apagada de vez → 200 e ignorado', ev('e0c', 1, { event: 'invoice.deleted' }), { status: 200, body: { ignorado: true } })
 
 cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links() } })
-await webhook('pedido criado → 200, entra na fila e grava com o número do marketplace', ev('e1', 1), {
+await webhook('nota autorizada → 200, entra na fila e grava com o número do marketplace', ev('e1', 1), {
   status: 200,
-  chamadas: ['insert erp_order_events', 'rpc crm_erp_fila_pegar', 'bling GET /pedidos/vendas/1', 'bling GET /contatos/501', 'rpc crm_erp_gravar_pedido'],
+  chamadas: ['insert erp_order_events', 'rpc crm_erp_fila_pegar', 'bling GET /nfe/1', 'bling GET /contatos/501', 'rpc crm_erp_gravar_pedido'],
   conferir: () => {
     const g = gravados[0]
     if (!g) return 'não gravou'
@@ -303,10 +310,10 @@ await webhook('pedido criado → 200, entra na fila e grava com o número do mar
     if (g.cpf !== '12345678901') return 'CPF do contato: ' + g.cpf
     if (g.telefone !== '11988887777') return 'celular primeiro: ' + g.telefone
     if (g.nascimento !== null) return '0000-00-00 virou data'
-    if (g.cidade !== 'São Paulo' || g.endereco?.cidade !== 'Campinas' || g.endereco?.cep !== '13000000') return 'endereço'
-    if (g.ordered_at !== '2026-10-18T12:00:00-03:00' || g.data !== '2026-10-18') return 'data'
-    if (g.itens[0]?.total_price !== 50 || g.itens[0]?.sku !== 'SKU1' || g.itens[0]?.external_item_id !== '91') return 'itens'
-    if (g.status !== 'pedido_bling' || g.cancelado) return 'status'
+    if (g.cidade !== 'Campinas' || g.endereco?.logradouro !== 'Rua A' || g.endereco?.cep !== '13000000') return 'endereço'
+    if (g.ordered_at !== '2026-10-18T14:30:00-03:00' || g.data !== '2026-10-18') return 'data: ' + g.ordered_at
+    if (g.itens[0]?.total_price !== 60 || g.itens[0]?.sku !== 'SKU1' || g.itens[0]?.external_item_id !== 'SKU1') return 'itens'
+    if (g.status !== 'importado_nfe' || g.cancelado || g.total !== 50) return 'status'
     const e = tabelas.erp_order_events[0]
     if (e.status !== 'feito' || e.resultado !== 'novo' || e.connection_id !== 'cx1' || e.external_store_id !== '777') return 'evento: ' + JSON.stringify(e)
     if (tabelas.erp_connections[0].fila_ate !== null) return 'não soltou a fila'
@@ -331,12 +338,22 @@ await webhook('loja que nunca apareceu → registra a loja e espera', ev('e4', 4
 cenario({
   tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links([{ id: 'l0', connection_id: 'cx1', external_store_id: '0', store_id: 's-balcao' }]) },
 })
-await webhook('pedido digitado à mão com a loja ligada → chave BLING-número', ev('e4', 4), {
-  status: 200, conferir: () => (gravados[0]?.external_order_id === 'BLING-13' && gravados[0]?.external_store_id === '0' ? null : JSON.stringify(gravados[0])),
+await webhook('venda sem marketplace com a loja ligada → chave de acesso, igual ao XML', ev('e4', 4), {
+  status: 200, conferir: () => (gravados[0]?.external_order_id === '35261012345678000199550010000000131000000135' && gravados[0]?.external_store_id === '0' ? null : JSON.stringify(gravados[0])),
 })
-await webhook('pedido cancelado no Bling → manda cancelado para o banco', ev('e5', 5), {
-  status: 200, conferir: () => (gravados[0]?.cancelado === true && gravados[0]?.status === 'cancelado' ? null : 'cancelado'),
+await webhook('nota cancelada → manda cancelado para o banco, sem ler o contato', ev('e5', 5), {
+  status: 200, semChamadas: ['bling GET /contatos'],
+  conferir: () => (gravados[0]?.cancelado === true && gravados[0]?.status === 'cancelado' ? null : 'cancelado'),
 })
+for (const [id, nome, motivo] of [['6', 'nota pendente', 'nota_nao_autorizada'], ['7', 'nota de entrada', 'nota_de_entrada'], ['8', 'nota de devolução', 'nota_nao_e_venda']]) {
+  await webhook(`${nome} → não entra, sem gravar`, ev('e' + id, id), {
+    status: 200, semChamadas: ['rpc crm_erp_gravar_pedido', 'bling GET /contatos'],
+    conferir: () => {
+      const e = tabelas.erp_order_events.find((x) => x.event_id === 'e' + id)
+      return e?.status === 'ignorado' && e?.resultado === motivo ? null : JSON.stringify(e)
+    },
+  })
+}
 
 cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links() } })
 statusPedido['1'] = 500
@@ -348,7 +365,7 @@ await webhook('Bling com erro → tenta depois, sem gravar', ev('e1', 1), {
   },
 })
 cenario({ tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links() } })
-await webhook('pedido apagado antes de processar (404) → ignorado', ev('e9', 999), {
+await webhook('nota apagada antes de processar (404) → ignorado', ev('e9', 999), {
   status: 200, conferir: () => (tabelas.erp_order_events[0].status === 'ignorado' ? null : 'status'),
 })
 
@@ -372,8 +389,8 @@ cenario({
     erp_store_links: [{ id: 'l9', connection_id: 'cx2', external_store_id: '777', store_id: 's-outra' }],
   },
 })
-await webhook('companyId desconhecido → descobre a conta abrindo o pedido e grava', ev('e70', 70, { companyId: 'emp-2' }), {
-  status: 200, chamadas: ['bling GET /pedidos/vendas/70 tok-1', 'bling GET /pedidos/vendas/70 tok-2', 'rpc crm_erp_gravar_pedido'],
+await webhook('companyId desconhecido → descobre a conta abrindo a nota e grava', ev('e70', 70, { companyId: 'emp-2' }), {
+  status: 200, chamadas: ['bling GET /nfe/70 tok-1', 'bling GET /nfe/70 tok-2', 'rpc crm_erp_gravar_pedido'],
   conferir: () => {
     const [c1, c2] = tabelas.erp_connections
     if (c1.account_id !== null || c2.account_id !== 'emp-2') return 'aprendeu errado: ' + c1.account_id + ' ' + c2.account_id
@@ -405,20 +422,32 @@ cenario({
   tabelas: {
     erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(),
     erp_order_events: [
-      { id: 1, provider: 'bling', event_id: 'a', connection_id: 'cx1', event: 'order.created', resource_id: '1', status: 'pendente', tentativas: 0, proxima_em: em(-1000), received_at: em(-2000) },
-      { id: 2, provider: 'bling', event_id: 'b', connection_id: 'cx1', event: 'order.updated', resource_id: '1', status: 'pendente', tentativas: 0, proxima_em: em(-1000), received_at: em(-1000) },
-      { id: 3, provider: 'bling', event_id: 'c', connection_id: 'cx1', event: 'order.updated', resource_id: '2', status: 'pendente', tentativas: 0, proxima_em: em(600_000), received_at: em(-1000) },
+      { id: 1, provider: 'bling', event_id: 'a', connection_id: 'cx1', event: 'invoice.created', resource_id: '1', status: 'pendente', tentativas: 0, proxima_em: em(-1000), received_at: em(-2000) },
+      { id: 2, provider: 'bling', event_id: 'b', connection_id: 'cx1', event: 'invoice.updated', resource_id: '1', status: 'pendente', tentativas: 0, proxima_em: em(-1000), received_at: em(-1000) },
+      { id: 3, provider: 'bling', event_id: 'c', connection_id: 'cx1', event: 'invoice.updated', resource_id: '2', status: 'pendente', tentativas: 0, proxima_em: em(600_000), received_at: em(-1000) },
     ],
   },
 })
-await caso('processar → dois avisos do mesmo pedido viram uma leitura; o que não venceu fica', 'bling-pedidos', { headers: CRON, body: { acao: 'processar' } }, {
+await caso('processar → dois avisos da mesma nota viram uma leitura; o que não venceu fica', 'bling-pedidos', { headers: CRON, body: { acao: 'processar' } }, {
   status: 200, body: { fila: { conexoes: 1, feitos: 1, outros: 0, reconhecidas: 0 } },
   conferir: () => {
-    const leituras = chamadas.filter((c) => c.startsWith('bling GET /pedidos/vendas/1 ')).length
+    const leituras = chamadas.filter((c) => c.startsWith('bling GET /nfe/1 ')).length
     if (leituras !== 1) return `${leituras} leituras`
     const [a, b, c] = tabelas.erp_order_events
     return a.status === 'feito' && b.status === 'feito' && c.status === 'pendente' ? null : 'status'
   },
+})
+
+cenario({
+  rpcs: cron,
+  tabelas: {
+    erp_connections: [conexao()], erp_connection_tokens: [tokens()], erp_store_links: links(),
+    erp_order_events: [{ id: 1, provider: 'bling', event_id: 'velho', connection_id: 'cx1', event: 'order.created', resource_id: '1', status: 'pendente', tentativas: 0, proxima_em: em(-1000), received_at: em(-1000) }],
+  },
+})
+await caso('aviso de pedido da primeira versão → ignorado, sem ler no Bling', 'bling-pedidos', { headers: CRON, body: { acao: 'processar' } }, {
+  status: 200, semChamadas: ['bling GET'],
+  conferir: () => (tabelas.erp_order_events[0].status === 'ignorado' && tabelas.erp_order_events[0].resultado === 'aviso_de_pedido' ? null : JSON.stringify(tabelas.erp_order_events[0])),
 })
 
 // corte há 1 h (relativo ao relógio, para a janela da busca ser uma só)
@@ -426,15 +455,15 @@ const corteBusca = new Date(agora - 3600_000)
 const hojeSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(corteBusca)
 cenario({ rpcs: cron, tabelas: { erp_connections: [conexao({ cutoff_at: corteBusca.toISOString(), account_id: null })], erp_connection_tokens: [tokens()], erp_store_links: links() } })
 listaBusca = [
-  { id: 1, data: hojeSP, loja: { id: 777 } },
-  { id: 3, data: '2020-09-01', loja: { id: 777 } }, // antigo alterado: histórico, fica de fora
-  { id: 4, data: hojeSP, loja: { id: 0 } },
+  { id: 1, dataEmissao: `${hojeSP} 10:00:00`, loja: { id: 777 } },
+  { id: 3, dataEmissao: '2020-09-01 10:00:00', loja: { id: 777 } }, // nota antiga: histórico, fica de fora
+  { id: 4, dataEmissao: `${hojeSP} 10:00:00`, loja: { id: 0 } },
 ]
 const inicioEsperado = new URLSearchParams({ x: horaBling(new Date(corteBusca.getTime() - 10 * 60_000)) }).toString().slice(2)
-await caso('buscar → pedidos alterados desde o corte entram na fila e são gravados', 'bling-pedidos', { headers: CRON, body: { acao: 'buscar' } }, {
+await caso('buscar → notas emitidas desde o corte entram na fila e são gravadas', 'bling-pedidos', { headers: CRON, body: { acao: 'buscar' } }, {
   status: 200,
   chamadas: [
-    `bling GET /pedidos/vendas?pagina=1&limite=100&dataAlteracaoInicial=${inicioEsperado}&dataAlteracaoFinal=`,
+    `bling GET /nfe?pagina=1&limite=100&tipo=1&dataEmissaoInicial=${inicioEsperado}&dataEmissaoFinal=`,
     'bling GET /empresas/me/dados-basicos',
   ],
   conferir: (b) => {
@@ -460,7 +489,7 @@ const stores = [
   { id: 's-alheia', client_id: 'c2', name: 'Alheia', marketplace: 'shopee' },
 ]
 const eventosEsperando = () => [
-  { id: 11, provider: 'bling', event_id: 'w1', connection_id: 'cx1', event: 'order.created', resource_id: '2', external_store_id: '888', status: 'aguardando_loja', tentativas: 1, proxima_em: em(-1000), received_at: em(-1000) },
+  { id: 11, provider: 'bling', event_id: 'w1', connection_id: 'cx1', event: 'invoice.created', resource_id: '2', external_store_id: '888', status: 'aguardando_loja', tentativas: 1, proxima_em: em(-1000), received_at: em(-1000) },
 ]
 
 cenario({ rpcs: { crm_role_check: [{ papel: 'admin' }] }, tabelas: { clients: [{ id: 'c1', bling_liberado: false }], erp_connections: [conexao()] } })

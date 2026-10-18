@@ -1,10 +1,15 @@
--- Integração com ERPs, fase 2: pedidos e clientes do Bling entrando sozinhos.
--- Rodar no SQL Editor. Idempotente. Rodar DEPOIS de bling-conexao.sql e de
--- creditos-pedidos.sql (a gravação passa pela trava de crédito de orders).
+-- Integração com ERPs, fase 2: vendas e clientes do Bling entrando sozinhos.
+-- Rodar no SQL Editor. Idempotente (rodar de novo atualiza funções e agendamentos).
+-- Rodar DEPOIS de bling-conexao.sql e de creditos-pedidos.sql (a gravação passa
+-- pela trava de crédito de orders).
+--
+-- A fonte é a NOTA FISCAL autorizada de saída (decidido em 18/10/2026): nota é
+-- venda paga de verdade, com a mesma chave da importação de NF-e por XML
+-- (número do pedido no marketplace, ou a chave de acesso).
 --
 -- O que cria:
---   erp_order_events        a fila: cada aviso do Bling (webhook) e cada pedido
---                           achado pela busca agendada vira uma linha. O eventId
+--   erp_order_events        a fila: cada aviso do Bling (webhook) e cada nota
+--                           achada pela busca agendada vira uma linha. O eventId
 --                           do Bling é único, então aviso repetido não duplica.
 --                           Sem policy: só a service_role (Edge Functions) vê.
 --   erp_connections         + sync_until (até onde a busca já olhou) e fila_ate
@@ -35,15 +40,15 @@ comment on column public.erp_connections.fila_ate is
 create table if not exists public.erp_order_events (
   id                 bigint generated always as identity primary key,
   provider           text not null,
-  -- eventId do webhook, ou "busca:<id do pedido>:<início da janela>" para a busca
+  -- eventId do webhook, ou "busca:<id da nota>:<início da janela>" para a busca
   event_id           text not null,
   company_id         text,            -- companyId do webhook (a conta no Bling)
   connection_id      uuid references public.erp_connections (id) on delete cascade,
-  event              text not null,   -- order.created, order.updated, order.busca
-  resource_id        text not null,   -- id do pedido no Bling
+  event              text not null,   -- invoice.created, invoice.updated, invoice.busca
+  resource_id        text not null,   -- id da nota no Bling
   -- pendente        falta processar
   -- feito           gravado (ou atualizado) no Contatta
-  -- ignorado        não entra: antes do corte, sem CPF, cancelado, apagado no Bling
+  -- ignorado        não entra: antes do corte, sem CPF, cancelada, não autorizada, de entrada
   -- aguardando_loja a loja do Bling ainda não foi ligada a uma loja do Contatta
   -- sem_conta       o companyId ainda não foi reconhecido (o Contatta descobre sozinho)
   -- sem_credito     faltou crédito de pedido; tenta de novo de hora em hora
@@ -52,7 +57,7 @@ create table if not exists public.erp_order_events (
                      check (status in ('pendente', 'feito', 'ignorado', 'aguardando_loja',
                                        'sem_conta', 'sem_credito', 'erro')),
   resultado          text,            -- por que foi ignorado, ou o último erro
-  external_store_id  text,            -- loja.id do pedido (0 = digitado à mão no Bling)
+  external_store_id  text,            -- loja.id da nota (0 = venda sem marketplace)
   tentativas         integer not null default 0,
   proxima_em         timestamptz not null default now(),
   payload            jsonb,
@@ -78,9 +83,9 @@ alter table public.erp_order_events enable row level security;
 -- 3) Pegar a fila de uma conexão
 -- ===========================================================================
 -- Escolhe uma conexão conectada com evento vencido e que ninguém está
--- processando, marca "ocupada" por p_segundos e devolve os pedidos a buscar.
--- Vários avisos do mesmo pedido viram um só: o processo sempre busca o pedido
--- inteiro no Bling, então a ordem em que os avisos chegaram não importa.
+-- processando, marca "ocupada" por p_segundos e devolve as notas a buscar.
+-- Vários avisos da mesma nota viram um só: o processo sempre busca a nota
+-- inteira no Bling, então a ordem em que os avisos chegaram não importa.
 create or replace function public.crm_erp_fila_pegar(p_provider text, p_segundos int, p_limite int)
 returns jsonb
 language plpgsql security definer set search_path = public, pg_temp
@@ -115,15 +120,17 @@ begin
     'cutoff_at', v_con.cutoff_at,
     'account_id', v_con.account_id,
     'pedidos', coalesce((
-      select jsonb_agg(jsonb_build_object('resource_id', x.resource_id, 'ids', x.ids, 'tentativas', x.tentativas)
+      select jsonb_agg(jsonb_build_object('resource_id', x.resource_id, 'evento', x.evento, 'ids', x.ids,
+                                          'tentativas', x.tentativas)
                        order by x.primeiro)
       from (
-        select e.resource_id, jsonb_agg(e.id) as ids, max(e.tentativas) as tentativas, min(e.received_at) as primeiro
+        select e.resource_id, max(e.event) as evento, jsonb_agg(e.id) as ids, max(e.tentativas) as tentativas,
+               min(e.received_at) as primeiro
         from public.erp_order_events e
         where e.connection_id = v_con.id
           and e.status in ('pendente', 'sem_credito')
           and e.proxima_em <= now()
-        group by e.resource_id
+        group by e.resource_id, split_part(e.event, '.', 1)
         order by min(e.received_at)
         limit p_limite
       ) x), '[]'::jsonb));
@@ -131,9 +138,9 @@ end;
 $$;
 
 -- ===========================================================================
--- 4) Gravar um pedido
+-- 4) Gravar uma venda (nota do Bling vira pedido do Contatta)
 -- ===========================================================================
--- p (montado pela Edge Function a partir do pedido e do contato do Bling):
+-- p (montado pela Edge Function a partir da nota e do contato do Bling):
 --   external_store_id, external_order_id, data (yyyy-mm-dd), ordered_at,
 --   cancelado, status, total, cpf, nome, email, telefone, nascimento, cidade,
 --   uf, endereco (jsonb), itens [{external_item_id, sku, product_name,
@@ -143,11 +150,12 @@ $$;
 --   - loja do Bling sem loja do Contatta ligada: não grava (aguardando_loja);
 --   - sem CPF: não grava (o cliente do Contatta é pelo CPF, igual à NF-e);
 --   - pedido novo com data antes da data de corte: não grava (é histórico);
---   - pedido novo já cancelado: não grava (não gasta crédito à toa);
+--   - pedido novo com a nota já cancelada: não grava (não gasta crédito à toa);
+--   - nota cancelada de pedido que já existe: o pedido vira 'cancelado';
 --   - pedido novo gasta 1 crédito (gatilho de creditos-pedidos.sql). Sem crédito,
 --     nada é gravado, nem o cliente, e volta 'sem_credito';
---   - pedido que já existe (veio antes pelo Bling, pela NF-e ou pelo n8n, mesma
---     loja e mesmo número) só é atualizado e não gasta crédito.
+--   - pedido que já existe (veio antes pelo Bling, pelo XML da NF-e ou pelo n8n,
+--     mesma loja e mesmo número) só é atualizado e não gasta crédito.
 create or replace function public.crm_erp_gravar_pedido(p_connection_id uuid, p jsonb)
 returns jsonb
 language plpgsql security definer set search_path = public, pg_temp
@@ -229,16 +237,16 @@ begin
       (store_id, customer_id, marketplace, external_order_id, status, total_amount, currency,
        buyer_cpf, buyer_name, buyer_email, buyer_phone, ship_address, ordered_at, updated_at)
     values
-      (v_loja.id, v_cliente, v_loja.marketplace, v_ref, coalesce(p ->> 'status', 'pedido_bling'),
+      (v_loja.id, v_cliente, v_loja.marketplace, v_ref, coalesce(p ->> 'status', 'importado_nfe'),
        nullif(p ->> 'total', '')::numeric, 'BRL',
        v_cpf, nullif(btrim(p ->> 'nome'), ''), nullif(btrim(p ->> 'email'), ''), nullif(p ->> 'telefone', ''),
        case when jsonb_typeof(p -> 'endereco') = 'object' then p -> 'endereco' end,
        coalesce(nullif(p ->> 'ordered_at', '')::timestamptz, now()), now())
     on conflict (store_id, external_order_id) do update set
       customer_id  = excluded.customer_id,
-      -- cancelado no Bling cancela aqui; fora isso, status de outra fonte (NF-e) fica
+      -- nota cancelada cancela aqui; fora isso, status de outra fonte (n8n) fica
       status       = case when excluded.status = 'cancelado' or o.status is null
-                               or o.status in ('pedido_bling', 'cancelado')
+                               or o.status in ('importado_nfe', 'pedido_bling', 'cancelado')
                           then excluded.status else o.status end,
       total_amount = coalesce(excluded.total_amount, o.total_amount),
       buyer_cpf    = excluded.buyer_cpf,
@@ -270,6 +278,11 @@ begin
     'order_id', v_pedido, 'customer_id', v_cliente);
 end;
 $$;
+
+-- A primeira versão (18/10) lia pedidos: avisos de pedido que sobraram na fila não entram.
+update public.erp_order_events
+set status = 'ignorado', resultado = 'aviso_de_pedido', processed_at = now()
+where event like 'order.%' and status not in ('feito', 'ignorado');
 
 revoke execute on function public.crm_erp_fila_pegar(text, int, int) from public, anon, authenticated;
 grant  execute on function public.crm_erp_fila_pegar(text, int, int) to service_role;

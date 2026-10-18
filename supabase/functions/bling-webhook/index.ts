@@ -1,11 +1,12 @@
-// Avisos do Bling (webhook do app Contatta, recurso "order").
+// Avisos do Bling (webhook do app Contatta, recurso "invoice": Notas Fiscais Eletrônicas).
+// A fonte das vendas é a nota autorizada (ver _shared/bling-pedidos.ts).
 // Link para cadastrar no app do Bling:
 //   https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/bling-webhook
 //
 // O Bling exige 2xx em até 5 s, pode mandar o mesmo aviso mais de uma vez e
 // fora de ordem, e tenta de novo por 3 dias (depois desativa o webhook). Por
 // isso aqui só se confere a assinatura e se grava na fila (erp_order_events,
-// eventId único); buscar e gravar o pedido fica para depois de responder.
+// eventId único); buscar e gravar a nota fica para depois de responder.
 //
 // Assinatura: header X-Bling-Signature-256 = "sha256=" + HMAC-SHA256 do corpo
 // cru com o client secret (BLING_CLIENT_SECRET), em hexadecimal.
@@ -48,10 +49,14 @@ Deno.serve(async (req) => {
   }
 
   const evento = String(ev?.event ?? '')
-  const pedido = ev?.data?.id
-  // Só pedido criado ou alterado interessa. "deleted" é pedido apagado de vez no
-  // Bling: o que já entrou no Contatta fica (desconectar também não apaga nada).
-  if (!/^order\.(created|updated)$/.test(evento) || pedido == null) return responder(200, { ok: true, ignorado: true })
+  const nota = ev?.data?.id
+  // Só nota criada ou alterada interessa (autorizar e cancelar chegam como
+  // "updated"). "deleted" é nota apagada de vez no Bling: o que já entrou no
+  // Contatta fica. Aviso de pedido (order) é ignorado: a fonte é a nota.
+  if (!/^invoice\.(created|updated)$/.test(evento) || nota == null) {
+    console.log('aviso do Bling ignorado:', evento)
+    return responder(200, { ok: true, ignorado: true })
+  }
   if (!ev.eventId) return responder(400, { ok: false })
 
   const empresa = ev.companyId != null ? String(ev.companyId) : null
@@ -70,7 +75,7 @@ Deno.serve(async (req) => {
       company_id: empresa,
       connection_id: conexao,
       event: evento,
-      resource_id: String(pedido),
+      resource_id: String(nota),
       // sem conexão com esse companyId: a fila descobre de quem é (reconhecerContas)
       status: conexao ? 'pendente' : 'sem_conta',
       payload: ev,
@@ -81,7 +86,7 @@ Deno.serve(async (req) => {
     return responder(500, { ok: false }) // o Bling tenta de novo
   }
 
-  // Já processa: o aviso costuma ser de um pedido só. O que não couber, o cron pega.
+  // Já processa: o aviso costuma ser de uma nota só. O que não couber, o cron pega.
   depoisDeResponder(processarFila(Date.now() + 25_000))
   return responder(200, { ok: true })
 })

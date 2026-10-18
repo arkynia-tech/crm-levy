@@ -9,8 +9,8 @@
 //                 para responder o que a fase 2 precisa saber (CPF, telefone,
 //                 loja, número no marketplace). Não grava pedido nem cliente.
 //   lojas         admin ou master: lojas do Bling desta conexão (achadas nos
-//                 canais de venda e nos pedidos desde a data de corte), a loja do
-//                 Contatta ligada a cada uma e quantos pedidos esperam por ela.
+//                 canais de venda e nas notas desde a data de corte), a loja do
+//                 Contatta ligada a cada uma e quantas vendas esperam por ela.
 //   ligar         admin ou master: liga uma loja do Bling a uma loja do Contatta
 //                 (ou cria uma nova), ou desliga. O que esperava entra na fila.
 
@@ -311,7 +311,7 @@ const MARKETPLACES = new Set(['shopee', 'mercado_livre', 'amazon', 'tiktok_shop'
 const marketplaceDoCanal = (canal: unknown) =>
   CANAL_PARA_MARKETPLACE[String(canal ?? '').toLowerCase().replace(/[^a-z_]/g, '')] ?? 'outro'
 
-/** Acha as lojas do Bling: canais de venda (se o escopo deixar) e pedidos desde a data de corte. */
+/** Acha as lojas do Bling: canais de venda (se o escopo deixar) e notas de saída desde a data de corte. */
 async function procurarLojas(c: Json): Promise<void> {
   const t = await tokenDaConexao(c.id)
   if (!t.ok) return
@@ -325,10 +325,10 @@ async function procurarLojas(c: Json): Promise<void> {
   const desde = c.cutoff_at
     ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(c.cutoff_at))
     : null
-  const q = new URLSearchParams({ pagina: '1', limite: '100', ...(desde ? { dataInicial: desde } : {}) })
-  const pedidos = await bling(t.tokens.access_token, `/pedidos/vendas?${q}`)
-  if (pedidos.status === 200) {
-    for (const p of pedidos.json.data ?? []) {
+  const q = new URLSearchParams({ pagina: '1', limite: '100', tipo: '1', ...(desde ? { dataEmissaoInicial: `${desde} 00:00:00` } : {}) })
+  const notas = await bling(t.tokens.access_token, `/nfe?${q}`)
+  if (notas.status === 200) {
+    for (const p of notas.json.data ?? []) {
       const k = p?.loja?.id ? String(p.loja.id) : LOJA_MANUAL
       if (!linhas.has(k)) linhas.set(k, {})
     }

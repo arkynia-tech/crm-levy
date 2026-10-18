@@ -10,8 +10,9 @@ const CRIAR = '__criar__'
 
 /**
  * Fase 2: cada loja do Bling (canal de venda) entra numa loja do Contatta.
- * Sem ligar, os pedidos dela não entram; ficam esperando e entram quando ligar.
- * Uma loja do Contatta recebe de uma loja do Bling só.
+ * Entra a venda com nota fiscal autorizada no Bling. Sem ligar, as vendas da
+ * loja ficam esperando e entram quando ligar. Uma loja do Contatta recebe de
+ * uma loja do Bling só.
  */
 export function LojasBling({ clientId }: { clientId: string }) {
   const queryClient = useQueryClient()
@@ -34,7 +35,8 @@ export function LojasBling({ clientId }: { clientId: string }) {
         <div className="max-w-xl">
           <p className="text-sm font-medium text-gray-900">Em qual loja do Contatta cada loja do Bling entra</p>
           <p className="text-sm text-gray-500">
-            Os pedidos de uma loja só entram depois de ligar. O que chegou antes fica esperando e entra assim que você escolher.
+            Entram as vendas com nota fiscal autorizada no Bling, só das lojas ligadas. O que chegou antes de ligar fica
+            esperando e entra assim que você escolher.
           </p>
         </div>
         <button
@@ -71,7 +73,7 @@ export function LojasBling({ clientId }: { clientId: string }) {
 }
 
 function nomeDaLojaBling(l: LojaBling): string {
-  if (l.manual) return 'Pedidos digitados no Bling'
+  if (l.manual) return 'Vendas sem marketplace'
   return l.nome || `Loja ${l.id} do Bling`
 }
 
@@ -120,11 +122,11 @@ function LinhaLoja({ clientId, loja, lojasContatta }: { clientId: string; loja: 
           </p>
           <p className="mt-0.5 text-xs text-gray-500">
             {loja.manual
-              ? 'Venda lançada à mão, sem marketplace. Entra com o número do pedido no Bling.'
+              ? 'Nota emitida no Bling sem loja virtual, como venda de balcão ou digitada à mão.'
               : `Código ${loja.id} no Bling.`}
             {loja.aguardando > 0 && !loja.store_id && (
               <span className="ml-1 font-medium text-amber-700">
-                {loja.aguardando} {loja.aguardando === 1 ? 'pedido esperando' : 'pedidos esperando'}.
+                {loja.aguardando} {loja.aguardando === 1 ? 'venda esperando' : 'vendas esperando'}.
               </span>
             )}
           </p>
