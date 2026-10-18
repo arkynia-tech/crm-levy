@@ -63,11 +63,13 @@ Deno.serve(async (req) => {
   try {
     let conexao: string | null = null
     if (empresa) {
+      // a mais recente, se a mesma conta do Bling estiver em mais de uma loja (não derruba o aviso)
       const { data, error } = await banco
         .from('erp_connections').select('id')
-        .eq('provider', PROVEDOR).eq('account_id', empresa).maybeSingle()
+        .eq('provider', PROVEDOR).eq('account_id', empresa)
+        .order('connected_at', { ascending: false }).limit(1)
       if (error) throw new Error(error.message)
-      conexao = data?.id ?? null
+      conexao = data?.[0]?.id ?? null
     }
     const { error } = await banco.from('erp_order_events').upsert({
       provider: PROVEDOR,

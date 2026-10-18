@@ -15,6 +15,7 @@ let chamadas: string[] = []
 // Bling falso
 let tokenRecusa: number | null = null // status com que /oauth/token recusa
 let blingTokens = 0
+let empresaRecusa = false // dados-basicos sem resposta, como no teste real
 
 function cenario(c: { tabelas?: Record<string, any[]>; rpcs?: Record<string, any>; tokenRecusa?: number | null }) {
   tabelas = structuredClone(c.tabelas ?? {})
@@ -127,7 +128,7 @@ Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
     const a = p.slice('/Api/v3'.length)
     chamadas.push(`bling GET ${a}${u.search}`)
     if (!req.headers.get('authorization')?.startsWith('Bearer h.')) return j(401, { error: { description: 'token' } })
-    if (a === '/empresas/me/dados-basicos') return j(200, { data: { id: 'emp-9', nome: 'Loja Teste LTDA' } })
+    if (a === '/empresas/me/dados-basicos') return empresaRecusa ? j(403, {}) : j(200, { data: { id: 'emp-9', nome: 'Loja Teste LTDA' } })
     if (a === '/pedidos/vendas') return j(200, { data: PEDIDOS })
     if (a.startsWith('/pedidos/vendas/')) return j(200, { data: { ...PEDIDOS[0], itens: [{}, {}], intermediador: { cnpj: '03007331000141', nomeUsuario: 'comprador1' } } })
     if (a.startsWith('/contatos/')) return CONTATOS[a.split('/')[2]] ? j(200, { data: CONTATOS[a.split('/')[2]] }) : j(404, {})
@@ -232,6 +233,19 @@ cenario({ tabelas: { erp_oauth_states: [{ state: 'velho', client_id: 'c1', user_
 await caso('state com mais de 15 min → 400', 'bling-conexao', { headers: A, body: { action: 'retorno', code: 'code-bom', state: 'velho' } }, { status: 400, semChamadas: ['bling token'] })
 cenario({ tabelas: { erp_oauth_states: [{ state: 's2', client_id: 'c1', user_id: 'u-admin', provider: 'bling', created_at: em(0) }] } })
 await caso('code recusado pelo Bling → 422', 'bling-conexao', { headers: A, body: { action: 'retorno', code: 'code-ruim', state: 's2' } }, { status: 422, semChamadas: ['rpc crm_erp_conectar'] })
+
+cenario({
+  tabelas: {
+    erp_oauth_states: [{ state: 's3', client_id: 'c1', user_id: 'u-admin', provider: 'bling', created_at: em(0) }],
+    erp_connections: [{ ...conexao(), account_id: 'conta-antiga', account_name: 'Outra' }],
+  },
+  rpcs: { crm_erp_conectar: { ok: true, connection_id: 'cx1', cutoff_at: '2026-10-18T10:00:00Z', primeira_conexao: false } },
+})
+empresaRecusa = true
+await caso('reconectar sem saber a conta → esquece a conta antiga (pode ser outro Bling)', 'bling-conexao', { headers: A, body: { action: 'retorno', code: 'code-bom', state: 's3' } }, {
+  status: 200, conferir: () => (tabelas.erp_connections[0].account_id === null ? null : 'ficou com a conta antiga'),
+})
+empresaRecusa = false
 
 // ---- desconectar
 cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
