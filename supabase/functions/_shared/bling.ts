@@ -103,27 +103,51 @@ export async function revogar(refresh: string): Promise<void> {
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
 let ultimaChamada = 0
 
-/** GET na API do Bling, no máximo ~3 por segundo. Um 429 espera e tenta mais uma vez. */
-export async function bling(token: string, caminho: string): Promise<RespostaBling> {
+/**
+ * Chamada à API do Bling, no máximo ~3 por segundo. Um 429 espera e tenta mais
+ * uma vez. Devolve também os cabeçalhos (a homologação manda um hash neles).
+ */
+export async function blingPedir(
+  token: string,
+  metodo: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  caminho: string,
+  opcoes: { corpo?: unknown; cabecalhos?: Record<string, string> } = {},
+): Promise<RespostaBling & { cabecalhos: Headers }> {
   for (let tentativa = 0; tentativa < 2; tentativa++) {
     const falta = ultimaChamada + 380 - Date.now()
     if (falta > 0) await espera(falta)
     ultimaChamada = Date.now()
     try {
       const res = await fetch(API + caminho, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'enable-jwt': '1' },
+        method: metodo,
+        headers: {
+          Authorization: `Bearer ${token}`, Accept: 'application/json', 'enable-jwt': '1',
+          ...(opcoes.corpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          ...(opcoes.cabecalhos ?? {}),
+        },
+        body: opcoes.corpo !== undefined ? JSON.stringify(opcoes.corpo) : undefined,
       })
-      const json = ((await res.json().catch(() => ({}))) ?? {}) as Json
+      const texto = await res.text().catch(() => '')
+      let json: Json = {}
+      try {
+        json = texto ? JSON.parse(texto) ?? {} : {}
+      } catch { /* 204 ou corpo que não é JSON */ }
       if (res.status === 429 && tentativa === 0) {
         await espera(1200)
         continue
       }
-      return { status: res.status, json }
+      return { status: res.status, json, cabecalhos: res.headers }
     } catch {
-      return { status: 0, json: { error: 'sem resposta do Bling' } }
+      return { status: 0, json: { error: 'sem resposta do Bling' }, cabecalhos: new Headers() }
     }
   }
-  return { status: 429, json: { error: 'limite de requisições do Bling' } }
+  return { status: 429, json: { error: 'limite de requisições do Bling' }, cabecalhos: new Headers() }
+}
+
+/** GET na API do Bling, no máximo ~3 por segundo. */
+export async function bling(token: string, caminho: string): Promise<RespostaBling> {
+  const { status, json } = await blingPedir(token, 'GET', caminho)
+  return { status, json }
 }
 
 /** Claims do JWT do Bling (empresa, usuário, escopos), sem conferir assinatura: é só para ler. */

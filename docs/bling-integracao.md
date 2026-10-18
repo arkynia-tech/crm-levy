@@ -253,7 +253,42 @@ conta descoberta pela nota, fila agrupando avisos, busca por data de emissão e 
 criar e desligar lojas. A função SQL `crm_erp_gravar_pedido` foi testada à
 parte num Postgres local com a trava de crédito de verdade.
 
+## Homologação do app no Bling (sair de "Em desenvolvimento")
+
+O Bling aprova o app em duas partes: o teste técnico e a revisão do cadastro pela equipe dele.
+Enquanto não aprova, o app aceita até 10 contas e não aparece na Central de Extensões.
+
+**Cadastro (revisão manual do Bling):** logo, nome, descrição, descrição curta, categoria,
+link de redirecionamento (`/bling/retorno`, com tela de sucesso e de erro), homepage
+(`contatta.pro/bling`), manual (`contatta.pro/bling/como-conectar`), vídeo no YouTube
+ou Vimeo e escopos ligados ao propósito.
+
+**Teste técnico:** no Contatta, como master, em Configurações, cartão do Bling, botão
+**Rodar teste de homologação** (ação `homologacao` da `bling-conexao`, com a conta do
+Bling ligada àquela loja). São cinco chamadas em `/homologacao/produtos`:
+
+| Passo | Chamada | Corpo |
+|---|---|---|
+| 1 | `GET` | nenhum (inicia o teste no Bling) |
+| 2 | `POST` | o `data` do passo 1 |
+| 3 | `PUT /{id}` | `{"nome": "Copo", "preco": …, "codigo": …}` |
+| 4 | `PATCH /{id}/situacoes` | `{"situacao": "I"}` |
+| 5 | `DELETE /{id}` | nenhum |
+
+Cada resposta traz o hash `x-bling-homologacao`, que vai na chamada seguinte. Em um dos
+passos o Bling invalida o token de propósito: a função renova pelo refresh (e grava o
+refresh novo) e repete o passo. O Bling limita o teste a 10 s no total e 2 s entre
+uma chamada e outra, então tudo sai em sequência, só com o espaçamento de ~0,4 s que
+respeita as 3 requisições por segundo.
+
+Roteiro:
+1. No Bling, abrir o app Contatta, aba **Homologação**, e confirmar os dados.
+2. No Contatta, clicar em **Rodar teste de homologação**. A tela mostra cada passo com
+   o status e o tempo.
+3. Se passou, clicar em **Solicitar revisão** no Bling. Se parou, o passo mostra o motivo
+   que o Bling devolveu.
+
 ## Fora da fase 2
 
-Histórico pago (R$ 0,20 por pedido), homologação, páginas contatta.pro/bling e abrir para
+Histórico pago (R$ 0,20 por pedido), páginas contatta.pro/bling, vídeo de demonstração e abrir para
 todas as lojas (`BLING_ABERTO_PARA_LOJAS = true` e o secret `BLING_ABERTO_PARA_LOJAS=1`).

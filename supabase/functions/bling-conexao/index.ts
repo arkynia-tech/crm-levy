@@ -13,10 +13,13 @@
 //                 Contatta ligada a cada uma e quantas vendas esperam por ela.
 //   ligar         admin ou master: liga uma loja do Bling a uma loja do Contatta
 //                 (ou cria uma nova), ou desliga. O que esperava entra na fila.
+//   homologacao   só master: roda o teste técnico que o Bling exige para aprovar
+//                 o app (aba "Homologação" do app na Área do Integrador).
 
 import { type Json } from '../_shared/asaas.ts'
 import {
-  bling, claimsDoJwt, configurado, erroDoBling, PROVEDOR, revogar, tokenDaConexao, trocarCode, urlDeAutorizacao,
+  bling, blingPedir, claimsDoJwt, configurado, erroDoBling, PROVEDOR, renovarConexao, revogar, tokenDaConexao, trocarCode,
+  urlDeAutorizacao,
 } from '../_shared/bling.ts'
 import { LOJA_MANUAL, liberarAguardando, processarFila } from '../_shared/bling-pedidos.ts'
 import { banco, cors, depoisDeResponder, responder, rpc } from '../_shared/comum.ts'
@@ -59,6 +62,8 @@ Deno.serve(async (req) => {
         return podeConectar ? await ligar(b.client_id, b) : semPermissao()
       case 'diagnostico':
         return papel === 'master' ? await diagnostico(b.client_id) : falha(403, 'Só o master roda o diagnóstico.')
+      case 'homologacao':
+        return papel === 'master' ? await homologacao(b.client_id) : falha(403, 'Só o master roda o teste de homologação.')
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -465,4 +470,87 @@ async function ligar(clientId: string, b: Json) {
     depoisDeResponder(processarFila(Date.now() + 25_000))
   }
   return ok({ ok: true, store_id: storeId })
+}
+
+// ---------------------------------------------------------------------------
+// teste de homologação do Bling (developer.bling.com.br/homologacao)
+//
+// Cinco chamadas seguidas em /homologacao/produtos: GET, POST com o que o GET
+// devolveu, PUT trocando o nome para "Copo", PATCH da situação e DELETE. Cada
+// resposta traz um hash no cabeçalho x-bling-homologacao, que vai na chamada
+// seguinte. Em uma delas o Bling invalida o token de propósito: renova pelo
+// refresh (e grava, porque o refresh muda) e repete a mesma chamada.
+// Limites do Bling: no máximo 10 s no total e 2 s entre uma chamada e outra,
+// então tudo sai em sequência, sem pausa além do espaçamento de `blingPedir`.
+
+const HOMOLOGACAO = '/homologacao/produtos'
+
+type Passo = { passo: string; status: number; ms: number; renovou?: boolean; erro?: string }
+
+async function homologacao(clientId: string) {
+  const c = await conexaoDaLoja(clientId)
+  if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com o Bling conectado.')
+  const t = await tokenDaConexao(c.id)
+  if (!t.ok) return falha(409, t.morto ? 'A conexão com o Bling expirou. Conecte de novo.' : 'O Bling não respondeu agora. Tente de novo.')
+
+  let token = t.tokens.access_token
+  let refresh = t.tokens.refresh_token
+  let hash: string | null = null
+  const passos: Passo[] = []
+  const inicio = Date.now()
+
+  const chamar = async (
+    passo: string, metodo: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', caminho: string, corpo?: unknown,
+  ) => {
+    let renovou = false
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const antes = Date.now()
+      const r = await blingPedir(token, metodo, HOMOLOGACAO + caminho, {
+        corpo, cabecalhos: hash ? { 'x-bling-homologacao': hash } : {},
+      })
+      const h = r.cabecalhos.get('x-bling-homologacao')
+      if (h) hash = h
+      if (r.status === 401 && tentativa === 0) {
+        // o token invalidado de propósito: renova e repete a mesma chamada
+        const n = await renovarConexao(c.id, refresh)
+        if (!n.ok) {
+          passos.push({ passo, status: 401, ms: Date.now() - antes, erro: 'não deu para renovar: ' + n.erro })
+          return null
+        }
+        token = n.tokens.access_token
+        refresh = n.tokens.refresh_token
+        renovou = true
+        continue
+      }
+      const ok = r.status >= 200 && r.status < 300
+      passos.push({
+        passo, status: r.status, ms: Date.now() - antes, ...(renovou ? { renovou } : {}),
+        ...(ok ? {} : { erro: erroDoBling(r.json) }),
+      })
+      return ok ? r : null
+    }
+    return null
+  }
+
+  const terminar = () => {
+    const passou = passos.length === 5 && passos.every((x) => !x.erro)
+    if (!passou) console.error('homologação do Bling', JSON.stringify(passos))
+    return ok({ ok: true, passou, total_ms: Date.now() - inicio, passos })
+  }
+
+  const g = await chamar('Ler o produto (GET)', 'GET', '')
+  const produto = g?.json?.data
+  if (!g || !produto) return terminar()
+
+  const p = await chamar('Criar (POST)', 'POST', '', produto)
+  const id = p?.json?.data?.id
+  if (!p || id == null) return terminar()
+  const caminhoId = '/' + encodeURIComponent(String(id))
+
+  if (!(await chamar('Trocar o nome para "Copo" (PUT)', 'PUT', caminhoId, {
+    nome: 'Copo', preco: produto.preco, codigo: produto.codigo,
+  }))) return terminar()
+  if (!(await chamar('Mudar a situação (PATCH)', 'PATCH', caminhoId + '/situacoes', { situacao: 'I' }))) return terminar()
+  await chamar('Apagar (DELETE)', 'DELETE', caminhoId)
+  return terminar()
 }

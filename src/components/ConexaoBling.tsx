@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Link2, Search, Unplug } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FlaskConical, Link2, Search, Unplug } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
-import { chamarBling, useConexaoBling, type Diagnostico } from '../hooks/bling'
+import { chamarBling, useConexaoBling, type Diagnostico, type Homologacao } from '../hooks/bling'
 import { formatDate, formatDateTime } from '../lib/format'
 import { LojasBling } from './LojasBling'
 
@@ -153,6 +153,7 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
       {status === 'conectado' && <LojasBling clientId={activeClient.id} />}
 
       {isMaster && status === 'conectado' && <DiagnosticoBling clientId={activeClient.id} />}
+      {isMaster && status === 'conectado' && <HomologacaoBling clientId={activeClient.id} />}
     </div>
   )
 }
@@ -316,6 +317,70 @@ function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
           )}
         </div>
       </details>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Teste técnico que o Bling exige para aprovar o app (aba "Homologação" do app
+ * na Área do Integrador). Só o master vê. Usa a conta do Bling desta loja.
+ */
+function HomologacaoBling({ clientId }: { clientId: string }) {
+  const [rodando, setRodando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [r, setR] = useState<Homologacao | null>(null)
+
+  const rodar = async () => {
+    setRodando(true)
+    setErro(null)
+    setR(null)
+    const res = await chamarBling<Homologacao>({ action: 'homologacao', client_id: clientId })
+    setRodando(false)
+    if (res.ok) setR(res as Homologacao)
+    else setErro(res.error)
+  }
+
+  return (
+    <div className="border-t border-gray-100 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-xl">
+          <p className="text-sm font-medium text-gray-900">Teste de homologação do Bling (master)</p>
+          <p className="text-sm text-gray-500">
+            Antes, abra a aba Homologação do app Contatta na Área do Integrador do Bling e confirme os dados. Depois clique
+            aqui: são 5 chamadas seguidas, em poucos segundos, e o resultado aparece também no Bling.
+          </p>
+        </div>
+        <button type="button" className={`btn-secondary ${press}`} onClick={() => void rodar()} disabled={rodando}>
+          <FlaskConical className="h-4 w-4" aria-hidden />
+          {rodando ? 'Rodando o teste…' : r ? 'Rodar de novo' : 'Rodar teste de homologação'}
+        </button>
+      </div>
+      {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
+      {r && (
+        <div className="mt-3 space-y-2">
+          <p className={`text-sm font-medium ${r.passou ? 'text-emerald-700' : 'text-red-700'}`}>
+            {r.passou
+              ? `Os 5 passos passaram em ${(r.total_ms / 1000).toFixed(1)} s. Confira no Bling e clique em Solicitar revisão.`
+              : 'O teste parou no passo marcado abaixo. Veja o motivo e rode de novo.'}
+          </p>
+          <ol className="divide-y divide-gray-100 rounded-md border border-gray-200 text-sm">
+            {r.passos.map((x) => (
+              <li key={x.passo} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                <span className={x.erro ? 'text-red-700' : 'text-gray-900'}>
+                  {x.passo}
+                  {x.renovou && <span className="ml-1 text-xs text-gray-500">(renovou o acesso)</span>}
+                  {x.erro && <span className="block text-xs">{x.erro}</span>}
+                </span>
+                <span className="tabular-nums text-gray-500">
+                  {x.status} em {x.ms} ms
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   )
 }
