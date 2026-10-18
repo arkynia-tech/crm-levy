@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, FlaskConical, Link2, Search, Unplug } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FlaskConical, Link2, Unplug } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
-import { chamarBling, useConexaoBling, type Diagnostico, type Homologacao } from '../hooks/bling'
+import { chamarBling, useConexaoBling, type Homologacao } from '../hooks/bling'
 import { formatDate, formatDateTime } from '../lib/format'
 import { LojasBling } from './LojasBling'
 import { MarcaLogo } from './MarcaLogo'
@@ -10,7 +10,7 @@ import { MarcaLogo } from './MarcaLogo'
 /**
  * Até abrir para todas as lojas, só o master vê o cartão (ou o admin de uma loja
  * que o master liberou). Virar para true depois do primeiro lojista real com a
- * entrada automática dos pedidos (fase 2) funcionando.
+ * entrada automática das vendas (fase 2) funcionando.
  */
 export const BLING_ABERTO_PARA_LOJAS = false
 
@@ -101,12 +101,12 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
             </div>
           ) : status === 'reconectar' ? (
             <p className="mt-3 text-sm text-gray-600">
-              O Bling parou de aceitar o acesso do Contatta. Conecte de novo para os pedidos voltarem a entrar; a data de corte
+              O Bling parou de aceitar o acesso do Contatta. Conecte de novo para as vendas voltarem a entrar; a data de corte
               continua a mesma.
             </p>
           ) : (
             <p className="mt-3 text-sm text-gray-600">
-              Traga pedidos e clientes de todos os canais que o seu Bling já recebe. O Contatta só lê: nada muda no seu Bling.
+              Traga as vendas com nota fiscal e os clientes de todos os canais que o seu Bling já recebe. As vendas de antes da conexão você traz pela importação de NF-e. O Contatta só lê: nada muda no seu Bling.
               {status === 'desconectado' && conexao?.disconnected_at && (
                 <> Desconectado em {formatDate(conexao.disconnected_at)}; os dados que já entraram continuam aqui.</>
               )}
@@ -148,179 +148,14 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
 
       {confirmando && (
         <p className="border-t border-gray-100 bg-gray-50 px-5 py-3 text-sm text-gray-600">
-          Os pedidos param de entrar pelo Bling. Nada do que já está no Contatta é apagado, e ao conectar de novo a data de corte
+          As vendas param de entrar pelo Bling. Nada do que já está no Contatta é apagado, e ao conectar de novo a data de corte
           continua a mesma.
         </p>
       )}
 
       {status === 'conectado' && <LojasBling clientId={activeClient.id} />}
 
-      {/* quem vê o cartão (master, ou admin de loja liberada) pode ler o diagnóstico da própria loja */}
-      {status === 'conectado' && <DiagnosticoBling clientId={activeClient.id} />}
       {isMaster && status === 'conectado' && <HomologacaoBling clientId={activeClient.id} />}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-
-function DiagnosticoBling({ clientId }: { clientId: string }) {
-  const queryClient = useQueryClient()
-  const [rodando, setRodando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-  const [d, setD] = useState<Diagnostico | null>(null)
-
-  const rodar = async () => {
-    setRodando(true)
-    setErro(null)
-    const r = await chamarBling<Diagnostico>({ action: 'diagnostico', client_id: clientId })
-    setRodando(false)
-    if (r.ok) setD(r as Diagnostico)
-    else {
-      setErro(r.error)
-      void queryClient.invalidateQueries({ queryKey: ['erp-connection', 'bling'] })
-    }
-  }
-
-  return (
-    <div className="border-t border-gray-100 px-5 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Diagnóstico</p>
-          <p className="text-sm text-gray-500">
-            Lê os 50 pedidos mais recentes e os contatos deles, sem gravar nada. Leva uns 20 segundos.
-          </p>
-        </div>
-        <button type="button" className={`btn-secondary ${press}`} onClick={() => void rodar()} disabled={rodando}>
-          <Search className="h-4 w-4" aria-hidden />
-          {rodando ? 'Lendo o Bling…' : d ? 'Ler de novo' : 'Ler pedidos do Bling'}
-        </button>
-      </div>
-      {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
-      {d && <ResultadoDiagnostico d={d} />}
-    </div>
-  )
-}
-
-function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
-  const n = d.lidos
-  if (n === 0) return <p className="mt-4 text-sm text-gray-600">O Bling não devolveu nenhum pedido nesta conta.</p>
-  const r = d.resumo
-  const respostas: { pergunta: string; valor: number; detalhe?: string }[] = [
-    { pergunta: 'Tem CPF', valor: r.com_cpf, detalhe: `${r.com_cnpj} com CNPJ, ${r.sem_documento} sem documento` },
-    { pergunta: 'Tem telefone', valor: r.com_algum_telefone, detalhe: `${r.com_celular} com celular` },
-    { pergunta: 'Tem número no marketplace', valor: r.com_numero_loja, detalhe: 'campo numeroLoja' },
-    { pergunta: 'Documento já vem no pedido', valor: r.documento_no_proprio_pedido, detalhe: 'sem precisar ler o contato' },
-    { pergunta: 'Tem e-mail', valor: r.com_email },
-    { pergunta: 'Tem data de nascimento', valor: r.com_nascimento },
-  ]
-
-  return (
-    <div className="mt-4 space-y-5">
-      <p className="text-sm text-gray-600">
-        {n} pedidos de {formatDate(d.periodo.de)} a {formatDate(d.periodo.ate)}, {r.contatos_distintos} contatos
-        {r.contatos_nao_lidos > 0 && <> ({r.contatos_nao_lidos} o Bling não devolveu)</>}.
-      </p>
-
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {respostas.map((x) => (
-          <div key={x.pergunta} className="rounded-md border border-gray-200 px-3 py-2.5">
-            <dt className="text-xs text-gray-500">{x.pergunta}</dt>
-            <dd className="mt-0.5 text-sm text-gray-900">
-              <span className="font-display text-lg font-semibold tabular-nums">{x.valor}</span>
-              <span className="text-gray-500"> de {n}</span>
-              {x.detalhe && <span className="block text-xs text-gray-500">{x.detalhe}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      <div>
-        <p className="text-sm font-medium text-gray-900">Lojas do Bling nesses pedidos</p>
-        <p className="text-xs text-gray-500">
-          Cada uma é ligada a uma loja do Contatta na lista acima. Pedido digitado à mão no Bling não tem loja nem número no
-          marketplace.
-        </p>
-        <ul className="mt-2 divide-y divide-gray-100 rounded-md border border-gray-200 text-sm">
-          {d.lojas.map((l) => (
-            <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-              <span className="font-medium tabular-nums text-gray-900">
-                {l.id === 'sem_loja' ? 'Sem loja (pedido digitado no Bling)' : `Loja ${l.id}`}
-              </span>
-              <span className="text-gray-600">
-                {l.pedidos} {l.pedidos === 1 ? 'pedido' : 'pedidos'}
-                {l.exemplo_numero_loja && <>, ex.: nº {l.exemplo_numero_loja}</>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="overflow-x-auto rounded-md border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="th">Pedido</th>
-              <th className="th">Nº no marketplace</th>
-              <th className="th">Data</th>
-              <th className="th">Loja</th>
-              <th className="th">Documento</th>
-              <th className="th">Telefone</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {d.pedidos.map((p) => (
-              <tr key={p.id}>
-                <td className="td tabular-nums">{p.numero ?? p.id}</td>
-                <td className="td tabular-nums">{p.numero_loja ?? <span className="text-gray-400">não veio</span>}</td>
-                <td className="td tabular-nums">{formatDate(p.data)}</td>
-                <td className="td tabular-nums">{p.loja_id ?? <span className="text-gray-400">não veio</span>}</td>
-                <td className="td">
-                  {p.documento ? (
-                    <>
-                      {p.documento.toUpperCase()} <span className="tabular-nums text-gray-500">{p.documento_final}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-400">não veio</span>
-                  )}
-                </td>
-                <td className="td">
-                  {p.celular || p.telefone ? (
-                    <>
-                      {p.celular ? 'Celular' : 'Fixo'} <span className="tabular-nums text-gray-500">{p.telefone_final}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-400">{p.contato_lido ? 'não veio' : 'contato não lido'}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <details className="rounded-md border border-gray-200 px-3 py-2 text-sm">
-        <summary className="cursor-pointer font-medium text-gray-900">Campos que o Bling devolve</summary>
-        <div className="mt-2 space-y-2 text-xs text-gray-600">
-          <p><span className="font-medium text-gray-800">Lista de pedidos:</span> {d.amostra.campos_pedido_lista.join(', ')}</p>
-          <p><span className="font-medium text-gray-800">Pedido completo:</span> {d.amostra.campos_pedido_detalhe.join(', ')}</p>
-          <p><span className="font-medium text-gray-800">Contato:</span> {d.amostra.campos_contato.join(', ')}</p>
-          {d.amostra.intermediadores.length > 0 && (
-            <p>
-              <span className="font-medium text-gray-800">Intermediador (canal) nos 3 primeiros:</span>{' '}
-              {d.amostra.intermediadores
-                .map((i) => `pedido ${i.pedido}: ${i.cnpj ?? 'sem CNPJ'}${i.usuario ? `, comprador ${i.usuario}` : ''}, ${i.itens ?? '?'} itens`)
-                .join('; ')}
-            </p>
-          )}
-          <p><span className="font-medium text-gray-800">Empresa no Bling:</span> {d.amostra.empresa ?? 'não identificada'}</p>
-          {d.amostra.token && (
-            <pre className="overflow-x-auto rounded bg-gray-50 p-2 text-[11px] leading-relaxed text-gray-700">
-              {JSON.stringify(d.amostra.token, null, 2)}
-            </pre>
-          )}
-        </div>
-      </details>
     </div>
   )
 }

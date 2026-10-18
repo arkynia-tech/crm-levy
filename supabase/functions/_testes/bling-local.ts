@@ -349,11 +349,9 @@ await caso('refresh recusado mas já renovado por outra chamada → conta como o
   conferir: () => tabelas.erp_connections[0].status === 'conectado' ? null : 'derrubou a conexão à toa',
 })
 
-// ---- diagnóstico pelo admin de loja liberada
+// ---- diagnóstico: só master, mesmo com a loja liberada
 cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
-await caso('admin de loja liberada roda o diagnóstico', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, {
-  status: 200, body: { lidos: 4 },
-})
+await caso('admin de loja liberada no diagnóstico → 403', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, { status: 403 })
 
 // ---- teste de homologação do Bling
 cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
