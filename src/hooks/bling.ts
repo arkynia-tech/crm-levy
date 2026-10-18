@@ -124,3 +124,44 @@ export async function chamarBling<T = Record<string, unknown>>(body: Record<stri
     return { ok: false, error: 'Sem conexão com o Contatta. Confira a internet e tente de novo.' }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Fase 2: cada loja do Bling ligada a uma loja do Contatta
+
+export interface LojaBling {
+  id: string
+  /** pedidos digitados à mão no Bling (loja.id 0) */
+  manual: boolean
+  nome: string | null
+  canal: string | null
+  marketplace_sugerido: string
+  store_id: string | null
+  /** pedidos que chegaram e esperam a loja ser ligada */
+  aguardando: number
+}
+
+export interface LojaContatta {
+  id: string
+  nome: string | null
+  marketplace: string
+  /** id da loja do Bling ligada a ela; 'outra_conexao' = recebe de outro ERP ou outra conta */
+  ligada_a: string | null
+}
+
+export interface LojasDoBling {
+  ok: true
+  lojas_bling: LojaBling[]
+  lojas_contatta: LojaContatta[]
+}
+
+export function useLojasBling(clientId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['bling-lojas', clientId],
+    enabled: Boolean(clientId) && enabled,
+    queryFn: async (): Promise<LojasDoBling> => {
+      const r = await chamarBling<LojasDoBling>({ action: 'lojas', client_id: clientId })
+      if (!r.ok) throw new Error(r.error)
+      return r as LojasDoBling
+    },
+  })
+}

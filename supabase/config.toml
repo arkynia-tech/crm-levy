@@ -27,3 +27,12 @@ verify_jwt = false
 
 [functions.bling-renovacao]
 verify_jwt = false
+
+# Fase 2 do Bling:
+# - bling-webhook é chamado pelo Bling e confere a assinatura X-Bling-Signature-256;
+# - bling-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.bling-webhook]
+verify_jwt = false
+
+[functions.bling-pedidos]
+verify_jwt = false
