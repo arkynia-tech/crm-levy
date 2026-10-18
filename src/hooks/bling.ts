@@ -165,3 +165,11 @@ export function useLojasBling(clientId: string | undefined, enabled: boolean) {
     },
   })
 }
+
+/** Resultado do teste técnico que o Bling exige para aprovar o app. */
+export interface Homologacao {
+  ok: true
+  passou: boolean
+  total_ms: number
+  passos: { passo: string; status: number; ms: number; renovou?: boolean; erro?: string }[]
+}

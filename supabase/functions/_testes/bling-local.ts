@@ -16,6 +16,11 @@ let chamadas: string[] = []
 let tokenRecusa: number | null = null // status com que /oauth/token recusa
 let blingTokens = 0
 let empresaRecusa = false // dados-basicos sem resposta, como no teste real
+// homologação falsa: hash encadeado, token invalidado no PUT
+let homolog: { metodo: string; caminho: string; hash: string | null; corpo: any; token: string }[] = []
+let homologHash = 0
+let homologInvalidado: string | null = null
+let homologRecusaPost = false
 
 function cenario(c: { tabelas?: Record<string, any[]>; rpcs?: Record<string, any>; tokenRecusa?: number | null }) {
   tabelas = structuredClone(c.tabelas ?? {})
@@ -123,6 +128,31 @@ Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
   if (p === '/oauth/revoke') {
     chamadas.push(`bling revoke ${new URLSearchParams(texto).get('token')}`)
     return j(200, {})
+  }
+  if (p.startsWith('/Api/v3/homologacao/produtos')) {
+    const caminho = p.slice('/Api/v3/homologacao/produtos'.length)
+    const token = (req.headers.get('authorization') ?? '').slice(7)
+    const hash = req.headers.get('x-bling-homologacao')
+    homolog.push({ metodo: req.method, caminho, hash, corpo, token })
+    const esperado = homologHash ? `hash-${homologHash}` : null
+    const comHash = (status: number, body: unknown) => {
+      homologHash++
+      return new Response(body === null ? null : JSON.stringify(body), {
+        status, headers: { 'Content-Type': 'application/json', 'x-bling-homologacao': `hash-${homologHash}` },
+      })
+    }
+    if (hash !== esperado) return j(400, { error: { description: `hash errado: ${hash} != ${esperado}` } })
+    if (req.method === 'PUT' && !homologInvalidado) {
+      homologInvalidado = token
+      return comHash(401, { error: { type: 'invalid_token' } })
+    }
+    if (token === homologInvalidado) return comHash(401, { error: { type: 'invalid_token' } })
+    if (req.method === 'GET') return comHash(200, { data: { nome: 'Copo do Bling', preco: 32.56, codigo: 'COD-4587' } })
+    if (req.method === 'POST') {
+      if (homologRecusaPost) return comHash(400, { error: { description: 'corpo diferente do GET' } })
+      return comHash(201, { data: { ...corpo, id: 16842381880 } })
+    }
+    return comHash(204, null)
   }
   if (p.startsWith('/Api/v3/')) {
     const a = p.slice('/Api/v3'.length)
@@ -317,6 +347,36 @@ cenario({
 await caso('refresh recusado mas já renovado por outra chamada → conta como ok', 'bling-renovacao', { headers: { 'x-cron-token': 'cron-ok' }, body: {} }, {
   status: 200, body: { renovadas: 1 },
   conferir: () => tabelas.erp_connections[0].status === 'conectado' ? null : 'derrubou a conexão à toa',
+})
+
+// ---- teste de homologação do Bling
+cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
+await caso('homologação pelo admin → 403', 'bling-conexao', { headers: A, body: { action: 'homologacao', client_id: 'c1' } }, { status: 403 })
+
+homolog = []; homologHash = 0; homologInvalidado = null; homologRecusaPost = false
+cenario({ rpcs: master, tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
+await caso('homologação → 5 passos, hash encadeado, renova no token invalidado', 'bling-conexao', { headers: M, body: { action: 'homologacao', client_id: 'c1' } }, {
+  status: 200, body: { passou: true },
+  chamadas: ['bling token refresh_token jwt=1', 'update erp_connection_tokens'],
+  conferir: (b) => {
+    const seq = homolog.map((x) => `${x.metodo} ${x.caminho}`).join(' | ')
+    if (seq !== 'GET  | POST  | PUT /16842381880 | PUT /16842381880 | PATCH /16842381880/situacoes | DELETE /16842381880') return 'sequência: ' + seq
+    if (homolog[0].hash !== null || homolog[1].hash !== 'hash-1' || homolog[3].hash !== 'hash-3' || homolog[5].hash !== 'hash-5') return 'hash: ' + homolog.map((x) => x.hash).join(',')
+    if (JSON.stringify(homolog[1].corpo) !== JSON.stringify({ nome: 'Copo do Bling', preco: 32.56, codigo: 'COD-4587' })) return 'POST'
+    if (JSON.stringify(homolog[3].corpo) !== JSON.stringify({ nome: 'Copo', preco: 32.56, codigo: 'COD-4587' })) return 'PUT'
+    if (JSON.stringify(homolog[4].corpo) !== JSON.stringify({ situacao: 'I' })) return 'PATCH'
+    if (homolog[3].token === homolog[2].token) return 'repetiu com o token invalidado'
+    if (b.passos.length !== 5 || !b.passos[2].renovou) return 'passos: ' + JSON.stringify(b.passos)
+    if (tabelas.erp_connection_tokens[0].refresh_token === 'ref-velho') return 'não gravou o refresh novo'
+    return b.total_ms < 10_000 ? null : 'passou de 10 s: ' + b.total_ms
+  },
+})
+
+homolog = []; homologHash = 0; homologInvalidado = null; homologRecusaPost = true
+cenario({ rpcs: master, tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
+await caso('homologação com o Bling recusando → para e mostra o erro', 'bling-conexao', { headers: M, body: { action: 'homologacao', client_id: 'c1' } }, {
+  status: 200, body: { passou: false },
+  conferir: (b) => (b.passos.length === 2 && b.passos[1].status === 400 && b.passos[1].erro === 'corpo diferente do GET' && homolog.length === 2 ? null : JSON.stringify(b.passos)),
 })
 
 console.log(falhas ? `\n${falhas} caso(s) falharam` : '\ntodos os casos passaram')
