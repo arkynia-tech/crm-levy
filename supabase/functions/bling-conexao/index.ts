@@ -140,6 +140,11 @@ async function retorno(b: Json, userId: string) {
     p_access_expires: tokens.access_expires_at, p_refresh_expires: tokens.refresh_expires_at,
     p_account_id: conta.id, p_account_name: conta.nome,
   })
+  // Sem saber quem é a conta agora, a guardada pode ser de outro Bling (a loja
+  // reconectou com outra conta). Esquece: o próximo aviso ensina de novo.
+  if (!conta.id && r.connection_id) {
+    await banco.from('erp_connections').update({ account_id: null, account_name: null }).eq('id', r.connection_id)
+  }
   return ok({
     ok: true, client_id: s.client_id, conta: conta.nome, cutoff_at: r.cutoff_at, primeira_conexao: r.primeira_conexao,
   })

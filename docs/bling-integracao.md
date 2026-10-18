@@ -202,6 +202,44 @@ teste). Depois do primeiro aviso, os seguintes vão direto.
    select status, resultado, event, count(*) from public.erp_order_events group by 1, 2, 3 order by 1, 2;
    ```
 
+### Primeiro lojista real (o teste que falta)
+
+A conta de teste do Bling não emite nota, então a leitura de uma nota autorizada de
+verdade (`GET /nfe/{id}`) só foi testada localmente. O primeiro lojista fecha isso.
+
+**Antes:** a loja dele precisa ter crédito de pedido (franquia ou avulso). Sem crédito,
+as notas ficam em `sem_credito` e entram quando houver saldo.
+
+1. Liberar o cartão do Bling para a loja dele (só o master altera `clients`):
+   ```sql
+   update public.clients set bling_liberado = true where name = 'NOME DA LOJA';
+   select id, name, bling_liberado from public.clients where bling_liberado order by name;
+   ```
+2. O admin da loja entra em Configurações, cartão do Bling, **Conectar Bling** e autoriza.
+   O webhook de notas é do app, então vale para a conta dele sem configurar nada.
+3. **Procurar lojas no Bling** e ligar cada loja do Bling a uma loja do Contatta (a
+   que já recebe o XML daquele marketplace, para não duplicar).
+4. Na primeira nota autorizada dele, conferir:
+   ```sql
+   select e.status, e.resultado, e.event, e.external_store_id, e.received_at
+   from public.erp_order_events e
+   join public.erp_connections c on c.id = e.connection_id
+   join public.clients cl on cl.id = c.client_id
+   where cl.name = 'NOME DA LOJA'
+   order by e.received_at desc limit 10;
+   ```
+   Esperado: `feito | novo`. O primeiro aviso pode passar um instante por `sem_conta`
+   (o Contatta aprende a conta). `pendente` com `bling 4xx/5xx` ou `erro` no resultado:
+   chamar o suporte técnico com o print.
+
+**Acompanhar depois** (retrato da semana, de todas as lojas):
+```sql
+select status, resultado, count(*), max(received_at) as ultimo
+from public.erp_order_events
+where received_at > now() - interval '7 days'
+group by 1, 2 order by 1, 2;
+```
+
 ### Teste local da fase 2
 
 ```bash
