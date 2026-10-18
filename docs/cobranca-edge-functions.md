@@ -117,6 +117,37 @@ Nunca as duas ao mesmo tempo (o excedente poderia sair cobrado duas vezes).
 Desligar os outros três fluxos no n8n, tirar `VITE_N8N_ASSINATURAS_URL` do
 build e atualizar a seção "Assinaturas" do README.
 
+## Ir para produção
+
+Antes do dia:
+1. Conta Asaas de produção aprovada e chave de API de produção gerada
+   (Integrações → Chave de API), guardada só no gerenciador de senhas.
+2. Pedir ao Asaas a liberação da tokenização de cartão em produção (sem ela,
+   quem paga no cartão segue recebendo fatura todo mês).
+3. Rodar `supabase/ambiente-do-checkout.sql` e só depois republicar as funções
+   (a loja criada pelo site passa a nascer com o ambiente certo).
+4. Cancelar no app as assinaturas de teste que não forem seguir
+   (`billing_accounts.environment = 'sandbox'`).
+5. SMTP próprio no Supabase (Authentication → SMTP Settings) para o convite.
+
+No dia, nesta ordem:
+1. Secrets: `ASAAS_API_KEY` = chave de produção, `ASAAS_BASE_URL` = `https://api.asaas.com/v3`.
+2. `supabase functions deploy --project-ref lopdvdblwasuowjdokpo --use-api`.
+3. Token do webhook: `select value from public.billing_secrets where key = 'asaas_webhook_token';`
+4. Asaas de produção → Integrações → Webhooks → Adicionar: nome Contatta, URL
+   `https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-webhook`, API v3,
+   envio sequencial, token do passo 3, eventos PAYMENT_CREATED, PAYMENT_CONFIRMED,
+   PAYMENT_RECEIVED, PAYMENT_OVERDUE, PAYMENT_REFUNDED, PAYMENT_CHARGEBACK_REQUESTED,
+   SUBSCRIPTION_DELETED e SUBSCRIPTION_INACTIVATED.
+5. Desativar o webhook "Contatta" do Asaas sandbox (senão pagamento de teste mexe no banco).
+6. Site: `SANDBOX = false` em `landing/index.html` (tira o selo de teste), push na main.
+7. Teste real: assinatura pelo site no plano mensal mais barato, pagar por Pix,
+   ver a conta nascer sem a etiqueta de teste e o convite chegar; estornar se quiser.
+8. Na manhã seguinte: `select status_code, content from net._http_response order by created desc limit 3;`
+
+Voltar atrás: secrets do sandbox + republicar, webhook de produção desativado e
+o do sandbox reativado, `SANDBOX = true` no site.
+
 ## Diferenças em relação ao n8n
 
 - `cancelar`: só apaga a assinatura no Asaas quando o banco aceitou o
