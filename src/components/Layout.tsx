@@ -20,6 +20,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileText,
+  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -31,6 +32,8 @@ import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
 import Logo from './Logo'
 import { metaSignupDisponivel } from '../lib/metaSignup'
+import { NovidadePopup } from './NovidadePopup'
+import { useNovidadePopup } from '../hooks/novidades'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
@@ -91,6 +94,8 @@ function SidebarContent({
   const { signOut, session } = useAuth()
   const { clients, activeClient, setActiveClientId } = useCompany()
   const { data: role } = useUserRole()
+  // lançamento que o usuário ainda não viu: acende um ponto no item Novidades
+  const { data: novidadePendente } = useNovidadePopup(Boolean(role) && !travado)
 
   return (
     <div className="flex h-full flex-col">
@@ -197,6 +202,35 @@ function SidebarContent({
           </span>
         ))}
       </nav>
+
+      <div
+        ref={(el) => el?.toggleAttribute('inert', travado)}
+        className={can(role, 'novidades') ? `px-3 pt-2 ${travado ? 'pointer-events-none select-none opacity-40' : ''}` : 'hidden'}
+      >
+        <NavLink
+          to="/novidades"
+          onClick={onNavigate}
+          title={collapsed ? 'Novidades' : undefined}
+          className={({ isActive }) =>
+            `relative flex items-center rounded-md py-2 text-sm font-medium transition-colors ${
+              collapsed ? 'justify-center px-2' : 'gap-3 px-2.5'
+            } ${isActive ? 'bg-brand-600/15 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <Sparkles className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-500' : 'text-slate-400'}`} aria-hidden />
+              {!collapsed && 'Novidades'}
+              {novidadePendente && (
+                <span
+                  className={`h-1.5 w-1.5 rounded-full bg-brand-500 ${collapsed ? 'absolute right-2 top-2' : 'ml-auto'}`}
+                  aria-label="Tem novidade"
+                />
+              )}
+            </>
+          )}
+        </NavLink>
+      </div>
 
       <div
         ref={(el) => el?.toggleAttribute('inert', travado)}
@@ -336,6 +370,7 @@ export default function Layout() {
             <>
               <AvisoCobranca />
               <Outlet />
+              <NovidadePopup ativo={Boolean(papel)} />
             </>
           )}
         </div>

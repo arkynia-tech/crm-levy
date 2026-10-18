@@ -36,3 +36,8 @@ verify_jwt = false
 
 [functions.bling-pedidos]
 verify_jwt = false
+
+# Novidades: novidades-aviso confere o login (master) por dentro e o pg_cron
+# chama com o token do cron.
+[functions.novidades-aviso]
+verify_jwt = false
