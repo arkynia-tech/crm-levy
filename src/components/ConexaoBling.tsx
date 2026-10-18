@@ -155,7 +155,8 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
 
       {status === 'conectado' && <LojasBling clientId={activeClient.id} />}
 
-      {isMaster && status === 'conectado' && <DiagnosticoBling clientId={activeClient.id} />}
+      {/* quem vê o cartão (master, ou admin de loja liberada) pode ler o diagnóstico da própria loja */}
+      {status === 'conectado' && <DiagnosticoBling clientId={activeClient.id} />}
       {isMaster && status === 'conectado' && <HomologacaoBling clientId={activeClient.id} />}
     </div>
   )
@@ -185,7 +186,7 @@ function DiagnosticoBling({ clientId }: { clientId: string }) {
     <div className="border-t border-gray-100 px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-gray-900">Diagnóstico (master)</p>
+          <p className="text-sm font-medium text-gray-900">Diagnóstico</p>
           <p className="text-sm text-gray-500">
             Lê os 50 pedidos mais recentes e os contatos deles, sem gravar nada. Leva uns 20 segundos.
           </p>
