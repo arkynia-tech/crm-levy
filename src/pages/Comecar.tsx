@@ -84,6 +84,15 @@ export default function Comecar() {
     if (nome.trim().length < 2) return setErro('Preencha o seu nome.')
     if (!aceite) return setErro('Para continuar, aceite os Termos de Uso e a Política de Privacidade.')
     setEnviando(true)
+    // A fatura abre em outra aba e esta fica esperando a confirmação. A aba é
+    // aberta já no clique: aberta depois da resposta, o navegador bloquearia.
+    const aba = window.open('', '_blank')
+    if (aba) {
+      aba.opener = null
+      aba.document.title = 'Gerando a fatura…'
+      aba.document.body.style.cssText = 'font:16px system-ui,sans-serif;color:#344054;display:grid;place-items:center;height:100vh;margin:0'
+      aba.document.body.textContent = 'Gerando a sua fatura do Contatta…'
+    }
     try {
       const res = await fetch(CHECKOUT_URL, {
         method: 'POST',
@@ -100,11 +109,20 @@ export default function Comecar() {
       })
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; invoice_url?: string; error?: string }
       if (j.ok && j.invoice_url) {
-        window.location.href = j.invoice_url
+        if (aba) {
+          aba.location.href = j.invoice_url
+          setTrocarPlano(false)
+          void queryClient.invalidateQueries({ queryKey: ['meu-cadastro'] })
+          setEnviando(false)
+        } else {
+          window.location.href = j.invoice_url // navegador bloqueou a aba nova
+        }
         return
       }
+      aba?.close()
       setErro(j.error || 'Não deu pra gerar a fatura agora. Tente de novo em instantes.')
     } catch {
+      aba?.close()
       setErro('Sem conexão agora. Confira a internet e tente de novo.')
     }
     setEnviando(false)
@@ -131,12 +149,12 @@ export default function Comecar() {
           ) : (
             <>
               <p className="mt-4 text-sm text-gray-600">
-                Assim que o pagamento for confirmado, a sua loja aparece aqui sozinha. Pelo Pix costuma ser na hora; o
+                A fatura abre em outra aba. Assim que o pagamento for confirmado, a sua loja aparece aqui sozinha. Pelo Pix costuma ser na hora; o
                 boleto pode levar até 2 dias úteis.
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 {cadastro.fatura_url && (
-                  <a href={cadastro.fatura_url} className="btn-primary">
+                  <a href={cadastro.fatura_url} target="_blank" rel="noopener noreferrer" className="btn-primary">
                     Pagar a fatura <ExternalLink className="h-4 w-4" aria-hidden />
                   </a>
                 )}
