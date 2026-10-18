@@ -28,6 +28,7 @@ import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
 import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
 import { BLING_ABERTO_PARA_LOJAS, ConexaoBling } from '../components/ConexaoBling'
+import { useBlingLiberado } from '../hooks/bling'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -669,7 +670,9 @@ export default function Settings() {
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
   const canManageUsers = can(role, 'manageUsers')
-  const mostraBling = isMaster || (BLING_ABERTO_PARA_LOJAS && role === 'admin')
+  const { activeClient } = useCompany()
+  const { data: blingLiberado = false } = useBlingLiberado(activeClient?.id, role === 'admin' && !BLING_ABERTO_PARA_LOJAS)
+  const mostraBling = isMaster || (role === 'admin' && (BLING_ABERTO_PARA_LOJAS || blingLiberado))
   return (
     <div>
       <PageHeader title="Configurações" subtitle="Ajustes da operação e status das integrações" />

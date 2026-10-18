@@ -41,6 +41,19 @@ export function useConexaoBling(clientId: string | undefined) {
   })
 }
 
+/** O master liberou o Bling para esta loja antes de abrir para todas (clients.bling_liberado)? */
+export function useBlingLiberado(clientId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['bling-liberado', clientId],
+    enabled: Boolean(clientId) && enabled,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase.from('clients').select('bling_liberado').eq('id', clientId!).maybeSingle()
+      if (error) return false // coluna ainda não criada
+      return (data as { bling_liberado?: boolean } | null)?.bling_liberado === true
+    },
+  })
+}
+
 export interface DiagnosticoPedido {
   id: number
   numero: number | null

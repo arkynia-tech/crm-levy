@@ -205,8 +205,14 @@ await caso('sem loja → 400', 'bling-conexao', { headers: A, body: { action: 'a
 await caso('admin no diagnóstico → 403', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, { status: 403 })
 
 // ---- autorizar
-cenario({ rpcs: admin })
-const aut = await caso('admin autoriza → URL do Bling com state', 'bling-conexao', { headers: A, body: { action: 'autorizar', client_id: 'c1' } }, {
+cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: false }] } })
+await caso('admin de loja não liberada → 403', 'bling-conexao', { headers: A, body: { action: 'autorizar', client_id: 'c1' } }, {
+  status: 403, semChamadas: ['insert erp_oauth_states'],
+})
+cenario({ rpcs: master, tabelas: { clients: [{ id: 'c1', bling_liberado: false }] } })
+await caso('master autoriza mesmo sem liberar', 'bling-conexao', { headers: M, body: { action: 'autorizar', client_id: 'c1' } }, { status: 200 })
+cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }] } })
+const aut = await caso('admin de loja liberada autoriza → URL do Bling com state', 'bling-conexao', { headers: A, body: { action: 'autorizar', client_id: 'c1' } }, {
   status: 200, chamadas: ['insert erp_oauth_states'],
   conferir: (b) => /^https:\/\/www\.bling\.com\.br\/Api\/v3\/oauth\/authorize\?response_type=code&client_id=cid&state=[0-9a-f]{64}$/.test(b?.url ?? '') ? null : 'url errada',
 })
@@ -228,7 +234,7 @@ cenario({ tabelas: { erp_oauth_states: [{ state: 's2', client_id: 'c1', user_id:
 await caso('code recusado pelo Bling → 422', 'bling-conexao', { headers: A, body: { action: 'retorno', code: 'code-ruim', state: 's2' } }, { status: 422, semChamadas: ['rpc crm_erp_conectar'] })
 
 // ---- desconectar
-cenario({ rpcs: admin, tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
+cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
 await caso('desconectar → revoga, apaga tokens, mantém a conexão', 'bling-conexao', { headers: A, body: { action: 'desconectar', client_id: 'c1' } }, {
   status: 200, chamadas: ['bling revoke ref-velho', 'delete erp_connection_tokens', 'update erp_connections {"status":"desconectado"'],
   conferir: () => tabelas.erp_connection_tokens.length === 0 && tabelas.erp_connections[0].cutoff_at === '2026-10-18T10:00:00Z' ? null : 'estado errado',
