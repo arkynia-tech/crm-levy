@@ -485,7 +485,7 @@ function formatarFone(digitos: string | null): string {
   return digitos
 }
 
-/** WhatsApp e e-mail da cobrança da loja: o master corrige aqui e o n8n leva pro Asaas. */
+/** WhatsApp e e-mail da cobrança da loja: o master corrige aqui e a Edge Function leva pro Asaas. */
 function ContatoDaCobranca({ clientId }: { clientId: string }) {
   const { data: c } = useContatoCobranca(clientId)
   const acoes = useAcoesAssinatura()

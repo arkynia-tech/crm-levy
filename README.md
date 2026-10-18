@@ -109,29 +109,33 @@ Precisa da variável `VITE_N8N_WA_INSTANCE_URL`.
 
 ## Assinaturas (Asaas)
 
-O Asaas é o dono da cobrança; o banco guarda o espelho (`billing_accounts`) e o
-n8n fica no meio. A chave do Asaas vive só na credencial "Asaas Sandbox" do n8n.
-
-Em migração para Edge Functions (`supabase/functions/asaas-*`), uma etapa por
-vez com o n8n de reserva: ver `docs/cobranca-edge-functions.md`.
+O Asaas é o dono da cobrança; o banco guarda o espelho (`billing_accounts`) e
+quatro Edge Functions do Supabase (`supabase/functions/asaas-*`) ficam no meio.
+A chave do Asaas vive só nos secrets das Edge Functions (`ASAAS_API_KEY`,
+`ASAAS_BASE_URL`). Passo a passo, testes e como voltar atrás em
+`docs/cobranca-edge-functions.md`.
 
 - Planos em `billing_plans`: Starter, Pro, Business e Enterprise (valor livre).
   Ciclos mensal, semestral (10% de desconto) e anual (2 meses grátis). A franquia
   de pedidos é sempre mensal; o excedente vira cobrança avulsa no início do mês.
-- Contratar e cancelar: master, em **Clientes e lojas** → fluxo n8n
-  "Assinaturas Asaas — Contatta" (`VITE_N8N_ASSINATURAS_URL`).
-- Avisos do Asaas → fluxo "Asaas Webhook — Contatta" → `crm_billing_aplicar_evento`,
-  que confere o token e registra cada evento uma vez.
-- Todo dia às 7h, "Cobrança diária Asaas — Contatta": suspende quem passou de 5 dias
-  de atraso (conta somente leitura: não importa nem dispara), cobra o excedente e
-  recarrega a franquia no dia 1º. O mesmo fluxo tem o gatilho manual que registra
-  o webhook no Asaas.
+- Contratar, trocar de plano, pacote, usuários extras, contato e cancelar:
+  master, em **Clientes e lojas** → Edge Function `asaas-assinaturas` (com o login
+  do Supabase).
+- Assinatura pelo site (contatta.pro) e pela tela de boas-vindas do app →
+  `asaas-checkout`.
+- Avisos do Asaas → `asaas-webhook` → `crm_billing_aplicar_evento`, que confere o
+  token e registra cada evento uma vez.
+- Todo dia às 7h (pg_cron `contatta-cobranca-diaria`, 10:00 UTC) →
+  `asaas-cobranca-diaria`: suspende quem passou de 5 dias de atraso (conta somente
+  leitura: não importa nem dispara), cobra o excedente e recarrega a franquia no
+  dia 1º.
 - Loja sem assinatura (demonstração, testes) segue funcionando como antes.
 - Limite de usuários do plano: gatilho em `user_clients`.
 
 Rode `supabase/assinaturas-asaas.sql`. Hoje tudo aponta para o sandbox
-(`api-sandbox.asaas.com`); a troca para produção é trocar a URL nos três fluxos,
-a credencial e o `environment` gravado.
+(`api-sandbox.asaas.com`); a troca para produção é trocar os dois secrets
+(`ASAAS_API_KEY` e `ASAAS_BASE_URL`), o que também muda o `environment` gravado,
+e a URL do webhook no painel do Asaas de produção.
 
 ## Saldo de notas
 

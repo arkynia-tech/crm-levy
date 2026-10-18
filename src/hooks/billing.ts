@@ -1,19 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
-const ASSINATURAS_URL = import.meta.env.VITE_N8N_ASSINATURAS_URL as string | undefined
-// Ações que já passam pela Edge Function asaas-assinaturas em vez do n8n
-// (ex.: "contato,criar"). Vazio = tudo no n8n. Voltar uma ação = tirá-la daqui.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const ACOES_NA_FUNCAO = String(import.meta.env.VITE_COBRANCA_FN_ACOES ?? '')
-  .split(',')
-  .map((a) => a.trim())
-  .filter(Boolean)
-
-function urlDaAcao(action: unknown): string | undefined {
-  if (SUPABASE_URL && ACOES_NA_FUNCAO.includes(String(action))) return `${SUPABASE_URL}/functions/v1/asaas-assinaturas`
-  return ASSINATURAS_URL
-}
+const ASSINATURAS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/asaas-assinaturas` : undefined
 
 export type Ciclo = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY'
 export type StatusAssinatura = 'pendente' | 'ativa' | 'em_atraso' | 'suspensa' | 'cancelada'
@@ -100,7 +89,7 @@ export interface SimulacaoExtras {
   cartao_final?: string | null
 }
 
-/** Quanto custa ter N usuários extras (a tela simula; o n8n é quem cobra). */
+/** Quanto custa ter N usuários extras (a tela simula; a Edge Function é quem cobra). */
 export async function simularExtras(clientId: string, extras: number): Promise<SimulacaoExtras> {
   const { data, error } = await supabase.rpc('crm_extras_simular', { p_client_id: clientId, p_extras: extras })
   if (error) return { ok: false, error: error.message }
@@ -218,7 +207,7 @@ export interface RespostaAssinatura {
 }
 
 async function chamar(body: Record<string, unknown>): Promise<RespostaAssinatura> {
-  const url = urlDaAcao(body.action)
+  const url = ASSINATURAS_URL
   if (!url) return { ok: false, error: 'Cobrança indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
