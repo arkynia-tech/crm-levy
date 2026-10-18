@@ -233,7 +233,7 @@ cenario({ rpcs: { crm_role_check: [{ papel: 'collaborator' }] } })
 await caso('colaborador autorizando → 403', 'bling-conexao', { headers: A, body: { action: 'autorizar', client_id: 'c1' } }, { status: 403 })
 cenario({ rpcs: admin })
 await caso('sem loja → 400', 'bling-conexao', { headers: A, body: { action: 'autorizar' } }, { status: 400 })
-await caso('admin no diagnóstico → 403', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, { status: 403 })
+await caso('admin de loja não liberada no diagnóstico → 403', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, { status: 403 })
 
 // ---- autorizar
 cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: false }] } })
@@ -347,6 +347,12 @@ cenario({
 await caso('refresh recusado mas já renovado por outra chamada → conta como ok', 'bling-renovacao', { headers: { 'x-cron-token': 'cron-ok' }, body: {} }, {
   status: 200, body: { renovadas: 1 },
   conferir: () => tabelas.erp_connections[0].status === 'conectado' ? null : 'derrubou a conexão à toa',
+})
+
+// ---- diagnóstico pelo admin de loja liberada
+cenario({ rpcs: admin, tabelas: { clients: [{ id: 'c1', bling_liberado: true }], erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
+await caso('admin de loja liberada roda o diagnóstico', 'bling-conexao', { headers: A, body: { action: 'diagnostico', client_id: 'c1' } }, {
+  status: 200, body: { lidos: 4 },
 })
 
 // ---- teste de homologação do Bling

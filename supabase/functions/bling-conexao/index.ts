@@ -5,7 +5,7 @@
 //   retorno       quem clicou: troca o code (vale 1 minuto) pelos tokens e grava.
 //   desconectar   admin ou master: revoga no Bling e apaga os tokens. Os dados
 //                 ficam, e a data de corte também.
-//   diagnostico   só master: lê os 50 pedidos mais recentes e os contatos deles
+//   diagnostico   admin ou master: lê os 50 pedidos mais recentes e os contatos deles
 //                 para responder o que a fase 2 precisa saber (CPF, telefone,
 //                 loja, número no marketplace). Não grava pedido nem cliente.
 //   lojas         admin ou master: lojas do Bling desta conexão (achadas nos
@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
       case 'ligar':
         return podeConectar ? await ligar(b.client_id, b) : semPermissao()
       case 'diagnostico':
-        return papel === 'master' ? await diagnostico(b.client_id) : falha(403, 'Só o master roda o diagnóstico.')
+        // os dados são da própria loja, com CPF e telefone mascarados
+        return podeConectar ? await diagnostico(b.client_id) : semPermissao()
       case 'homologacao':
         return papel === 'master' ? await homologacao(b.client_id) : falha(403, 'Só o master roda o teste de homologação.')
       default:
