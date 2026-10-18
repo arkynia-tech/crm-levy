@@ -1,6 +1,17 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { AlertTriangle, Clock, Plug, Save, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  AlertTriangle,
+  Clock,
+  Plug,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UserPlus,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   DEFAULT_DELAY,
   DEFAULT_SCHEDULE,
@@ -323,7 +334,7 @@ function AdminCreditsSection() {
     <section className="card border-brand-100 p-5">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-4 w-4 text-brand-600" aria-hidden />
-        <h2 className="font-display text-sm font-semibold text-gray-900">Crédito de pedidos (master)</h2>
+        <h2 className="font-display text-sm font-semibold text-gray-900">Crédito de pedidos</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
         <b>1 crédito = 1 pedido novo importado</b> (reimportar não gasta). Sem crédito, pedido novo não entra.
@@ -618,7 +629,7 @@ function EnrichStatsSection() {
     <section className="card p-5">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-brand-600" aria-hidden />
-        <h2 className="font-display text-sm font-semibold text-gray-900">Enriquecimentos por loja (master)</h2>
+        <h2 className="font-display text-sm font-semibold text-gray-900">Enriquecimentos por loja</h2>
       </div>
       <p className="mt-1 text-sm text-gray-500">
         Quanto cada cliente já consumiu da base parceira. Isso não desconta do saldo de notas:
@@ -666,6 +677,114 @@ function EnrichStatsSection() {
   )
 }
 
+type Aba = 'integracoes' | 'disparos' | 'usuarios' | 'master'
+
+const ABAS: { id: Aba; label: string; icon: LucideIcon }[] = [
+  { id: 'integracoes', label: 'Integrações', icon: Plug },
+  { id: 'disparos', label: 'Disparos', icon: Clock },
+  { id: 'usuarios', label: 'Usuários', icon: Users },
+  { id: 'master', label: 'Master', icon: ShieldCheck },
+]
+
+/**
+ * Abas sublinhadas, no mesmo desenho da tela de importar NF-e, com a barra que
+ * desliza até a aba escolhida. Setas, Home e End trocam de aba pelo teclado.
+ */
+function Abas({ abas, ativa, onChange }: { abas: typeof ABAS; ativa: Aba; onChange: (a: Aba) => void }) {
+  const refs = useRef<Partial<Record<Aba, HTMLButtonElement | null>>>({})
+  const [barra, setBarra] = useState<{ x: number; w: number } | null>(null)
+  // Na primeira medida a barra aparece no lugar; só desliza nas trocas.
+  const [deslizar, setDeslizar] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = refs.current[ativa]
+    if (!el) return
+    const medir = () => setBarra({ x: el.offsetLeft, w: el.offsetWidth })
+    medir()
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ativa, abas.length])
+
+  useEffect(() => {
+    if (barra && !deslizar) requestAnimationFrame(() => setDeslizar(true))
+  }, [barra, deslizar])
+
+  const teclado = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = abas.findIndex((a) => a.id === ativa)
+    const destino =
+      e.key === 'ArrowRight' ? (i + 1) % abas.length
+      : e.key === 'ArrowLeft' ? (i - 1 + abas.length) % abas.length
+      : e.key === 'Home' ? 0
+      : e.key === 'End' ? abas.length - 1
+      : null
+    if (destino === null) return
+    e.preventDefault()
+    onChange(abas[destino].id)
+    refs.current[abas[destino].id]?.focus()
+  }
+
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <div
+        role="tablist"
+        aria-label="Seções das configurações"
+        onKeyDown={teclado}
+        className="relative flex min-w-max gap-1 border-b border-gray-200"
+      >
+        {abas.map((a) => {
+          const selecionada = a.id === ativa
+          const Icone = a.icon
+          return (
+            <button
+              key={a.id}
+              ref={(el) => {
+                refs.current[a.id] = el
+              }}
+              type="button"
+              role="tab"
+              id={`aba-${a.id}`}
+              aria-selected={selecionada}
+              aria-controls={`painel-${a.id}`}
+              tabIndex={selecionada ? 0 : -1}
+              onClick={() => onChange(a.id)}
+              className={`flex items-center gap-2 rounded-t-md px-3 pb-3 pt-2 text-sm font-medium transition-colors duration-150 ${
+                selecionada ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <Icone
+                className={`h-4 w-4 transition-colors duration-150 ${selecionada ? 'text-brand-600' : 'text-gray-400'}`}
+                aria-hidden
+              />
+              {a.label}
+            </button>
+          )
+        })}
+        {barra && (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute -bottom-px left-0 h-0.5 rounded-full bg-brand-600 ${
+              deslizar ? 'transition-[transform,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none' : ''
+            }`}
+            style={{ width: barra.w, transform: `translateX(${barra.x}px)` }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Grupo({ titulo, texto, children }: { titulo: string; texto: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="font-display text-base font-semibold text-gray-900">{titulo}</h2>
+      <p className="mt-0.5 max-w-2xl text-sm text-gray-500">{texto}</p>
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
 export default function Settings() {
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
@@ -673,29 +792,64 @@ export default function Settings() {
   const { activeClient } = useCompany()
   const { data: blingLiberado = false } = useBlingLiberado(activeClient?.id, role === 'admin' && !BLING_ABERTO_PARA_LOJAS)
   const mostraBling = isMaster || (role === 'admin' && (BLING_ABERTO_PARA_LOJAS || blingLiberado))
+
+  const abas = ABAS.filter((a) => (a.id === 'usuarios' ? canManageUsers : a.id === 'master' ? isMaster : true))
+  // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Integrações.
+  const [params, setParams] = useSearchParams()
+  const pedida = params.get('aba')
+  const ativa: Aba = abas.find((a) => a.id === pedida)?.id ?? 'integracoes'
+  const escolher = (a: Aba) =>
+    setParams(
+      (p) => {
+        p.set('aba', a)
+        return p
+      },
+      { replace: true },
+    )
+
   return (
     <div>
-      <PageHeader title="Configurações" subtitle="Ajustes da operação e status das integrações" />
+      <PageHeader title="Configurações" subtitle="Integrações, disparos e quem acessa a loja" />
 
-      <div className="space-y-6">
-        {isMaster && <AdminCreditsSection />}
-        {isMaster && <EnrichStatsSection />}
-        {canManageUsers && <AdminUsersSection isMaster={isMaster} />}
-        <CampaignDelaySection />
+      <Abas abas={abas} ativa={ativa} onChange={escolher} />
 
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <Plug className="h-4 w-4 text-brand-600" aria-hidden />
-            <h2 className="font-display text-sm font-semibold text-gray-900">Integrações</h2>
+      <div role="tabpanel" id={`painel-${ativa}`} aria-labelledby={`aba-${ativa}`} tabIndex={0} className="mt-6 focus-visible:ring-offset-4">
+        {ativa === 'integracoes' && (
+          <div className="space-y-10">
+            <Grupo titulo="ERP" texto="Pedidos, clientes e notas de todos os canais que o seu ERP já recebe.">
+              {mostraBling && <ConexaoBling isMaster={isMaster} />}
+              <IntegracoesEmBreve grupo="erp" sem={mostraBling ? ['bling'] : []} />
+            </Grupo>
+            <Grupo titulo="Marketplaces" texto="Suas lojas em cada canal de venda e o volume de pedidos dos últimos 30 dias.">
+              <StoresGrid />
+              <IntegracoesEmBreve grupo="marketplace" />
+            </Grupo>
           </div>
-          {mostraBling && (
-            <div className="mb-4">
-              <ConexaoBling isMaster={isMaster} />
-            </div>
-          )}
-          <StoresGrid />
-          <IntegracoesEmBreve sem={mostraBling ? ['bling'] : []} />
-        </section>
+        )}
+
+        {ativa === 'disparos' && (
+          <div className="space-y-4">
+            <CampaignDelaySection />
+            {can(role, 'waInstances') && (
+              <p className="text-sm text-gray-500">
+                O número que faz os envios é conectado na tela{' '}
+                <Link to="/whatsapp" className="font-medium text-brand-700 hover:underline">
+                  WhatsApp
+                </Link>
+                .
+              </p>
+            )}
+          </div>
+        )}
+
+        {ativa === 'usuarios' && canManageUsers && <AdminUsersSection isMaster={isMaster} />}
+
+        {ativa === 'master' && isMaster && (
+          <div className="space-y-6">
+            <AdminCreditsSection />
+            <EnrichStatsSection />
+          </div>
+        )}
       </div>
     </div>
   )
