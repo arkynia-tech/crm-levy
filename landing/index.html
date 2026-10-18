@@ -931,7 +931,7 @@
   var CHECKOUT_ABERTO = true
   // true enquanto os fluxos apontam para api-sandbox.asaas.com: mostra o selo de teste no formulário
   var SANDBOX = true
-  var CHECKOUT_URL = 'https://n8n-dev.arkynia.com.br/webhook/contatta-checkout'
+  var CHECKOUT_URL = 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-checkout'
   var emTeste = SANDBOX || /[?&]checkout=teste\b/.test(location.search)
   var checkoutLigado = CHECKOUT_ABERTO || emTeste
   var NOME_CICLO = { MONTHLY: 'mensal', SEMIANNUALLY: 'semestral', YEARLY: 'anual' }
