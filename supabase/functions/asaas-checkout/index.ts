@@ -3,7 +3,7 @@
 // cria cliente e assinatura no Asaas e devolve o link da fatura. A conta nasce
 // quando o pagamento é confirmado (asaas-webhook).
 
-import { asaas, erroDoAsaas, type Json, soDigitos } from '../_shared/asaas.ts'
+import { AMBIENTE, asaas, erroDoAsaas, type Json, soDigitos } from '../_shared/asaas.ts'
 import { cors, hojeSP, ipDe, responder, rpc } from '../_shared/comum.ts'
 
 const ORIGENS = ['https://contatta.pro', 'https://app.contatta.pro']
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     const f: Json = (faturas.data ?? [])[0] ?? {}
     await rpc('crm_signup_salvar_asaas', {
       p_signup_id: p.signup_id, p_customer_id: s.json.customer, p_subscription_id: s.json.id,
-      p_invoice_url: f.invoiceUrl || null,
+      p_invoice_url: f.invoiceUrl || null, p_ambiente: AMBIENTE,
     })
     return responder(200, { ok: true, invoice_url: f.invoiceUrl || null }, CORS)
   } catch (e) {

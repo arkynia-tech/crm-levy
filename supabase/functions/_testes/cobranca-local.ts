@@ -224,7 +224,7 @@ const pedido = { empresa: 'Loja Nova', cpf_cnpj: '12.345.678/0001-90', nome: 'An
 cenario({ rpcs: { crm_signup_preparar: { ok: true, signup_id: 's1', cpf_cnpj: '12345678000190', email: 'ana@x.com', valor: 297, descricao: 'Contatta Pro' } } })
 const r1 = await caso('checkout ok', 'asaas-checkout', { headers: { origin: 'https://contatta.pro', 'x-forwarded-for': '187.2.2.2' }, body: pedido }, {
   status: 200, body: { ok: true, invoice_url: 'https://fatura/primeira' },
-  chamadas: ['"p_ip":"187.2.2.2"', '"externalReference":"signup:s1"', `"nextDueDate":"${hoje}"`, 'crm_signup_salvar_asaas {"p_signup_id":"s1","p_customer_id":"cus_novo","p_subscription_id":"sub_novo","p_invoice_url":"https://fatura/primeira"}'],
+  chamadas: ['"p_ip":"187.2.2.2"', '"externalReference":"signup:s1"', `"nextDueDate":"${hoje}"`, 'crm_signup_salvar_asaas {"p_signup_id":"s1","p_customer_id":"cus_novo","p_subscription_id":"sub_novo","p_invoice_url":"https://fatura/primeira","p_ambiente":"sandbox"}'],
 })
 if (r1.res.headers.get('access-control-allow-origin') !== 'https://contatta.pro') { falhas++; console.log('✗ checkout sem CORS pra contatta.pro') } else console.log('✓ checkout CORS contatta.pro')
 const r2 = await handlers['asaas-checkout'](new Request('http://fn', { method: 'OPTIONS', headers: { origin: 'https://malicioso.com' } }))
