@@ -62,7 +62,8 @@ function RequirePermission({ permission, children }: { permission: Permission; c
           <h1 className="font-display text-lg font-semibold">Nenhuma loja liberada</h1>
           <p className="mt-2 text-sm text-gray-600">
             Seu login existe, mas ainda não está ligado a nenhuma loja. Peça a um administrador para liberar
-            o acesso.
+            o acesso. Se você ainda não é cliente, conheça os planos em{' '}
+            <a href="https://contatta.pro" className="font-medium text-brand-700 hover:underline">contatta.pro</a>.
           </p>
         </div>
       </div>

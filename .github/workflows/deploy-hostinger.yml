@@ -48,6 +48,8 @@ jobs:
           VITE_META_APP_ID: ${{ secrets.VITE_META_APP_ID }}
           VITE_META_ES_CONFIG_ID: ${{ secrets.VITE_META_ES_CONFIG_ID }}
           VITE_N8N_WA_OFICIAL_URL: ${{ secrets.VITE_N8N_WA_OFICIAL_URL }}
+          # 'on' depois de ligar o provedor Google no Supabase (Authentication > Providers)
+          VITE_GOOGLE_LOGIN: 'off'
 
       - name: Montar a árvore do domínio
         run: |

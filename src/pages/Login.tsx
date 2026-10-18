@@ -4,6 +4,21 @@ import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 
+// Liga quando o provedor Google estiver configurado no Supabase (deploy-hostinger.yml)
+const GOOGLE_LIGADO = import.meta.env.VITE_GOOGLE_LOGIN === 'on'
+
+/** O "G" do Google nas cores da marca, como o Google pede no botão. */
+function MarcaGoogle() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.87.92 7.53 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  )
+}
+
 export default function Login() {
   const { session, loading } = useAuth()
   const location = useLocation()
@@ -13,6 +28,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false)
   const [esqueci, setEsqueci] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [indoGoogle, setIndoGoogle] = useState(false)
 
   if (!loading && session) {
     const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -31,6 +47,21 @@ export default function Login() {
           ? 'Email ou senha incorretos. Confira e tente de novo.'
           : 'Não foi possível entrar agora. Tente de novo em instantes.',
       )
+    }
+  }
+
+  // Vai para o Google e volta logado. Quem não tem loja liberada cai na tela
+  // "Nenhuma loja liberada": o Google só confirma quem é, não dá acesso.
+  const entrarComGoogle = async () => {
+    setError(null)
+    setIndoGoogle(true)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + import.meta.env.BASE_URL },
+    })
+    if (error) {
+      setIndoGoogle(false)
+      setError('Não deu para entrar com o Google agora. Tente de novo ou use email e senha.')
     }
   }
 
@@ -153,6 +184,25 @@ export default function Login() {
         >
           Esqueci a senha
         </button>
+
+        {GOOGLE_LIGADO && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-gray-400" aria-hidden>
+              <span className="h-px flex-1 bg-gray-200" />
+              ou
+              <span className="h-px flex-1 bg-gray-200" />
+            </div>
+            <button
+              type="button"
+              onClick={() => void entrarComGoogle()}
+              disabled={indoGoogle}
+              className="flex w-full items-center justify-center gap-2.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-[background-color,transform] duration-150 hover:bg-gray-50 active:scale-[0.97] disabled:opacity-60"
+            >
+              <MarcaGoogle />
+              {indoGoogle ? 'Abrindo o Google…' : 'Entrar com Google'}
+            </button>
+          </>
+        )}
       </form>
       )}
 
