@@ -149,7 +149,7 @@ Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
     if (token === homologInvalidado) return comHash(401, { error: { type: 'invalid_token' } })
     if (req.method === 'GET') return comHash(200, { data: { nome: 'Copo do Bling', preco: 32.56, codigo: 'COD-4587' } })
     if (req.method === 'POST') {
-      if (homologRecusaPost) return comHash(400, { error: { description: 'corpo diferente do GET' } })
+      if (homologRecusaPost) return comHash(400, { error: { description: 'corpo diferente do GET', fields: [{ element: 'linkHomepage', msg: 'link fora do ar' }] } })
       return comHash(201, { data: { ...corpo, id: 16842381880 } })
     }
     return comHash(204, null)
@@ -376,7 +376,7 @@ homolog = []; homologHash = 0; homologInvalidado = null; homologRecusaPost = tru
 cenario({ rpcs: master, tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens(3600_000)] } })
 await caso('homologação com o Bling recusando → para e mostra o erro', 'bling-conexao', { headers: M, body: { action: 'homologacao', client_id: 'c1' } }, {
   status: 200, body: { passou: false },
-  conferir: (b) => (b.passos.length === 2 && b.passos[1].status === 400 && b.passos[1].erro === 'corpo diferente do GET' && homolog.length === 2 ? null : JSON.stringify(b.passos)),
+  conferir: (b) => (b.passos.length === 2 && b.passos[1].status === 400 && b.passos[1].erro === 'corpo diferente do GET | linkHomepage: link fora do ar' && homolog.length === 2 ? null : JSON.stringify(b.passos)),
 })
 
 console.log(falhas ? `\n${falhas} caso(s) falharam` : '\ntodos os casos passaram')

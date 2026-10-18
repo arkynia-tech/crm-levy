@@ -485,6 +485,19 @@ async function ligar(clientId: string, b: Json) {
 
 const HOMOLOGACAO = '/homologacao/produtos'
 
+/** O motivo inteiro: a frase do Bling e cada campo que ele apontou (error.fields). */
+function erroDaHomologacao(json: Json): string {
+  const e = json?.error ?? {}
+  const campos = Array.isArray(e.fields) ? e.fields : e.fields && typeof e.fields === 'object' ? Object.values(e.fields) : []
+  const detalhes = campos
+    .map((f: Json) => [f?.element, f?.msg ?? f?.message].filter(Boolean).join(': '))
+    .filter(Boolean)
+  const base = erroDoBling(json)
+  if (detalhes.length) return [base, ...detalhes].join(' | ')
+  // formato inesperado: devolve o corpo cru (sem dado de cliente, é a API de teste)
+  return base === 'erro desconhecido' ? JSON.stringify(json).slice(0, 600) : base
+}
+
 type Passo = { passo: string; status: number; ms: number; renovou?: boolean; erro?: string }
 
 async function homologacao(clientId: string) {
@@ -525,7 +538,7 @@ async function homologacao(clientId: string) {
       const ok = r.status >= 200 && r.status < 300
       passos.push({
         passo, status: r.status, ms: Date.now() - antes, ...(renovou ? { renovou } : {}),
-        ...(ok ? {} : { erro: erroDoBling(r.json) }),
+        ...(ok ? {} : { erro: erroDaHomologacao(r.json) }),
       })
       return ok ? r : null
     }
