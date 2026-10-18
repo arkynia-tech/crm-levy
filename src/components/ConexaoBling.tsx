@@ -5,6 +5,7 @@ import { useCompany } from '../context/CompanyContext'
 import { chamarBling, useConexaoBling, type Diagnostico, type Homologacao } from '../hooks/bling'
 import { formatDate, formatDateTime } from '../lib/format'
 import { LojasBling } from './LojasBling'
+import { MarcaLogo } from './MarcaLogo'
 
 /**
  * Até abrir para todas as lojas, só o master vê o cartão (ou o admin de uma loja
@@ -60,8 +61,10 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
     <div className="card overflow-hidden">
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 max-w-xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-base font-semibold text-gray-900">Bling</h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="font-display text-base font-semibold text-gray-900">
+              <MarcaLogo id="bling" />
+            </h3>
             {status === 'conectado' && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Conectado
@@ -75,7 +78,7 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
           </div>
 
           {status === 'conectado' ? (
-            <div className="mt-1.5 space-y-1 text-sm text-gray-600">
+            <div className="mt-3 space-y-1 text-sm text-gray-600">
               <p>
                 {conexao?.account_name ? (
                   <>Conta <span className="font-medium text-gray-900">{conexao.account_name}</span>, conectada</>
@@ -97,12 +100,12 @@ export function ConexaoBling({ isMaster }: { isMaster: boolean }) {
               </p>
             </div>
           ) : status === 'reconectar' ? (
-            <p className="mt-1.5 text-sm text-gray-600">
+            <p className="mt-3 text-sm text-gray-600">
               O Bling parou de aceitar o acesso do Contatta. Conecte de novo para os pedidos voltarem a entrar; a data de corte
               continua a mesma.
             </p>
           ) : (
-            <p className="mt-1.5 text-sm text-gray-600">
+            <p className="mt-3 text-sm text-gray-600">
               Traga pedidos e clientes de todos os canais que o seu Bling já recebe. O Contatta só lê: nada muda no seu Bling.
               {status === 'desconectado' && conexao?.disconnected_at && (
                 <> Desconectado em {formatDate(conexao.disconnected_at)}; os dados que já entraram continuam aqui.</>

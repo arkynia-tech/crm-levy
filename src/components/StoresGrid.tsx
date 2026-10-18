@@ -1,7 +1,7 @@
-import { Store as StoreIcon } from 'lucide-react'
 import { useStores, useStoreVolumes } from '../hooks/queries'
 import { marketplaceLabel, storeStatusLabel } from '../lib/format'
 import { EmptyState, ErrorState, StatusBadge } from './ui'
+import { MarcaLogo, temLogo } from './MarcaLogo'
 
 function statusTone(status: string | null): 'ok' | 'warn' | 'bad' | 'neutral' {
   const s = (status ?? '').toLowerCase()
@@ -9,13 +9,6 @@ function statusTone(status: string | null): 'ok' | 'warn' | 'bad' | 'neutral' {
   if (s === 'expired') return 'warn'
   if (s === 'disconnected') return 'bad'
   return 'neutral'
-}
-
-const MP_BAR: Record<string, string> = {
-  shopee: 'bg-shopee',
-  mercado_livre: 'bg-meli',
-  amazon: 'bg-amazon',
-  tiktok_shop: 'bg-tiktok',
 }
 
 export default function StoresGrid() {
@@ -48,34 +41,32 @@ export default function StoresGrid() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {stores.map((store) => (
-        <div key={store.id} className="card overflow-hidden">
-          <div className={`h-1 ${MP_BAR[store.marketplace] ?? 'bg-brand-600'}`} aria-hidden />
-          <div className="p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  {marketplaceLabel(store.marketplace)}
-                </p>
-                <p className="mt-0.5 truncate font-display text-base font-semibold text-gray-900">
-                  {store.name || 'Loja sem nome'}
-                </p>
-                {store.external_shop_id && (
-                  <p className="mt-0.5 text-xs tabular-nums text-gray-400">ID {store.external_shop_id}</p>
-                )}
-              </div>
-              <StoreIcon className="h-5 w-5 shrink-0 text-gray-300" aria-hidden />
-            </div>
+        <div key={store.id} className="card p-4">
+          <div className="flex items-start justify-between gap-2">
+            {/* Canal sem logo oficial ("outro") fica com o nome escrito na mesma placa */}
+            {temLogo(store.marketplace) ? (
+              <MarcaLogo id={store.marketplace} pequena />
+            ) : (
+              <span className="inline-flex h-9 items-center rounded-md border border-gray-200 px-2.5 text-xs font-medium text-gray-600">
+                {marketplaceLabel(store.marketplace)}
+              </span>
+            )}
+            <StatusBadge status={storeStatusLabel(store.status)} tone={statusTone(store.status)} />
+          </div>
 
-            <div className="mt-4 flex items-end justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Últimos 30 dias</p>
-                <p className="font-display text-2xl font-semibold tabular-nums text-gray-900">
-                  {volumes?.[store.id] ?? '…'}
-                  <span className="ml-1 text-sm font-normal text-gray-500">pedidos</span>
-                </p>
-              </div>
-              <StatusBadge status={storeStatusLabel(store.status)} tone={statusTone(store.status)} />
-            </div>
+          <p className="mt-3 truncate font-display text-base font-semibold text-gray-900">
+            {store.name || 'Loja sem nome'}
+          </p>
+          {store.external_shop_id && (
+            <p className="mt-0.5 text-xs tabular-nums text-gray-400">ID {store.external_shop_id}</p>
+          )}
+
+          <div className="mt-4">
+            <p className="text-xs text-gray-500">Últimos 30 dias</p>
+            <p className="font-display text-2xl font-semibold tabular-nums text-gray-900">
+              {volumes?.[store.id] ?? '…'}
+              <span className="ml-1 text-sm font-normal text-gray-500">pedidos</span>
+            </p>
           </div>
         </div>
       ))}

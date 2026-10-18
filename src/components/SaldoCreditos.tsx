@@ -50,7 +50,7 @@ export function SaldoCreditos({ saldo, papel, compacto }: { saldo: Saldo; papel?
           continuam sendo atualizadas.{' '}
           {papel === 'master' ? (
             <>
-              <Link to="/configuracoes" className="font-medium underline">Dar crédito avulso</Link> ou{' '}
+              <Link to="/configuracoes?aba=master" className="font-medium underline">Dar crédito avulso</Link> ou{' '}
               <Link to="/assinatura/pedidos" className="font-medium underline">comprar pedidos extras</Link>
             </>
           ) : papel === 'admin' ? (
