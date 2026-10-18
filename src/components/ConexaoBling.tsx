@@ -227,11 +227,16 @@ function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
 
       <div>
         <p className="text-sm font-medium text-gray-900">Lojas do Bling nesses pedidos</p>
-        <p className="text-xs text-gray-500">Cada uma vai ser ligada a uma loja do Contatta na próxima etapa.</p>
+        <p className="text-xs text-gray-500">
+          Cada uma vai ser ligada a uma loja do Contatta na próxima etapa. Pedido digitado à mão no Bling não tem loja nem
+          número no marketplace.
+        </p>
         <ul className="mt-2 divide-y divide-gray-100 rounded-md border border-gray-200 text-sm">
           {d.lojas.map((l) => (
             <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-              <span className="font-medium tabular-nums text-gray-900">Loja {l.id}</span>
+              <span className="font-medium tabular-nums text-gray-900">
+                {l.id === 'sem_loja' ? 'Sem loja (pedido digitado no Bling)' : `Loja ${l.id}`}
+              </span>
               <span className="text-gray-600">
                 {l.pedidos} {l.pedidos === 1 ? 'pedido' : 'pedidos'}
                 {l.exemplo_numero_loja && <>, ex.: nº {l.exemplo_numero_loja}</>}
@@ -257,16 +262,16 @@ function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
             {d.pedidos.map((p) => (
               <tr key={p.id}>
                 <td className="td tabular-nums">{p.numero ?? p.id}</td>
-                <td className="td tabular-nums">{p.numero_loja ?? <span className="text-gray-400">vazio</span>}</td>
+                <td className="td tabular-nums">{p.numero_loja ?? <span className="text-gray-400">não veio</span>}</td>
                 <td className="td tabular-nums">{formatDate(p.data)}</td>
-                <td className="td tabular-nums">{p.loja_id ?? <span className="text-gray-400">sem loja</span>}</td>
+                <td className="td tabular-nums">{p.loja_id ?? <span className="text-gray-400">não veio</span>}</td>
                 <td className="td">
                   {p.documento ? (
                     <>
                       {p.documento.toUpperCase()} <span className="tabular-nums text-gray-500">{p.documento_final}</span>
                     </>
                   ) : (
-                    <span className="text-gray-400">sem documento</span>
+                    <span className="text-gray-400">não veio</span>
                   )}
                 </td>
                 <td className="td">
@@ -275,7 +280,7 @@ function ResultadoDiagnostico({ d }: { d: Diagnostico }) {
                       {p.celular ? 'Celular' : 'Fixo'} <span className="tabular-nums text-gray-500">{p.telefone_final}</span>
                     </>
                   ) : (
-                    <span className="text-gray-400">{p.contato_lido ? 'sem telefone' : 'contato não lido'}</span>
+                    <span className="text-gray-400">{p.contato_lido ? 'não veio' : 'contato não lido'}</span>
                   )}
                 </td>
               </tr>

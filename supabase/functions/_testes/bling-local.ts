@@ -79,10 +79,14 @@ const PEDIDOS = [
     contato: { id: 502, nome: 'B', tipoPessoa: 'J', numeroDocumento: '' } },
   { id: 3, numero: 12, numeroLoja: 'SHP-113', data: '2026-10-16', total: 20, loja: { id: 777 }, situacao: { id: 6, valor: 1 },
     contato: { id: 501, nome: 'A', tipoPessoa: 'F', numeroDocumento: '12345678901' } },
+  // pedido digitado à mão: sem loja, sem numeroLoja, contato sem documento nem telefone
+  { id: 4, numero: 13, data: '2026-10-14', total: 30, loja: { id: 0 }, situacao: { id: 6, valor: 1 },
+    contato: { id: 503, nome: 'C', tipoPessoa: 'F' } },
 ]
 const CONTATOS: Record<string, any> = {
   '501': { id: 501, numeroDocumento: '123.456.789-01', celular: '(11) 98888-7777', telefone: '', email: 'a@x.com', dadosAdicionais: { dataNascimento: '1990-01-01' } },
   '502': { id: 502, numeroDocumento: '12345678000199', celular: '', telefone: '', email: '' },
+  '503': { id: 503, nome: 'C' },
 }
 
 Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
@@ -237,22 +241,29 @@ cenario({ rpcs: master, tabelas: { erp_connections: [conexao()], erp_connection_
 await caso('diagnóstico → resumo, lojas e nada de token renovado', 'bling-conexao', { headers: M, body: { action: 'diagnostico', client_id: 'c1' } }, {
   status: 200,
   body: {
-    lidos: 3, periodo: { de: '2026-10-15', ate: '2026-10-17' },
+    lidos: 4, periodo: { de: '2026-10-14', ate: '2026-10-17' },
     resumo: {
-      com_cpf: 2, com_cnpj: 1, sem_documento: 0, documento_no_proprio_pedido: 2, com_celular: 2, com_telefone: 0,
-      com_algum_telefone: 2, com_email: 2, com_nascimento: 2, com_numero_loja: 2, contatos_distintos: 2, contatos_nao_lidos: 0,
+      com_cpf: 2, com_cnpj: 1, sem_documento: 1, documento_no_proprio_pedido: 2, com_celular: 2, com_telefone: 0,
+      com_algum_telefone: 2, com_email: 2, com_nascimento: 2, com_numero_loja: 2, contatos_distintos: 3, contatos_nao_lidos: 0,
     },
-    lojas: [{ id: '777', pedidos: 2, exemplo_numero_loja: 'SHP-113' }, { id: '888', pedidos: 1, exemplo_numero_loja: null }],
+    lojas: [
+      { id: '777', pedidos: 2, exemplo_numero_loja: 'SHP-113' },
+      { id: '888', pedidos: 1, exemplo_numero_loja: null },
+      { id: 'sem_loja', pedidos: 1, exemplo_numero_loja: null },
+    ],
   },
   chamadas: ['bling GET /pedidos/vendas?pagina=1&limite=50', 'bling GET /contatos/501', 'bling GET /contatos/502', 'insert erp_store_links'],
   semChamadas: ['bling token', /contatos\/501.*contatos\/501/],
   conferir: (b) => {
     if (b.pedidos[0].id !== 2) return 'pedidos fora de ordem'
+    const manual = b.pedidos.find((x: any) => x.id === 4)
+    if (manual.loja_id !== null || manual.numero_loja !== null || manual.documento !== null || manual.telefone_final !== null) return 'pedido manual'
+    if (tabelas.erp_store_links.some((l: any) => l.external_store_id === 'sem_loja' || l.external_store_id === '0')) return 'registrou loja vazia'
     if (b.pedidos[1].documento_final !== '…01' || b.pedidos[1].telefone_final !== '…7777') return 'máscara errada'
     if (JSON.stringify(b).includes('12345678901')) return 'CPF inteiro vazou'
     if (b.amostra.token?.companyId !== 'emp-9') return 'claims do token'
     if (b.amostra.intermediadores[0]?.itens !== 2) return 'detalhe do pedido'
-    return chamadas.filter((c) => c.startsWith('bling GET /contatos/')).length === 2 ? null : 'contato repetido'
+    return chamadas.filter((c) => c.startsWith('bling GET /contatos/')).length === 3 ? null : 'contato repetido'
   },
 })
 cenario({ rpcs: master, tabelas: { erp_connections: [conexao()], erp_connection_tokens: [tokens(60_000)] } })

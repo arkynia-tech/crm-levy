@@ -144,6 +144,7 @@ async function desconectar(clientId: string) {
 // ---------------------------------------------------------------------------
 // diagnóstico
 
+const SEM_LOJA = 'sem_loja'
 const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
 const final = (v: string, n = 4) => (v ? '…' + v.slice(-n) : null)
 
@@ -197,10 +198,11 @@ async function diagnostico(clientId: string) {
     return {
       id: p.id,
       numero: p.numero ?? null,
-      numero_loja: p.numeroLoja || null,
+      // pedido digitado no Bling não tem marketplace: numeroLoja vazio e loja.id 0
+      numero_loja: String(p.numeroLoja ?? '').trim() || null,
       data: p.data ?? null,
       total: p.total ?? null,
-      loja_id: p.loja?.id != null ? String(p.loja.id) : null,
+      loja_id: p.loja?.id ? String(p.loja.id) : null,
       situacao: p.situacao?.valor ?? p.situacao?.id ?? null,
       tipo_pessoa: p.contato?.tipoPessoa ?? ct?.tipo ?? null,
       documento: tipoDocumento(doc),
@@ -218,7 +220,7 @@ async function diagnostico(clientId: string) {
   const conta = (f: (l: (typeof linhas)[number]) => boolean) => linhas.filter(f).length
   const lojas = new Map<string, { pedidos: number; exemplo_numero_loja: string | null }>()
   for (const l of linhas) {
-    const k = l.loja_id ?? 'sem loja'
+    const k = l.loja_id ?? SEM_LOJA
     const atual = lojas.get(k) ?? { pedidos: 0, exemplo_numero_loja: null }
     atual.pedidos++
     atual.exemplo_numero_loja ??= l.numero_loja
@@ -226,7 +228,7 @@ async function diagnostico(clientId: string) {
   }
 
   // Registra as lojas do Bling que apareceram, ainda sem ligar a uma loja do Contatta
-  const novas = [...lojas.keys()].filter((k) => k !== 'sem loja' && k !== '0')
+  const novas = [...lojas.keys()].filter((k) => k !== SEM_LOJA)
   if (novas.length) {
     await banco.from('erp_store_links').upsert(
       novas.map((k) => ({ connection_id: c.id, external_store_id: k })),
