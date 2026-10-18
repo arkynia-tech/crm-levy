@@ -1,6 +1,6 @@
-# Cobrança pelas Edge Functions (saindo do n8n)
+# Cobrança pelas Edge Functions (sem n8n)
 
-A cobrança do Contatta passa do n8n para quatro Edge Functions do Supabase
+A cobrança do Contatta saiu do n8n e roda em quatro Edge Functions do Supabase
 (`supabase/functions`). A regra de negócio continua nas funções do banco
 (`crm_billing_*`, `crm_pacote_*`, `crm_extras_*`, `crm_creditos_*`). As Edge
 Functions só conferem quem chama, chamam a RPC e falam com o Asaas, do mesmo
@@ -9,7 +9,7 @@ jeito que os fluxos faziam.
 | Função | Substitui (n8n) | Quem chama |
 |---|---|---|
 | `asaas-assinaturas` | Assinaturas Asaas — Contatta (`contatta-assinaturas`) | app, com o login do Supabase |
-| `asaas-checkout` | Checkout do site — Contatta (`contatta-checkout`) | formulário do contatta.pro |
+| `asaas-checkout` | Checkout do site — Contatta (`contatta-checkout`) | formulário do contatta.pro e tela de boas-vindas do app (`/comecar`) |
 | `asaas-webhook` | Asaas Webhook — Contatta (`contatta-asaas`) | Asaas, com o `asaas-access-token` |
 | `asaas-cobranca-diaria` | Cobrança diária Asaas — Contatta (07:00) | pg_cron, com o token do cron |
 
@@ -17,10 +17,13 @@ URL de cada uma: `https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/<funçã
 
 ## Andamento
 
-- 18/10/2026: funções publicadas; no app as 6 ações da assinatura já vão pela
-  função (`VITE_COBRANCA_FN_ACOES=contato,criar,pacote,usuarios,trocar_plano,cancelar`),
-  testadas no sandbox. Checkout do site trocado neste mesmo dia.
-- Falta: webhook do Asaas e rotina diária.
+- 18/10/2026: funções publicadas; as 6 ações da assinatura no app, o checkout do
+  site, o webhook do Asaas e a rotina diária trocados e testados no sandbox, um
+  por vez, com o n8n de reserva. Fluxo "Cobrança diária" despublicado no n8n.
+- Depois de alguns dias sem erro nos logs: despublicados no n8n os fluxos
+  "Assinaturas Asaas", "Asaas Webhook" e "Checkout do site" (não arquivados), e o
+  app passou a chamar sempre `asaas-assinaturas` e `asaas-checkout`. As variáveis
+  `VITE_N8N_ASSINATURAS_URL` e `VITE_COBRANCA_FN_ACOES` saíram do build.
 
 ## Segredos
 
@@ -60,62 +63,38 @@ webhook e rotina), conferindo status, resposta e o que vai pro banco e pro Asaas
    supabase functions deploy --project-ref lopdvdblwasuowjdokpo --use-api
    ```
    O `supabase/config.toml` já desliga a checagem de JWT do gateway nas quatro
-   (cada uma confere por dentro). Funções no ar não mudam nada sozinhas:
-   o app, o site e o Asaas seguem apontando pro n8n até cada troca.
+   (cada uma confere por dentro).
 4. Conferência rápida (sem login, nada é gravado): as três têm que responder 401.
    ```bash
    curl -s -X POST https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-assinaturas -d '{}'; echo; curl -s -X POST -H 'asaas-access-token: errado' https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-webhook -d '{}'; echo; curl -s -X POST https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-cobranca-diaria -d '{}'; echo
    ```
 
-## Troca, uma etapa por vez (o n8n fica de reserva)
+## Conferir os logs
 
-### 1. Ações da assinatura (app)
+- Funções: Supabase → Edge Functions → `<função>` → Logs / Invocations
+  (https://supabase.com/dashboard/project/lopdvdblwasuowjdokpo/functions).
+- Rotina diária: `cron.job_run_details` do job `contatta-cobranca-diaria` e a
+  resposta em `net._http_response` (as consultas estão em
+  `supabase/cobranca-edge-functions.sql`).
 
-O app escolhe por ação: `VITE_COBRANCA_FN_ACOES` (secret do GitHub) lista as que
-vão pela função; as outras seguem no `VITE_N8N_ASSINATURAS_URL`.
-Ordem: `contato` → `criar` → `pacote` → `usuarios` → `trocar_plano` → `cancelar`.
+## Voltar atrás (emergência)
 
-Para cada ação:
-1. Testar antes no app rodando local (`npm run dev` com
-   `VITE_COBRANCA_FN_ACOES=<ação>` no `.env.local`), numa loja de teste, e
-   comparar com o que o n8n faz: resposta na tela, fatura no Asaas sandbox,
-   `billing_accounts` no banco.
-2. Passou: acrescentar a ação no secret `VITE_COBRANCA_FN_ACOES` do GitHub
-   (ex.: `contato,criar`) e rodar o workflow **Build para Hostinger**
-   (Actions → Run workflow).
-3. Voltar atrás: tirar a ação do secret e rodar o workflow de novo.
+O n8n não está mais no caminho. Os três fluxos ficaram despublicados (não
+arquivados) e o "Cobrança diária" também, então dá pra religar se precisar:
 
-### 2. Checkout do site
-
-1. Em `landing/index.html`, `CHECKOUT_URL` passa a ser
-   `https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-checkout`; push na main.
-2. Testar uma assinatura pelo contatta.pro (sandbox) até a fatura abrir.
-3. Voltar atrás: reverter o commit (volta pro `contatta-checkout` do n8n).
-
-### 3. Webhook do Asaas
-
-1. No Asaas sandbox: Integrações → Webhooks → "Contatta" → URL
-   `https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-webhook`.
-   O token de autenticação continua o mesmo.
-2. Testar: pagar uma fatura de teste no sandbox ("Confirmar pagamento") e ver a
-   loja ficar ativa; numa assinatura do site, ver o convite chegar.
-   Log em Supabase → Edge Functions → asaas-webhook → Logs.
-3. Voltar atrás: URL de volta pra `https://n8n-dev.arkynia.com.br/webhook/contatta-asaas`.
-   Se a fila do Asaas tiver pausado por erro, reativar na mesma tela.
-
-### 4. Rotina diária
-
-Nunca as duas ao mesmo tempo (o excedente poderia sair cobrado duas vezes).
-1. Desligar o fluxo "Cobrança diária Asaas — Contatta" no n8n.
-2. Rodar a **parte 2** do SQL (agenda às 10:00 UTC = 07:00 em São Paulo).
-3. Testar uma vez na hora com o mesmo `net.http_post` do agendamento e conferir
-   `net._http_response` (as consultas estão no SQL).
-4. Voltar atrás: **parte 3** do SQL e religar o fluxo no n8n.
-
-### Depois de tudo testado
-
-Desligar os outros três fluxos no n8n, tirar `VITE_N8N_ASSINATURAS_URL` do
-build e atualizar a seção "Assinaturas" do README.
+1. Ações da assinatura e `/comecar`: reverter o PR que tirou o n8n do app
+   (volta `VITE_N8N_ASSINATURAS_URL` e `VITE_COBRANCA_FN_ACOES`), recadastrar
+   esses secrets no GitHub, publicar o fluxo "Assinaturas Asaas — Contatta" e
+   o "Checkout do site — Contatta".
+2. Checkout do site: `CHECKOUT_URL` em `landing/index.html` de volta para
+   `https://n8n-dev.arkynia.com.br/webhook/contatta-checkout`.
+3. Webhook: no Asaas, URL de volta pra
+   `https://n8n-dev.arkynia.com.br/webhook/contatta-asaas` e publicar o fluxo
+   "Asaas Webhook — Contatta". Se a fila do Asaas pausou por erro, reativar na
+   mesma tela.
+4. Rotina: **parte 3** do SQL (tira o agendamento) e publicar o fluxo
+   "Cobrança diária Asaas — Contatta". Nunca as duas ao mesmo tempo (o excedente
+   poderia sair cobrado duas vezes).
 
 ## Diferenças em relação ao n8n
 

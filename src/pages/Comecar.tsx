@@ -6,9 +6,8 @@ import { useAuth } from '../context/AuthContext'
 import { CICLO_LABEL, usePlanos, valorDoCiclo, type Ciclo } from '../hooks/billing'
 import { formatCurrency } from '../lib/format'
 
-// O mesmo fluxo do checkout do site (n8n "Checkout do site — Contatta")
-const CHECKOUT_URL =
-  (import.meta.env.VITE_N8N_CHECKOUT_URL as string | undefined) || 'https://n8n-dev.arkynia.com.br/webhook/contatta-checkout'
+// O mesmo checkout do site (Edge Function asaas-checkout)
+const CHECKOUT_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/asaas-checkout`
 
 const CICLOS: { valor: Ciclo; dica: string }[] = [
   { valor: 'MONTHLY', dica: '' },
