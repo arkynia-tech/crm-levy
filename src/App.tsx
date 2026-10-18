@@ -21,6 +21,7 @@ import Clients from './pages/Clients'
 import WhatsApp from './pages/WhatsApp'
 import Modelos from './pages/Modelos'
 import Assinatura from './pages/Assinatura'
+import Comecar from './pages/Comecar'
 import ComprarPedidos from './pages/ComprarPedidos'
 import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
@@ -54,20 +55,10 @@ function RequirePermission({ permission, children }: { permission: Permission; c
     )
   }
 
-  // Logou, mas não está mapeado em loja nenhuma (o RLS devolve lista vazia)
+  // Logou, mas não está ligado a loja nenhuma: escolhe o plano e assina
+  // (quem foi convidado por uma loja vê o aviso para pedir o acesso)
   if (!activeClient) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center px-4">
-        <div className="card max-w-md p-6 text-center">
-          <h1 className="font-display text-lg font-semibold">Nenhuma loja liberada</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Seu login existe, mas ainda não está ligado a nenhuma loja. Peça a um administrador para liberar
-            o acesso. Se você ainda não é cliente, conheça os planos em{' '}
-            <a href="https://contatta.pro" className="font-medium text-brand-700 hover:underline">contatta.pro</a>.
-          </p>
-        </div>
-      </div>
-    )
+    return <Comecar />
   }
 
   // Sem papel nenhum nesta loja: tela explicativa, não redirect (senão gira em falso)

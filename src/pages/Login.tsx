@@ -206,7 +206,11 @@ export default function Login() {
       </form>
       )}
 
-      <p className="mt-6 text-xs text-slate-500">Acesso restrito. Usuários são criados pelo administrador.</p>
+      <p className="mt-6 max-w-sm text-center text-xs text-slate-400">
+        {GOOGLE_LIGADO
+          ? 'Ainda não é cliente? Entre com o Google para criar a sua conta e escolher o plano.'
+          : 'Acesso restrito. Usuários são criados pelo administrador.'}
+      </p>
     </div>
   )
 }
