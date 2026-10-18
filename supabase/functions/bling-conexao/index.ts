@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
     if (typeof b.client_id !== 'string' || !b.client_id) return falha(400, 'Loja não informada.')
 
     const { papel } = await rpc('crm_role_check', { p_user_id: userId, p_client_id: b.client_id })
-    const podeConectar = papel === 'master' || papel === 'admin'
+    // Até o Bling abrir para todas (secret BLING_ABERTO_PARA_LOJAS=1), o admin
+    // só conecta se o master liberou a loja (clients.bling_liberado).
+    const podeConectar = papel === 'master' || (papel === 'admin' && (await liberadoParaAdmin(b.client_id)))
     switch (b.action) {
       case 'autorizar':
         return podeConectar ? await autorizar(b.client_id, userId) : semPermissao()
@@ -56,7 +58,14 @@ Deno.serve(async (req) => {
   }
 })
 
-const semPermissao = () => falha(403, 'Só o administrador da loja conecta o Bling.')
+const semPermissao = () => falha(403, 'O Bling ainda não está liberado para esta loja.')
+
+async function liberadoParaAdmin(clientId: string): Promise<boolean> {
+  if (Deno.env.get('BLING_ABERTO_PARA_LOJAS') === '1') return true
+  const { data, error } = await banco.from('clients').select('bling_liberado').eq('id', clientId).maybeSingle()
+  if (error) return false // coluna ainda não criada: só o master
+  return data?.bling_liberado === true
+}
 
 async function conexaoDaLoja(clientId: string): Promise<Json | null> {
   const { data, error } = await banco

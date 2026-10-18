@@ -12,7 +12,7 @@ link de redirecionamento `https://app.contatta.pro/bling/retorno`.
 | `supabase/bling-conexao.sql` | `erp_connections` (status, data de corte, último pedido), `erp_connection_tokens` e `erp_oauth_states` sem policy, `erp_store_links` (loja do Bling para `stores`), funções `crm_erp_conectar` e `crm_erp_para_renovar`, e o agendamento da renovação |
 | `bling-conexao` | ações `autorizar`, `retorno`, `desconectar` (admin ou master) e `diagnostico` (só master) |
 | `bling-renovacao` | todo dia às 06:00: renova os refresh que vencem em até 15 dias |
-| Configurações | cartão do Bling. Na fase 1 só o master vê (`BLING_ABERTO_PARA_LOJAS` em `src/components/ConexaoBling.tsx`) |
+| Configurações | cartão do Bling. Na fase 1 só o master vê, ou o admin de uma loja que o master liberou (`clients.bling_liberado`, `supabase/bling-liberar-loja.sql`). Abrir para todas: `BLING_ABERTO_PARA_LOJAS` em `src/components/ConexaoBling.tsx` e o secret `BLING_ABERTO_PARA_LOJAS=1` |
 | `/bling/retorno` | página fora do menu com mensagem de sucesso e de erro (o Bling exige) |
 
 Regras que já valem:
@@ -102,7 +102,7 @@ e em Central de Extensões, Minhas instalações, o app Contatta aparece instala
 deno run -A --node-modules-dir=none --no-lock supabase/functions/_testes/bling-local.ts
 ```
 
-Sobe um Supabase (tabelas em memória) e um Bling falsos e passa por 19 caminhos (com um pedido digitado à mão, sem loja nem número no marketplace):
+Sobe um Supabase (tabelas em memória) e um Bling falsos e passa por 21 caminhos (com um pedido digitado à mão, sem loja nem número no marketplace):
 login e papel, URL de autorização, state de outro usuário, usado ou vencido, code
 recusado, desconectar, diagnóstico (contagens, máscara, ordem, contato lido uma
 vez só), renovação antes de vencer, refresh morto e renovação concorrente.
