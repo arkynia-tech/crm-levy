@@ -178,6 +178,9 @@ function NovoModelo({ instanceId, onCriado }: { instanceId: string; onCriado: ()
           <label className="block">
             <span className="text-sm font-medium text-gray-700">Rodapé (opcional)</span>
             <input className="input mt-1" value={rodape} maxLength={60} onChange={(e) => setRodape(e.target.value)} placeholder="Ex.: Loja Exemplo" />
+            <span className="mt-1 block text-xs text-gray-500">
+              Aparece pro cliente, em letra pequena no fim da mensagem. Deixe em branco se não quiser nada ali.
+            </span>
           </label>
 
           {categoria === 'MARKETING' && (
