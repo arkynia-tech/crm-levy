@@ -27,6 +27,32 @@ import { ORIGEM_CREDITO, useCreditosExtras, useSaldoCreditos } from '../hooks/cr
 
 const CICLOS: Ciclo[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY']
 
+/**
+ * A fatura abre em outra aba e o Contatta fica nesta. A aba é aberta já no
+ * clique, quando dá pra prever que vai ter fatura: aberta só depois da resposta,
+ * o navegador bloquearia.
+ */
+function abrirAbaDaFatura(): Window | null {
+  const aba = window.open('', '_blank')
+  if (aba) {
+    aba.opener = null
+    aba.document.title = 'Abrindo a fatura…'
+    aba.document.body.style.cssText = 'font:16px system-ui,sans-serif;color:#344054;display:grid;place-items:center;height:100vh;margin:0'
+    aba.document.body.textContent = 'Abrindo a fatura do Contatta…'
+  }
+  return aba
+}
+
+function mostrarFatura(aba: Window | null, url: string) {
+  if (aba && !aba.closed) {
+    aba.location.href = url
+    return
+  }
+  const nova = window.open(url, '_blank')
+  if (nova) nova.opener = null
+  else window.location.href = url // navegador bloqueou a aba nova
+}
+
 function nomeBandeira(b: string | null | undefined): string {
   if (!b) return 'Cartão'
   const m: Record<string, string> = { VISA: 'Visa', MASTERCARD: 'Mastercard', ELO: 'Elo', AMEX: 'Amex', HIPERCARD: 'Hipercard' }
@@ -196,15 +222,20 @@ function CartaoPlano({
   }, [clientId, plano.code, ciclo, atual, podeTrocar])
 
   const confirmar = async () => {
+    const aba = sim?.ok && sim.tipo === 'imediata' && (sim.prorata ?? 0) > 0 && !sim.cartao_final ? abrirAbaDaFatura() : null
     setEnviando(true)
     const r = await acoes.trocar(clientId, plano.code, ciclo)
     setEnviando(false)
     setConfirmando(false)
-    if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
-    // Diferença por fatura: leva direto para a página de pagamento do Asaas
+    if (!r.ok) {
+      aba?.close()
+      return setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
+    }
+    // Diferença por fatura: abre a página de pagamento do Asaas em outra aba
     if (r.tipo === 'imediata' && !r.cobrado_no_cartao && r.invoice_url) {
-      window.location.href = r.invoice_url
-      return
+      mostrarFatura(aba, r.invoice_url)
+    } else {
+      aba?.close()
     }
     setMsg(
       r.tipo === 'imediata'
@@ -667,14 +698,17 @@ export function PedidosExtras({ clientId }: { clientId: string }) {
   const escolhido = x.pacotes.find((p) => p.quantidade === qtd) ?? x.pacotes[0]
 
   const comprar = async () => {
+    const aba = x.cartao_final ? null : abrirAbaDaFatura()
     setComprando(true)
     setMsg(null)
     const r = await acoes.comprarPacote(clientId, escolhido.quantidade)
     setComprando(false)
     if (!r.ok) {
+      aba?.close()
       setMsg({ tone: 'err', text: r.error ?? 'Não deu certo.' })
       return
     }
+    if (!r.invoice_url) aba?.close()
     if (r.cobrado_no_cartao) {
       setMsg({
         tone: 'ok',
@@ -682,11 +716,8 @@ export function PedidosExtras({ clientId }: { clientId: string }) {
       })
       return
     }
-    if (r.invoice_url) {
-      window.location.href = r.invoice_url
-      return
-    }
-    setMsg({ tone: 'ok', text: 'Fatura criada. O crédito entra assim que o pagamento for confirmado.' })
+    if (r.invoice_url) mostrarFatura(aba, r.invoice_url)
+    setMsg({ tone: 'ok', text: 'A fatura abriu em outra aba. O crédito entra aqui assim que o pagamento for confirmado.' })
   }
 
   return (
@@ -810,14 +841,17 @@ export function UsuariosExtras({ r, clientId, planos }: { r: ResumoAssinatura; c
     .sort((a, b) => (a.monthly_price ?? 0) - (b.monthly_price ?? 0))[0]
 
   const confirmar = async () => {
+    const aba = sim?.ok && sim.tipo === 'adicionar' && (sim.prorata ?? 0) > 0 && !sim.cartao_final ? abrirAbaDaFatura() : null
     setEnviando(true)
     setMsg(null)
     const res = await acoes.usuarios(clientId, extras)
     setEnviando(false)
     if (!res.ok) {
+      aba?.close()
       setMsg({ tone: 'err', text: res.error ?? 'Não deu certo.' })
       return
     }
+    if (!res.invoice_url) aba?.close()
     if (res.tipo === 'remover') {
       setMsg({ tone: 'ok', text: `Pronto. A partir de ${formatDate(res.efetiva_em ?? r.proximo_vencimento)} a loja fica com ${base + extras} usuários e a assinatura cai de valor.` })
       return
@@ -827,7 +861,8 @@ export function UsuariosExtras({ r, clientId, planos }: { r: ResumoAssinatura; c
       return
     }
     if (res.invoice_url) {
-      window.location.href = res.invoice_url
+      mostrarFatura(aba, res.invoice_url)
+      setMsg({ tone: 'ok', text: `Pronto. A loja agora tem até ${base + extras} usuários. A fatura da diferença abriu em outra aba.` })
       return
     }
     setMsg({ tone: 'ok', text: `Pronto. A loja agora tem até ${base + extras} usuários.` })
