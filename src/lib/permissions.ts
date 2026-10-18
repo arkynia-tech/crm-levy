@@ -20,6 +20,7 @@ export type Permission =
   | 'campaigns'
   | 'importNfe'
   | 'settings'
+  | 'novidades' // o que chegou e o que vem (todos os papéis)
   /** Capacidades dentro das telas */
   | 'customerData' // ver nome/telefone/CPF de cliente em qualquer lugar
   | 'manageUsers' // criar e revogar acessos do cliente
@@ -33,13 +34,13 @@ const BY_ROLE: Record<Role, Permission[]> = {
   master: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
     'importNfe', 'settings', 'customerData', 'manageUsers', 'credits', 'manageClients',
-    'waInstances', 'billing', 'salesPanel',
+    'waInstances', 'billing', 'salesPanel', 'novidades',
   ],
   admin: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
-    'importNfe', 'settings', 'customerData', 'manageUsers', 'waInstances', 'billing',
+    'importNfe', 'settings', 'customerData', 'manageUsers', 'waInstances', 'billing', 'novidades',
   ],
-  collaborator: ['campaigns', 'importNfe'],
+  collaborator: ['campaigns', 'importNfe', 'novidades'],
 }
 
 export function can(role: Role | null | undefined, permission: Permission): boolean {

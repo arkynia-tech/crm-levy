@@ -26,6 +26,7 @@ import ComprarPedidos from './pages/ComprarPedidos'
 import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
 import BlingRetorno from './pages/BlingRetorno'
+import Novidades from './pages/Novidades'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -183,6 +184,10 @@ function Rotas() {
         <Route
           path="/configuracoes"
           element={<RequirePermission permission="settings"><Settings /></RequirePermission>}
+        />
+        <Route
+          path="/novidades"
+          element={<RequirePermission permission="novidades"><Novidades /></RequirePermission>}
         />
         <Route path="/integracoes" element={<Navigate to="/configuracoes" replace />} />
         <Route path="*" element={<FallbackRoute />} />
