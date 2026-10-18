@@ -23,6 +23,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { AvisoCobranca } from './Assinatura'
+import { ContaBloqueada } from './ContaBloqueada'
+import { useSituacaoConta } from '../hooks/billing'
 import { useUserRole } from '../hooks/settings'
 import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
@@ -77,10 +79,13 @@ function SidebarContent({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
+  travado = false,
 }: {
   onNavigate?: () => void
   collapsed?: boolean
   onToggleCollapse?: () => void
+  /** conta suspensa: o menu aparece, mas nada clica (só trocar de loja e sair) */
+  travado?: boolean
 }) {
   const { signOut, session } = useAuth()
   const { clients, activeClient, setActiveClientId } = useCompany()
@@ -130,7 +135,12 @@ function SidebarContent({
         </div>
       )}
 
-      <nav className="flex-1 overflow-y-auto px-3 pt-2" aria-label="Navegação principal">
+      <nav
+        ref={(el) => el?.toggleAttribute('inert', travado)}
+        aria-disabled={travado || undefined}
+        className={`flex-1 overflow-y-auto px-3 pt-2 ${travado ? 'pointer-events-none select-none opacity-40' : ''}`}
+        aria-label="Navegação principal"
+      >
         {NAV.map((grupo, gi) => {
           const itens = grupo.itens.filter(({ permission }) => can(role, permission))
           if (itens.length === 0) return null
@@ -187,7 +197,10 @@ function SidebarContent({
         ))}
       </nav>
 
-      <div className={can(role, 'settings') ? 'px-3 pb-1' : 'hidden'}>
+      <div
+        ref={(el) => el?.toggleAttribute('inert', travado)}
+        className={can(role, 'settings') ? `px-3 pb-1 ${travado ? 'pointer-events-none select-none opacity-40' : ''}` : 'hidden'}
+      >
         <NavLink
           to="/configuracoes"
           onClick={onNavigate}
@@ -235,6 +248,11 @@ function SidebarContent({
 }
 
 export default function Layout() {
+  const { activeClient } = useCompany()
+  const { data: papel } = useUserRole()
+  const { data: situacao } = useSituacaoConta(activeClient?.id)
+  // master continua entrando para dar suporte; para os outros, só pagar
+  const travado = Boolean(situacao?.bloqueada && papel && papel !== 'master')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('contatta.sidebarCollapsed') === '1',
@@ -255,7 +273,7 @@ export default function Layout() {
         }`}
       >
         <div className="sticky top-0 h-screen">
-          <SidebarContent collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+          <SidebarContent collapsed={collapsed} onToggleCollapse={toggleCollapse} travado={travado} />
         </div>
       </aside>
 
@@ -285,15 +303,21 @@ export default function Layout() {
             >
               <X className="h-5 w-5" />
             </button>
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            <SidebarContent onNavigate={() => setMobileOpen(false)} travado={travado} />
           </div>
         </div>
       )}
 
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-[1600px]">
-          <AvisoCobranca />
-          <Outlet />
+          {travado && situacao ? (
+            <ContaBloqueada s={situacao} papel={papel} loja={activeClient?.name ?? null} />
+          ) : (
+            <>
+              <AvisoCobranca />
+              <Outlet />
+            </>
+          )}
         </div>
       </main>
     </div>

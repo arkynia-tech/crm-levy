@@ -319,3 +319,27 @@ export function useFaturas(clientId: string | undefined) {
     },
   })
 }
+
+export interface SituacaoConta {
+  status: StatusAssinatura | null
+  /** suspensa por falta de pagamento: o app trava para quem não é master */
+  bloqueada: boolean
+  atraso_desde?: string | null
+  valor?: number | null
+  /** só vem para admin e master, que são quem paga */
+  fatura_url?: string | null
+}
+
+/** Situação da conta para qualquer papel da loja. Bloqueada, confere de novo a cada 10 s. */
+export function useSituacaoConta(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['situacao-conta', clientId],
+    enabled: Boolean(clientId),
+    queryFn: async (): Promise<SituacaoConta | null> => {
+      const { data, error } = await supabase.rpc('crm_conta_situacao', { p_client_id: clientId })
+      if (error) return null // banco ainda sem a função: não trava nada
+      return (data ?? null) as SituacaoConta | null
+    },
+    refetchInterval: (q) => (q.state.data?.bloqueada ? 10000 : 5 * 60 * 1000),
+  })
+}
