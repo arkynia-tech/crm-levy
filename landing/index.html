@@ -929,8 +929,9 @@
   // Enquanto a cobrança estiver no ambiente de teste do Asaas, o botão Assinar só
   // aparece com ?checkout=teste. Com a conta de produção, trocar para true.
   var CHECKOUT_ABERTO = true
-  // true enquanto os fluxos apontam para api-sandbox.asaas.com: mostra o selo de teste no formulário
-  var SANDBOX = true
+  // true enquanto a cobrança aponta para api-sandbox.asaas.com: mostra o selo de teste no formulário.
+  // Produção desde 18/10/2026 (ASAAS_BASE_URL das Edge Functions); voltar para true se voltar ao sandbox.
+  var SANDBOX = false
   var CHECKOUT_URL = 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-checkout'
   var emTeste = SANDBOX || /[?&]checkout=teste\b/.test(location.search)
   var checkoutLigado = CHECKOUT_ABERTO || emTeste
