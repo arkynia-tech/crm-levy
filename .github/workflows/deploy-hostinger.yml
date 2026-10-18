@@ -45,6 +45,7 @@ jobs:
           VITE_N8N_ADMIN_USERS_URL: ${{ secrets.VITE_N8N_ADMIN_USERS_URL }}
           VITE_N8N_WA_INSTANCE_URL: ${{ secrets.VITE_N8N_WA_INSTANCE_URL }}
           VITE_N8N_ASSINATURAS_URL: ${{ secrets.VITE_N8N_ASSINATURAS_URL }}
+          VITE_COBRANCA_FN_ACOES: ${{ secrets.VITE_COBRANCA_FN_ACOES }}
           VITE_META_APP_ID: ${{ secrets.VITE_META_APP_ID }}
           VITE_META_ES_CONFIG_ID: ${{ secrets.VITE_META_ES_CONFIG_ID }}
           VITE_N8N_WA_OFICIAL_URL: ${{ secrets.VITE_N8N_WA_OFICIAL_URL }}

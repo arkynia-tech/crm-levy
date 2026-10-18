@@ -1,0 +1,20 @@
+# Só o que o `supabase functions deploy` precisa ler. O banco não é gerido pela
+# CLI: os .sql desta pasta são rodados à mão no SQL Editor.
+project_id = "lopdvdblwasuowjdokpo"
+
+# Nenhuma das funções de cobrança usa a checagem de JWT do Supabase:
+# - asaas-assinaturas confere o login por dentro (auth.getUser), como o n8n fazia;
+# - asaas-checkout é o formulário público do site;
+# - asaas-webhook é chamado pelo Asaas e o banco confere o asaas-access-token;
+# - asaas-cobranca-diaria é chamado pelo pg_cron com o token do cron.
+[functions.asaas-assinaturas]
+verify_jwt = false
+
+[functions.asaas-checkout]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.asaas-cobranca-diaria]
+verify_jwt = false

@@ -2,6 +2,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
 const ASSINATURAS_URL = import.meta.env.VITE_N8N_ASSINATURAS_URL as string | undefined
+// Ações que já passam pela Edge Function asaas-assinaturas em vez do n8n
+// (ex.: "contato,criar"). Vazio = tudo no n8n. Voltar uma ação = tirá-la daqui.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const ACOES_NA_FUNCAO = String(import.meta.env.VITE_COBRANCA_FN_ACOES ?? '')
+  .split(',')
+  .map((a) => a.trim())
+  .filter(Boolean)
+
+function urlDaAcao(action: unknown): string | undefined {
+  if (SUPABASE_URL && ACOES_NA_FUNCAO.includes(String(action))) return `${SUPABASE_URL}/functions/v1/asaas-assinaturas`
+  return ASSINATURAS_URL
+}
 
 export type Ciclo = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY'
 export type StatusAssinatura = 'pendente' | 'ativa' | 'em_atraso' | 'suspensa' | 'cancelada'
@@ -206,12 +218,13 @@ export interface RespostaAssinatura {
 }
 
 async function chamar(body: Record<string, unknown>): Promise<RespostaAssinatura> {
-  if (!ASSINATURAS_URL) return { ok: false, error: 'Cobrança indisponível no momento.' }
+  const url = urlDaAcao(body.action)
+  if (!url) return { ok: false, error: 'Cobrança indisponível no momento.' }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }
   try {
-    const res = await fetch(ASSINATURAS_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
