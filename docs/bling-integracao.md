@@ -157,6 +157,16 @@ Como uma venda entra:
    Cancelamento depois da emissão chega pelo aviso. Reconectar não muda a data de corte,
    e a busca continua de onde parou.
 
+**Loja ligada sozinha (desde 18/10).** Quando chega nota de uma loja do Bling ainda
+não ligada e a nota traz o intermediador de um marketplace conhecido (Shopee,
+Mercado Livre, Amazon, pelo CNPJ, com a mesma tabela da importação por XML), o
+Contatta liga sozinho: usa a loja do Contatta com o mesmo marketplace e o mesmo
+usuário do vendedor no intermediador (o `idCadIntTran` da NF-e, chave da loja no XML)
+ou, se ela não existir, cria ("Shopee · usuário") e liga. Assim o XML e o Bling caem na
+mesma loja e não duplicam. Fica para o lojista escolher: venda sem marketplace,
+intermediador desconhecido ou sem usuário, loja dessa chave em outra conta ou loja
+do Contatta que já recebe de outra loja do Bling. Acontece uma vez por loja do Bling.
+
 **Lojas.** Cada loja do Bling (o `loja.id` da nota; os nomes vêm de `/canais-venda`
 quando o escopo deixa) aparece na tela com um seletor: **Não trazer**, uma loja do
 Contatta ou **Criar loja nova**. A nota sem loja virtual (loja 0: venda de balcão ou
