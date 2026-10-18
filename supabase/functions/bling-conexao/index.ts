@@ -154,6 +154,8 @@ async function desconectar(clientId: string) {
 // diagnóstico
 
 const SEM_LOJA = 'sem_loja'
+// O Bling devolve data vazia como "0000-00-00" em vez de nulo
+const dataDeVerdade = (v: unknown) => /^(?!0000)\d{4}-(?!00)\d{2}-(?!00)\d{2}/.test(String(v ?? ''))
 const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
 const final = (v: string, n = 4) => (v ? '…' + v.slice(-n) : null)
 
@@ -221,8 +223,8 @@ async function diagnostico(clientId: string) {
       telefone: Boolean(tel),
       celular: Boolean(cel),
       telefone_final: final(cel || tel),
-      email: Boolean(ct?.email),
-      nascimento: Boolean(ct?.dadosAdicionais?.dataNascimento),
+      email: Boolean(String(ct?.email ?? '').trim()),
+      nascimento: dataDeVerdade(ct?.dadosAdicionais?.dataNascimento),
     }
   })
 

@@ -85,8 +85,8 @@ const PEDIDOS = [
 ]
 const CONTATOS: Record<string, any> = {
   '501': { id: 501, numeroDocumento: '123.456.789-01', celular: '(11) 98888-7777', telefone: '', email: 'a@x.com', dadosAdicionais: { dataNascimento: '1990-01-01' } },
-  '502': { id: 502, numeroDocumento: '12345678000199', celular: '', telefone: '', email: '' },
-  '503': { id: 503, nome: 'C' },
+  '502': { id: 502, numeroDocumento: '12345678000199', celular: '', telefone: '', email: '', dadosAdicionais: { dataNascimento: '0000-00-00' } },
+  '503': { id: 503, nome: 'C', dadosAdicionais: { dataNascimento: '' } },
 }
 
 Deno.serve({ port: PORTA, onListen() {} }, async (req) => {
