@@ -142,8 +142,10 @@ export async function updateCampaign(
 
 /** Exclui uma campanha (os destinatários caem por cascade). Escrita direta via RLS. */
 export async function deleteCampaign(id: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.from('wa_campaigns').delete().eq('id', id)
+  const { data, error } = await supabase.from('wa_campaigns').delete().eq('id', id).select('id')
   if (error) return { ok: false, error: error.message }
+  // Sem permissão o banco não dá erro: só não apaga nada
+  if (!data || data.length === 0) return { ok: false, error: 'Não deu para excluir: só o administrador da loja exclui campanha.' }
   return { ok: true }
 }
 
