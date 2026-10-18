@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
   Building2,
@@ -24,7 +25,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
 import { AvisoCobranca } from './Assinatura'
 import { ContaBloqueada } from './ContaBloqueada'
-import { useSituacaoConta } from '../hooks/billing'
+import { useResumoAssinatura, useSituacaoConta, type SituacaoConta } from '../hooks/billing'
 import { useUserRole } from '../hooks/settings'
 import { can, ROLE_LABEL, type Permission } from '../lib/permissions'
 import { formatCnpj } from '../lib/format'
@@ -250,9 +251,28 @@ function SidebarContent({
 export default function Layout() {
   const { activeClient } = useCompany()
   const { data: papel } = useUserRole()
-  const { data: situacao } = useSituacaoConta(activeClient?.id)
+  const naoMaster = Boolean(papel && papel !== 'master')
+  const { data: situacaoDireta } = useSituacaoConta(activeClient?.id)
+  // a faixa de cobrança lê o resumo; ele também trava, para os dois nunca discordarem
+  const { data: resumo } = useResumoAssinatura(naoMaster ? activeClient?.id : undefined)
+  const situacao: SituacaoConta | null =
+    situacaoDireta?.bloqueada
+      ? situacaoDireta
+      : resumo?.status === 'suspensa'
+        ? { status: 'suspensa', bloqueada: true, atraso_desde: resumo.atraso_desde, valor: resumo.valor, fatura_url: resumo.fatura_url }
+        : situacaoDireta ?? null
   // master continua entrando para dar suporte; para os outros, só pagar
-  const travado = Boolean(situacao?.bloqueada && papel && papel !== 'master')
+  const travado = Boolean(situacao?.bloqueada && naoMaster)
+  const queryClient = useQueryClient()
+  // travado: reconfere as duas leituras a cada 10 s, para destravar junto assim que o pagamento cair
+  useEffect(() => {
+    if (!travado) return
+    const t = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['situacao-conta'] })
+      void queryClient.invalidateQueries({ queryKey: ['billing-resumo'] })
+    }, 10000)
+    return () => clearInterval(t)
+  }, [travado, queryClient])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('contatta.sidebarCollapsed') === '1',

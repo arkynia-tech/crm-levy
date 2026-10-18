@@ -340,6 +340,6 @@ export function useSituacaoConta(clientId: string | undefined) {
       if (error) return null // banco ainda sem a função: não trava nada
       return (data ?? null) as SituacaoConta | null
     },
-    refetchInterval: (q) => (q.state.data?.bloqueada ? 10000 : 5 * 60 * 1000),
+    refetchInterval: (q) => (q.state.data?.bloqueada ? 10000 : 60 * 1000),
   })
 }
