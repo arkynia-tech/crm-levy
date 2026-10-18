@@ -50,7 +50,8 @@ function useInteresse() {
   })
 }
 
-export function IntegracoesEmBreve() {
+/** `sem`: integrações que já têm cartão próprio e saem da lista de "em breve". */
+export function IntegracoesEmBreve({ sem = [] }: { sem?: string[] }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   const { data: pedidos = [] } = useInteresse()
@@ -83,7 +84,7 @@ export function IntegracoesEmBreve() {
         </p>
       </div>
 
-      {GRUPOS.map((g) => (
+      {GRUPOS.map((g) => ({ ...g, itens: g.itens.filter((i) => !sem.includes(i.id)) })).map((g) => (
         <div key={g.titulo}>
           <h3 className="font-display text-sm font-semibold text-gray-900">{g.titulo}</h3>
           <p className="mt-0.5 text-sm text-gray-500">{g.subtitulo}</p>

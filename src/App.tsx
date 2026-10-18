@@ -25,6 +25,7 @@ import Comecar from './pages/Comecar'
 import ComprarPedidos from './pages/ComprarPedidos'
 import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
+import BlingRetorno from './pages/BlingRetorno'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -116,6 +117,8 @@ function Rotas() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/definir-senha" element={<DefinirSenha />} />
+      {/* Volta da autorização no Bling: fora do menu, trata sessão e erro por conta própria */}
+      <Route path="/bling/retorno" element={<BlingRetorno />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"

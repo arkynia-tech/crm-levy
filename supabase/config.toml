@@ -18,3 +18,12 @@ verify_jwt = false
 
 [functions.asaas-cobranca-diaria]
 verify_jwt = false
+
+# Integração com o Bling, também sem a checagem de JWT do gateway:
+# - bling-conexao confere o login por dentro (auth.getUser);
+# - bling-renovacao é chamado pelo pg_cron com o token do cron.
+[functions.bling-conexao]
+verify_jwt = false
+
+[functions.bling-renovacao]
+verify_jwt = false

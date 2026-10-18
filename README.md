@@ -133,6 +133,13 @@ Rode `supabase/assinaturas-asaas.sql`. Hoje tudo aponta para o sandbox
 (`api-sandbox.asaas.com`); a troca para produção é trocar a URL nos três fluxos,
 a credencial e o `environment` gravado.
 
+## Bling (ERP)
+
+Conexão por OAuth com o Bling em Edge Functions (`bling-conexao`, `bling-renovacao`),
+sem n8n. Só leitura. Fase 1: conectar, renovar o token e um diagnóstico para o
+master ver o dado antes de gravar qualquer pedido. Rode `supabase/bling-conexao.sql`
+e siga `docs/bling-integracao.md`.
+
 ## Saldo de notas
 
 1 crédito = 1 nota fiscal importada. Cada importação desconta o total de notas

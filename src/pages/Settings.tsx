@@ -27,6 +27,7 @@ import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import StoresGrid from '../components/StoresGrid'
 import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
+import { BLING_ABERTO_PARA_LOJAS, ConexaoBling } from '../components/ConexaoBling'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -668,6 +669,7 @@ export default function Settings() {
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
   const canManageUsers = can(role, 'manageUsers')
+  const mostraBling = isMaster || (BLING_ABERTO_PARA_LOJAS && role === 'admin')
   return (
     <div>
       <PageHeader title="Configurações" subtitle="Ajustes da operação e status das integrações" />
@@ -683,8 +685,13 @@ export default function Settings() {
             <Plug className="h-4 w-4 text-brand-600" aria-hidden />
             <h2 className="font-display text-sm font-semibold text-gray-900">Integrações</h2>
           </div>
+          {mostraBling && (
+            <div className="mb-4">
+              <ConexaoBling isMaster={isMaster} />
+            </div>
+          )}
           <StoresGrid />
-          <IntegracoesEmBreve />
+          <IntegracoesEmBreve sem={mostraBling ? ['bling'] : []} />
         </section>
       </div>
     </div>
