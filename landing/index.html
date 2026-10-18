@@ -975,7 +975,8 @@
   var erroA = document.getElementById('assinar-erro')
   var enviarA = document.getElementById('assinar-enviar')
   var planoEscolhido = null
-  document.getElementById('assinar-teste').hidden = !emTeste
+  // o selo diz que a fatura não cobra: só pode aparecer quando a cobrança está mesmo no sandbox
+  document.getElementById('assinar-teste').hidden = !SANDBOX
 
   if (checkoutLigado) {
     document.querySelectorAll('[data-assinar]').forEach(function (a) {
