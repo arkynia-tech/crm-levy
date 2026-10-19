@@ -1030,7 +1030,7 @@
 
   // ---- Origem da visita (utm) e formulário de contato ----------------------
   // Quem chega por link com utm (post de grupo, anúncio) tem a visita contada uma vez por sessão.
-  // O formulário manda nome, contato, volume e a origem pro n8n e abre o WhatsApp do Mohamad com a mensagem pronta.
+  // O formulário manda nome, contato, volume e a origem pro n8n e abre o WhatsApp do Contatta com a mensagem pronta.
   var AQ = 'https://n8n-dev.arkynia.com.br/webhook/'
   var CONSENT_VERSAO = 'form-2026-10', PRIV_VERSAO = 'priv-2026-10'
   function idAleatorio(prefixo) {
@@ -1056,9 +1056,9 @@
 
   var formLead = document.getElementById('lead')
   var envioId = idAleatorio('s-')
-  // "Quero ver funcionando" leva pro WhatsApp do Mohamad com a mensagem pronta (pedido dele em 17/10/2026).
+  // "Quero ver funcionando" leva pro WhatsApp do Contatta com a mensagem pronta (número próprio desde 18/10/2026).
   // O lead continua indo pro n8n antes; se o n8n falhar ou demorar, o WhatsApp abre do mesmo jeito.
-  var WHATS_MOHAMAD = '5511922223558'
+  var WHATS_CONTATTA = '5581920020337'
   function linkWhats(d) {
     var nome = (d.get('nome') || '').trim(), empresa = (d.get('empresa') || '').trim(), canais = (d.get('canais') || '').trim()
     var texto = 'Oi! Quero ver o Contatta funcionando.'
@@ -1066,7 +1066,7 @@
       + (canais ? ' Vendo em ' + canais + '.' : '')
       + ' Faço ' + (d.get('volume') || '') + ' pedidos por mês.'
       + ((d.get('msg') || '').trim() ? ' ' + d.get('msg').trim() : '')
-    return 'https://wa.me/' + WHATS_MOHAMAD + '?text=' + encodeURIComponent(texto)
+    return 'https://wa.me/' + WHATS_CONTATTA + '?text=' + encodeURIComponent(texto)
   }
   function abrirWhats(d) {
     var url = linkWhats(d)
