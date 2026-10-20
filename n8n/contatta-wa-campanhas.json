@@ -26,7 +26,7 @@
       "onError": "continueErrorOutput",
       "position": [
         224,
-        528
+        656
       ],
       "parameters": {
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/auth/v1/user",
@@ -114,10 +114,10 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_envio_of",
+        "url": "={{ $('Buscar campanha').first().json.template_id ? 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_envio_v2' : 'https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_envio_of' }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ p_client_id: $('Buscar campanha').first().json.client_id }) }}",
+        "jsonBody": "={{ JSON.stringify($('Buscar campanha').first().json.template_id ? { p_client_id: $('Buscar campanha').first().json.client_id, p_instance_id: $('Buscar campanha').first().json.instance_id || null, p_provider: 'cloud_api' } : { p_client_id: $('Buscar campanha').first().json.client_id }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -173,7 +173,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{ \"ok\": false, \"error\": \"Nenhum numero de WhatsApp conectado nesta loja. Va em WhatsApp, conecte o numero pelo QR Code e tente de novo.\" }",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: $('Buscar campanha').first().json.template_id ? 'Nenhum número da API oficial conectado nesta loja. Vá em WhatsApp, clique em Conferir no número oficial e tente de novo.' : 'Nenhum número de WhatsApp conectado pelo QR Code nesta loja. Vá em WhatsApp, conecte o número e tente de novo.' }) }}",
         "options": {
           "responseCode": 409
         }
@@ -299,7 +299,7 @@
         160
       ],
       "parameters": {
-        "jsCode": "\n// {a|b|c} vira uma das opcoes, sorteada por destinatario. Aninhado funciona:\n// {Oi|Olá}{, tudo bem?|!} da 4 combinacoes.\nfunction variar(txt) {\n  let s = String(txt || '');\n  for (let voltas = 0; voltas < 10; voltas++) {\n    const antes = s;\n    s = s.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function (_, dentro) {\n      const ops = dentro.split('|');\n      return ops[Math.floor(Math.random() * ops.length)];\n    });\n    if (s === antes) break;\n  }\n  return s;\n}\n\n// {{nome}} vira o primeiro nome. Sem nome, some junto com o espaco que sobra.\nfunction personalizar(txt, nome) {\n  const primeiro = String(nome || '').trim().split(/\\s+/)[0] || '';\n  const bonito = primeiro\n    ? primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase()\n    : '';\n  return String(txt || '')\n    .replace(/\\s*\\{\\{\\s*nome\\s*\\}\\}/gi, bonito ? ' ' + bonito : '')\n    .replace(/  +/g, ' ')\n    .trim();\n}\n\n// A uazapi aceita `delay` em ms: ela \"digita\" antes de mandar. E diferente da\n// pausa ENTRE destinatarios - esta acontece dentro da mesma conversa, e e o\n// que faz a mensagem chegar como gente e nao como robo.\nfunction tempoDigitando(txt) {\n  const n = String(txt || '').length;\n  return Math.min(15000, Math.max(1500, Math.round(n * 55 + Math.random() * 1200)));\n}\n\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\nconst UAZ = 'https://arkyniatech.uazapi.com';\n\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\ntext = personalizar(variar(text), rec.display_name);\n\nconst espera = tempoDigitando(text);\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text, delay: espera };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true, delay: espera };\n}\nreturn [{ json: { endpoint: endpoint, payload: payload, texto: text } }];\n"
+        "jsCode": "\n// {a|b|c} vira uma das opcoes, sorteada por destinatario. Aninhado funciona:\n// {Oi|Olá}{, tudo bem?|!} da 4 combinacoes.\nfunction variar(txt) {\n  let s = String(txt || '');\n  for (let voltas = 0; voltas < 10; voltas++) {\n    const antes = s;\n    s = s.replace(/\\{([^{}]*\\|[^{}]*)\\}/g, function (_, dentro) {\n      const ops = dentro.split('|');\n      return ops[Math.floor(Math.random() * ops.length)];\n    });\n    if (s === antes) break;\n  }\n  return s;\n}\n\nfunction primeiroNome(nome) {\n  const primeiro = String(nome || '').trim().split(/\\s+/)[0] || '';\n  return primeiro ? primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase() : '';\n}\n\n// {{nome}} vira o primeiro nome. Sem nome, some junto com o espaco que sobra.\nfunction personalizar(txt, nome) {\n  const bonito = primeiroNome(nome);\n  return String(txt || '')\n    .replace(/\\s*\\{\\{\\s*nome\\s*\\}\\}/gi, bonito ? ' ' + bonito : '')\n    .replace(/  +/g, ' ')\n    .trim();\n}\n\n// A uazapi aceita `delay` em ms: ela \"digita\" antes de mandar. E diferente da\n// pausa ENTRE destinatarios - esta acontece dentro da mesma conversa, e e o\n// que faz a mensagem chegar como gente e nao como robo.\nfunction tempoDigitando(txt) {\n  const n = String(txt || '').length;\n  return Math.min(15000, Math.max(1500, Math.round(n * 55 + Math.random() * 1200)));\n}\n\nconst camp = $('Buscar campanha').first().json;\nconst rec = $('Loop de envio').first().json;\nconst num = String(rec.wa_number || '').replace('+','');\n\n// ---------------- API oficial (Meta): modelo aprovado ----------------\n// Campanha com template_id sai pela Cloud API. Variaveis vem de\n// template_params: { var: { fonte: 'nome'|'texto', valor, padrao } }.\n// A Meta recusa variavel vazia, por isso sempre sai algum texto.\nif (camp.template_id) {\n  const inst = $('Buscar instancia conectada').first().json;\n  const ps = camp.template_params || {};\n  const posicional = String(camp.template_format || 'NAMED').toUpperCase() === 'POSITIONAL';\n  const nome = primeiroNome(rec.display_name);\n  function valor(k) {\n    const p = ps[k] || {};\n    const v = p.fonte === 'nome' ? (nome || p.padrao || 'cliente') : (p.valor || '');\n    return String(v).trim() || '-';\n  }\n  let chaves = Object.keys(ps);\n  if (posicional) chaves = chaves.sort(function (a, b) { return Number(a) - Number(b); });\n  const components = [];\n  if (String(camp.template_header || '').toUpperCase() === 'IMAGE' && camp.media_url) {\n    components.push({ type: 'header', parameters: [{ type: 'image', image: { link: camp.media_url } }] });\n  }\n  if (chaves.length) {\n    components.push({ type: 'body', parameters: chaves.map(function (k) {\n      return posicional ? { type: 'text', text: valor(k) } : { type: 'text', parameter_name: k, text: valor(k) };\n    }) });\n  }\n  return [{ json: {\n    provider: 'cloud_api',\n    endpoint: 'https://graph.facebook.com/v25.0/' + inst.phone_number_id + '/messages',\n    payload: {\n      messaging_product: 'whatsapp',\n      recipient_type: 'individual',\n      to: num,\n      type: 'template',\n      template: { name: camp.template_name, language: { code: camp.template_language || 'pt_BR' }, components: components }\n    },\n    texto: camp.message_body\n  } }];\n}\n\n// ---------------- uazapi: texto livre ----------------\nconst UAZ = 'https://arkyniatech.uazapi.com';\n\n// limpa o link do Shopee para a forma curta/canonica (sem rastreamento)\nlet text = (camp.message_body || '').replace(/https?:\\/\\/\\S*?shopee\\S*?i\\.(\\d+)\\.(\\d+)\\S*/gi, 'https://shopee.com.br/product/$1/$2');\ntext = personalizar(variar(text), rec.display_name);\n\nconst espera = tempoDigitando(text);\nlet endpoint, payload;\nif (camp.media_url) {\n  endpoint = UAZ + '/send/media';\n  payload = { number: num, type: 'image', file: camp.media_url, text: text, delay: espera };\n} else {\n  endpoint = UAZ + '/send/text';\n  payload = { number: num, text: text, linkPreview: true, delay: espera };\n}\nreturn [{ json: { provider: 'uazapi', endpoint: endpoint, payload: payload, texto: text } }];\n"
       }
     },
     {
@@ -353,7 +353,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.error ? { status: 'failed', error_code: String(($json.error.message) || 'erro no envio').slice(0, 180) } : { status: 'sent', twilio_sid: ($json.id || $json.messageid || $json.messageId || null), sent_at: $now.toISO() }) }}",
+        "jsonBody": "={{ JSON.stringify($json.error ? { status: 'failed', error_code: String(($json.error.description || $json.error.message) || 'erro no envio').slice(0, 180) } : { status: 'sent', twilio_sid: (($json.messages && $json.messages[0] && $json.messages[0].id) || $json.id || $json.messageid || $json.messageId || null), sent_at: $now.toISO() }) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -369,7 +369,7 @@
       "id": "e3a57108-53a4-4840-93fd-9ea9942970bf",
       "name": "Ritmo de envio",
       "webhookId": "9d099f8e-309d-4378-b656-9645dea94586",
-      "notes": "Espera o que Calcular espera mandar (espera_s): intervalo de 90-180s e, fora do turno ou com o teto batido, ate o proximo turno. Se o banco nao responder, cai em 90-180s.",
+      "notes": "Padrao 45-90s. Era 2-6 e o numero foi restringido em outubro de 2026 nesse ritmo. O valor real vem de app_settings/campaign_delay; este e so o fallback de quando a config nao existe.",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -378,8 +378,9 @@
       ],
       "parameters": {
         "resume": "timeInterval",
-        "amount": "={{ Number($json.espera_s) > 0 ? Number($json.espera_s) : 90 + Math.random() * 90 }}",
-        "unit": "seconds"
+        "amount": "={{ (($('Buscar campanha').first().json.audience || {}).type === 'test') ? 1 : (Number($json.espera_s) > 0 ? Number($json.espera_s) : 90 + Math.random() * 90) }}",
+        "unit": "seconds",
+        "notes": "Espera o que Calcular espera mandar (espera_s): intervalo de 90-180s e, fora do turno ou com o teto batido, ate o proximo turno. Campanha para 'Numeros de teste' sai na hora (1s), sem turno. Se o banco nao responder, cai em 90-180s."
       }
     },
     {
@@ -530,7 +531,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ client_id: ($('WA Campanha').first().json.body.client_id), name: $json.name, message_body: $json.message_body, media_url: ($('WA Campanha').first().json.body.media_url || null), audience: $json.audience, status: 'draft', created_by: $('Validar login do CRM').first().json.id }) }}",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ client_id: ($('WA Campanha').first().json.body.client_id), name: $json.name, message_body: $json.message_body, media_url: ($('WA Campanha').first().json.body.media_url || null), audience: $json.audience, status: 'draft', created_by: $('Validar login do CRM').first().json.id }, $('WA Campanha').first().json.body.template_id ? { template_id: $('WA Campanha').first().json.body.template_id, template_params: $('WA Campanha').first().json.body.template_params || {} } : {})) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
@@ -540,7 +541,8 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "id": "a7de51ee-5a81-48ad-a080-650dde294ce9",
@@ -683,11 +685,6 @@
         2464,
         360
       ],
-      "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "notes": "A regra de ritmo e turnos mora no banco (crm_wa_proxima_espera): intervalo de campaign_delay e, fora do turno ou com o teto do turno batido, espera ate o proximo turno com vaga. Le a config a cada mensagem, entao mudar na tela vale para campanha em andamento.",
       "parameters": {
         "method": "POST",
         "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_proxima_espera",
@@ -703,6 +700,261 @@
           "id": "PRN6da97tPlcboNV",
           "name": "Supabase CRM-Contatta"
         }
+      },
+      "notes": "A regra de ritmo e turnos mora no banco (crm_wa_proxima_espera): intervalo de campaign_delay e, fora do turno ou com o teto do turno batido, espera ate o proximo turno com vaga. Le a config a cada mensagem, entao mudar na tela vale para campanha em andamento.",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "f53fdc0a-1892-4ceb-8c3f-69ab0c1c0ce8",
+      "name": "Pela API oficial?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2576,
+        272
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.provider }}",
+              "rightValue": "cloud_api",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "09fea3cc-15a3-4e72-86c6-750cb57c3dcb",
+      "name": "Enviar pela Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2688,
+        16
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.endpoint }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Buscar instancia conectada').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "notes": "Cloud API: POST /<phone_number_id>/messages com o modelo aprovado. O token e o do lojista (crm_wa_envio_v2). Status de entrega e lido voltam pelo fluxo WA Oficial eventos.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "756b3284-e597-412e-aede-0c02b0660eca",
+      "name": "Responder erro ao criar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        880
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: String((($json.error || {}).description) || (($json.error || {}).message) || 'Não deu pra criar a campanha.').slice(0, 300) }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "5f145f6c-95ee-449b-9209-f758039be20d",
+      "name": "Conferir destinatario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2576,
+        460
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_wa_pode_enviar",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_recipient_id: $('Loop de envio').first().json.id }) }}",
+        "options": {},
+        "notes": "crm_wa_pode_enviar: devolve {id} se o destinatario ainda esta pendente e a conta da loja esta em dia; senao {} e o loop pula. Campanha excluida ou conta suspensa no meio para de mandar."
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      },
+      "notes": "Campanha excluida enquanto esperava o turno: o destinatario some (cascade) e aqui nao volta nada.",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "467449b3-0613-4fb6-8fd7-d8a684faa2c1",
+      "name": "Ainda pendente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2800,
+        460
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "828c56a6-cef5-4413-ae51-3e826324349c",
+      "name": "Chamada do agendador?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        160,
+        528
+      ],
+      "notes": "Campanha agendada: a Edge Function campanhas-agendadas chama com o cabecalho x-agendador-token no lugar do login do usuario. So vale para action=start.",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.headers['x-agendador-token'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ ($json.body || {}).action }}",
+              "rightValue": "start",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "599c2288-fc86-4327-a32c-ee538e44e841",
+      "name": "Conferir token do agendador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        160,
+        272
+      ],
+      "notes": "Le o token de cron da cobranca (crm_billing_cron_token) com a credencial de servico. E o mesmo token que o pg_cron usa nas Edge Functions.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://lopdvdblwasuowjdokpo.supabase.co/rest/v1/rpc/crm_billing_cron_token",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PRN6da97tPlcboNV",
+          "name": "Supabase CRM-Contatta"
+        }
+      }
+    },
+    {
+      "id": "55ca72cb-7bb4-476d-8752-acb59d9a6c6a",
+      "name": "Token confere?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        272
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $('WA Campanha').first().json.headers['x-agendador-token'] }}",
+              "rightValue": "={{ $json.token }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     }
   ],
@@ -711,7 +963,7 @@
       "main": [
         [
           {
-            "node": "Validar login do CRM",
+            "node": "Chamada do agendador?",
             "type": "main",
             "index": 0
           }
@@ -856,44 +1108,11 @@
         ]
       ]
     },
-    "Montar envio": {
-      "main": [
-        [
-          {
-            "node": "Enviar pela uazapi",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Enviar pela uazapi": {
       "main": [
         [
           {
             "node": "Marcar destinatario enviado",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Marcar destinatario enviado": {
-      "main": [
-        [
-          {
-            "node": "Loop de envio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ritmo de envio": {
-      "main": [
-        [
-          {
-            "node": "Montar envio",
             "type": "main",
             "index": 0
           }
@@ -948,6 +1167,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Responder erro ao criar",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -996,6 +1222,144 @@
         [
           {
             "node": "Ritmo de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar destinatario enviado": {
+      "main": [
+        [
+          {
+            "node": "Loop de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio": {
+      "main": [
+        [
+          {
+            "node": "Pela API oficial?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pela API oficial?": {
+      "main": [
+        [
+          {
+            "node": "Enviar pela Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar pela uazapi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar pela Meta": {
+      "main": [
+        [
+          {
+            "node": "Marcar destinatario enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ritmo de envio": {
+      "main": [
+        [
+          {
+            "node": "Conferir destinatario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir destinatario": {
+      "main": [
+        [
+          {
+            "node": "Ainda pendente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ainda pendente?": {
+      "main": [
+        [
+          {
+            "node": "Montar envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop de envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamada do agendador?": {
+      "main": [
+        [
+          {
+            "node": "Conferir token do agendador",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validar login do CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir token do agendador": {
+      "main": [
+        [
+          {
+            "node": "Token confere?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token confere?": {
+      "main": [
+        [
+          {
+            "node": "Loja informada?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
             "type": "main",
             "index": 0
           }
