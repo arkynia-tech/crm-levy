@@ -107,6 +107,15 @@ policy nenhuma — invisível para anon e authenticated, igual a `store_tokens`.
 Rode `supabase/wa-instances-schema.sql` e siga `docs/n8n-whatsapp-uazapi.md`.
 Precisa da variável `VITE_N8N_WA_INSTANCE_URL`.
 
+### Agendar disparos
+
+Na tela de Campanhas, "Agendar" marca dia, hora e lote; na hora o pg_cron chama
+a Edge Function `campanhas-agendadas`, que aperta o Disparar no fluxo n8n com
+o token do cron no lugar do login. Fora dos turnos, a primeira mensagem espera
+o próximo turno, como no disparo manual. Rode `supabase/campanhas-agendadas.sql`
+e siga `docs/agendador-disparos.md` (secret `N8N_WA_CAMPAIGN_URL` e os três nós
+novos no fluxo "WA Campanhas").
+
 ## Assinaturas (Asaas)
 
 O Asaas é o dono da cobrança; o banco guarda o espelho (`billing_accounts`) e o

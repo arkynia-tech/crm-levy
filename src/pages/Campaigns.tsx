@@ -2,13 +2,15 @@ import { AvisoApiOficial } from '../components/AvisoApiOficial'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, Cake, CheckCheck, QrCode, Sparkles, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
-import { useBirthdaySettings, useCan, useSaveBirthdaySettings } from '../hooks/settings'
+import { BadgeCheck, Cake, CalendarClock, CheckCheck, QrCode, Sparkles, Copy, Eye, Image as ImageIcon, Megaphone, Pencil, Plus, Rocket, Search, Trash2, Users, X } from 'lucide-react'
+import { useBirthdaySettings, useCampaignSchedule, useCan, useSaveBirthdaySettings, type CampaignSchedule } from '../hooks/settings'
 import {
   gerarVariacoes,
   useCampaignAction,
   campaignCounts,
   deleteCampaign,
+  scheduleCampaign,
+  unscheduleCampaign,
   updateCampaign,
   uploadCampaignImage,
   useWaCampaigns,
@@ -31,6 +33,50 @@ const STATUS_LABEL: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' 
   done: { label: 'Concluída', tone: 'ok' },
   failed: { label: 'Falhou', tone: 'bad' },
   canceled: { label: 'Cancelada', tone: 'neutral' },
+  scheduled: { label: 'Agendada', tone: 'warn' },
+}
+
+/* ---------------------------------------------------------------------------
+ * Agendamento: o cron aperta o "Disparar" na hora marcada. Os turnos valem
+ * como sempre (fora deles a primeira mensagem espera o próximo turno), então
+ * o padrão sugerido é o começo do próximo turno com envio.
+ * ------------------------------------------------------------------------- */
+
+function horaLocal(dia: Date, hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = new Date(dia)
+  d.setHours(h || 0, m || 0, 0, 0)
+  return d
+}
+
+/** Começo do próximo turno (manhã ou tarde) em dia de envio, pelo menos 5 min à frente. */
+function proximoTurno(t: CampaignSchedule, agora = new Date()): Date {
+  const minimo = new Date(agora.getTime() + 5 * 60_000)
+  for (let i = 0; i < 14; i++) {
+    const dia = new Date(agora)
+    dia.setDate(dia.getDate() + i)
+    if (!t.dias.includes(dia.getDay())) continue
+    for (const inicio of [t.manha.inicio, t.tarde.inicio]) {
+      const quando = horaLocal(dia, inicio)
+      if (quando >= minimo) return quando
+    }
+  }
+  const amanha = new Date(agora)
+  amanha.setDate(amanha.getDate() + 1)
+  return horaLocal(amanha, t.manha.inicio)
+}
+
+/** A hora cai fora dos turnos? (dia sem envio, ou fora das janelas da manhã e da tarde) */
+function foraDoTurno(quando: Date, t: CampaignSchedule): boolean {
+  if (!t.dias.includes(quando.getDay())) return true
+  const dentro = (ini: string, fim: string) => quando >= horaLocal(quando, ini) && quando < horaLocal(quando, fim)
+  return !dentro(t.manha.inicio, t.manha.fim) && !dentro(t.tarde.inicio, t.tarde.fim)
+}
+
+/** Valor para <input type="datetime-local">, na hora local do navegador. */
+function paraInputLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 const AUDIENCE_LABEL: Record<string, string> = {
@@ -852,16 +898,68 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
   const [savingEdit, setSavingEdit] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [batchSize, setBatchSize] = useState(50)
+  const [scheduling, setScheduling] = useState(false)
+  const [scheduleAt, setScheduleAt] = useState('')
+  const [savingSchedule, setSavingSchedule] = useState(false)
+  const [unscheduling, setUnscheduling] = useState(false)
+  const { data: turnos } = useCampaignSchedule()
   const counts = campaignCounts(campaign)
   const progress = counts.total > 0 ? Math.round(((counts.total - counts.pending) / counts.total) * 100) : 0
   const sending = campaign.status === 'sending'
+  const scheduled = campaign.status === 'scheduled'
   // "parcial" = já enviou parte e ainda há pendentes (disparo em lotes)
   const partial = counts.sent > 0 && counts.pending > 0
-  const statusInfo = partial
-    ? { label: `Parcial · ${counts.total - counts.pending}/${counts.total}`, tone: 'warn' as const }
-    : STATUS_LABEL[campaign.status] ?? { label: campaign.status, tone: 'neutral' as const }
-  // pode disparar sempre que houver pendentes e não estiver enviando agora
-  const canDispatch = counts.pending > 0 && !sending && !editing
+  const statusInfo = scheduled
+    ? { label: `Agendada · ${formatDateTime(campaign.scheduled_at)}`, tone: 'warn' as const }
+    : partial
+      ? { label: `Parcial · ${counts.total - counts.pending}/${counts.total}`, tone: 'warn' as const }
+      : STATUS_LABEL[campaign.status] ?? { label: campaign.status, tone: 'neutral' as const }
+  // pode disparar sempre que houver pendentes e não estiver enviando nem agendada
+  const canDispatch = counts.pending > 0 && !sending && !scheduled && !editing
+  const loteAgendado = Math.min(batchSize, counts.pending)
+  const dataAgendada = scheduleAt ? new Date(scheduleAt) : null
+  const agendadoForaDoTurno = Boolean(dataAgendada && turnos && !Number.isNaN(dataAgendada.getTime()) && foraDoTurno(dataAgendada, turnos))
+
+  const abrirAgendamento = () => {
+    setError(null)
+    if (turnos) setScheduleAt(paraInputLocal(proximoTurno(turnos)))
+    else setScheduleAt(paraInputLocal(new Date(Date.now() + 60 * 60_000)))
+    setScheduling(true)
+  }
+
+  const handleSchedule = async () => {
+    if (!dataAgendada || Number.isNaN(dataAgendada.getTime())) {
+      setError('Escolha a data e a hora do disparo.')
+      return
+    }
+    if (dataAgendada.getTime() < Date.now() + 60_000) {
+      setError('Escolha uma data e hora no futuro.')
+      return
+    }
+    setSavingSchedule(true)
+    setError(null)
+    const res = await scheduleCampaign(campaign.id, dataAgendada, loteAgendado)
+    setSavingSchedule(false)
+    if (!res.ok) {
+      setError(res.error ?? 'Não deu para agendar.')
+      return
+    }
+    setScheduling(false)
+    onChanged()
+  }
+
+  const handleUnschedule = async () => {
+    if (!window.confirm('Cancelar o agendamento? A campanha volta a rascunho com os mesmos contatos.')) return
+    setUnscheduling(true)
+    setError(null)
+    const res = await unscheduleCampaign(campaign.id)
+    setUnscheduling(false)
+    if (!res.ok) {
+      setError(res.error ?? 'Não deu para cancelar o agendamento.')
+      return
+    }
+    onChanged()
+  }
 
   const handleStart = async () => {
     const n = Math.min(batchSize, counts.pending)
@@ -991,6 +1089,18 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
             <Copy className="h-4 w-4" aria-hidden />
             {duplicating ? 'Duplicando…' : 'Duplicar'}
           </button>
+          {scheduled && !editing && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              onClick={() => void handleUnschedule()}
+              disabled={unscheduling || Boolean(campaign.scheduled_fired_at)}
+              title={campaign.scheduled_fired_at ? 'O disparo já foi chamado' : 'Volta a rascunho com os mesmos contatos'}
+            >
+              <X className="h-4 w-4" aria-hidden />
+              {unscheduling ? 'Cancelando…' : 'Cancelar agendamento'}
+            </button>
+          )}
           {canDispatch && (
             <div className="flex items-center gap-1.5">
               <label className="flex items-center gap-1 text-xs text-gray-500" title="Quantos disparar por vez">
@@ -1010,6 +1120,19 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
                   lote grande, mais risco
                 </span>
               )}
+              <button
+                type="button"
+                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${
+                  scheduling ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+                onClick={() => (scheduling ? setScheduling(false) : abrirAgendamento())}
+                disabled={starting}
+                aria-pressed={scheduling}
+                title="Escolher dia e hora para o disparo"
+              >
+                <CalendarClock className="h-4 w-4" aria-hidden />
+                Agendar
+              </button>
               <button type="button" className="btn-primary !py-1.5" onClick={() => void handleStart()} disabled={starting}>
                 <Rocket className="h-4 w-4" aria-hidden />
                 {starting
@@ -1071,6 +1194,63 @@ function CampaignCard({ campaign, onChanged }: { campaign: WaCampaign; onChanged
       ) : (
         <p className="mt-2 line-clamp-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
           {campaign.message_body}
+        </p>
+      )}
+
+      {scheduling && canDispatch && (
+        <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+          <p className="text-sm font-medium text-gray-900">Agendar o disparo</p>
+          <p className="mt-0.5 text-xs text-gray-600">
+            Na hora marcada o Contatta aperta o Disparar por você, com {loteAgendado} contato{loteAgendado === 1 ? '' : 's'} (o
+            "por vez" acima). Depois disso o envio segue o ritmo e os turnos de sempre.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              className="input w-auto !py-1.5"
+              value={scheduleAt}
+              min={paraInputLocal(new Date())}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              aria-label="Data e hora do disparo"
+            />
+            <button type="button" className="btn-primary !py-1.5" onClick={() => void handleSchedule()} disabled={savingSchedule}>
+              <CalendarClock className="h-4 w-4" aria-hidden />
+              {savingSchedule ? 'Agendando…' : 'Confirmar agendamento'}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={() => setScheduling(false)}
+            >
+              Cancelar
+            </button>
+          </div>
+          {agendadoForaDoTurno && (
+            <p className="mt-2 text-xs text-amber-700">
+              Essa hora cai fora dos turnos configurados: o disparo é pedido na hora marcada, mas a primeira mensagem só
+              sai no próximo turno. Ajuste em Configurações se quiser.
+            </p>
+          )}
+        </div>
+      )}
+
+      {scheduled && (
+        <p className="mt-2 flex items-start gap-2 text-xs text-gray-600">
+          <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" aria-hidden />
+          <span>
+            Disparo agendado para <span className="font-medium tabular-nums">{formatDateTime(campaign.scheduled_at)}</span>
+            {campaign.scheduled_batch ? `, ${Math.min(campaign.scheduled_batch, counts.pending)} contatos por vez` : ''}.
+            {campaign.scheduled_fired_at
+              ? ' O disparo já foi chamado; em instantes a campanha passa para "Em andamento".'
+              : ' Fora dos turnos, a primeira mensagem espera o próximo turno.'}
+          </span>
+        </p>
+      )}
+
+      {campaign.status === 'draft' && campaign.scheduled_error && (
+        <p className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+          O disparo agendado para {formatDateTime(campaign.scheduled_at)} não começou: {campaign.scheduled_error} Resolva e
+          agende de novo, ou dispare agora.
         </p>
       )}
 
@@ -1163,7 +1343,8 @@ export default function Campaigns() {
         Quem responde SAIR, PARAR ou CANCELAR é excluído automaticamente das próximas campanhas. As
         mensagens saem só nos turnos de manhã e de tarde, com intervalo aleatório e teto por turno, para
         proteger o número. Fora do horário, a campanha fica em andamento e continua sozinha no próximo
-        turno. Ajuste em Configurações.
+        turno. Ajuste em Configurações. Com "Agendar", o Contatta aperta o Disparar por você no dia e na
+        hora que você marcar.
       </p>
       <AvisoApiOficial />
     </div>

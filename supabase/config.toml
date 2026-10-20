@@ -41,3 +41,7 @@ verify_jwt = false
 # chama com o token do cron.
 [functions.novidades-aviso]
 verify_jwt = false
+
+# Agendador de disparos: chamado pelo pg_cron com o token do cron (x-cron-token).
+[functions.campanhas-agendadas]
+verify_jwt = false

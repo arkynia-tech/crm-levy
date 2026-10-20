@@ -29,6 +29,13 @@ export interface WaCampaign {
   started_at: string | null
   finished_at: string | null
   created_at: string
+  /** Agendamento: status 'scheduled' até o cron apertar o Disparar na hora marcada */
+  scheduled_at?: string | null
+  scheduled_batch?: number | null
+  /** O cron já chamou o disparo (não dá mais para cancelar) */
+  scheduled_fired_at?: string | null
+  /** O disparo agendado não começou (ex.: número desconectado); a campanha voltou a rascunho */
+  scheduled_error?: string | null
   wa_campaign_recipients?: { status: string }[]
   /** Preenchido pelo hook: o colaborador recebe daqui, sem ler os telefones. */
   counts?: CampaignCounts
@@ -138,6 +145,33 @@ export async function updateCampaign(
   const { error } = await supabase.from('wa_campaigns').update(patch).eq('id', id)
   if (error) return { ok: false, error: error.message }
   return { ok: true }
+}
+
+/**
+ * Agenda o disparo: na hora marcada o cron aperta o "Disparar" com este lote.
+ * A regra (futuro, até 90 dias, só rascunho com pendentes) mora no banco.
+ */
+export async function scheduleCampaign(
+  id: string,
+  quando: Date,
+  lote: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('crm_campanha_agendar', {
+    p_campaign_id: id,
+    p_quando: quando.toISOString(),
+    p_lote: Math.max(1, Math.round(lote)),
+  })
+  if (error) return { ok: false, error: error.message }
+  const r = (data ?? {}) as { ok?: boolean; error?: string }
+  return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'Não deu para agendar.' }
+}
+
+/** Desfaz o agendamento: a campanha volta a rascunho com os mesmos destinatários. */
+export async function unscheduleCampaign(id: string): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('crm_campanha_desagendar', { p_campaign_id: id })
+  if (error) return { ok: false, error: error.message }
+  const r = (data ?? {}) as { ok?: boolean; error?: string }
+  return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'Não deu para cancelar o agendamento.' }
 }
 
 /** Exclui uma campanha (os destinatários caem por cascade). Escrita direta via RLS. */
