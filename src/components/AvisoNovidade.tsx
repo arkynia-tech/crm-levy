@@ -16,7 +16,7 @@ import { ErrorState, LoadingBlock, StatusBadge } from './ui'
  * Aviso de uma novidade no WhatsApp (só master). Nada sai sem ele aprovar:
  * o texto fica como rascunho, ele manda um teste para o próprio número,
  * escolhe as lojas e aprova. O envio é feito pela função novidades-aviso,
- * uma mensagem por vez, pela instância arkynia da Uazapi.
+ * uma mensagem por vez, pela instância Contatta da Uazapi.
  */
 export function AvisoNovidade({ novidade, onFechar }: { novidade: Novidade; onFechar: () => void }) {
   const { data, isLoading, error } = useAvisoDaNovidade(novidade.id)
@@ -165,7 +165,7 @@ function Rascunho({
 
       <div className="rounded-lg border border-gray-200 p-4">
         <p className="text-sm font-medium text-gray-800">Mandar um teste</p>
-        <p className="mt-0.5 text-xs text-gray-500">Sai na hora, só para este número, pela instância arkynia.</p>
+        <p className="mt-0.5 text-xs text-gray-500">Sai na hora, só para este número, pelo número do Contatta.</p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <input
             className="input sm:max-w-[14rem]"
@@ -242,7 +242,7 @@ function Rascunho({
         {confirmar ? (
           <div className="flex flex-col gap-3 rounded-lg bg-ink-900 px-4 py-3 text-white sm:flex-row sm:items-center">
             <p className="flex-1 text-sm text-slate-200">
-              Enviar para {marcados.size} {marcados.size === 1 ? 'loja' : 'lojas'} pela instância arkynia? Sai uma mensagem a cada
+              Enviar para {marcados.size} {marcados.size === 1 ? 'loja' : 'lojas'} pelo número do Contatta? Sai uma mensagem a cada
               1min30 a 3min, de segunda a sábado, das 9h às 18h.
             </p>
             <div className="flex gap-2">

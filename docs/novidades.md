@@ -16,7 +16,9 @@ tela: publicar novidade não precisa de deploy.
 
 ## Aviso no WhatsApp
 
-- Sai pela Uazapi, **instância arkynia** (decisão do Mohamad em 18/10/2026).
+- Sai pela Uazapi, **instância Contatta** (o número próprio do Contatta, decisão do
+  Mohamad em 18/10/2026). A função acha o token pelo nome com o `UAZAPI_ADMIN_TOKEN`,
+  como o despachante do n8n; não precisa cadastrar token de instância.
 - Vai para o **admin de cada conta**, no telefone de contato da assinatura
   (senão o do cadastro no site). O número do WhatsApp conectado na loja fica de
   fora, porque costuma ser o de atendimento. Um telefone recebe uma vez só.
@@ -31,10 +33,10 @@ Peças: função `supabase/functions/novidades-aviso` (ações `testar`, do mast
 ## Pôr no ar
 
 1. Rodar `supabase/novidades.sql` (parte 1) no SQL Editor.
-2. Cadastrar o token da instância arkynia e publicar a função:
+2. Publicar a função (usa os secrets `UAZAPI_ADMIN_TOKEN` e `UAZAPI_URL`, que já existem):
 
    ```bash
-   cd ~/projetos/crm-levy-novidades && T=$(osascript -e 'text returned of (display dialog "Token da instância arkynia na Uazapi:" default answer "" with hidden answer)') && supabase secrets set --project-ref lopdvdblwasuowjdokpo UAZAPI_ARKYNIA_TOKEN="$T"; unset T; supabase functions deploy novidades-aviso --project-ref lopdvdblwasuowjdokpo --use-api
+   cd ~/projetos/crm-levy-novidades && supabase functions deploy novidades-aviso --project-ref lopdvdblwasuowjdokpo --use-api
    ```
 
 3. Mandar um teste pela tela (Aviso no WhatsApp > Mandar um teste).
