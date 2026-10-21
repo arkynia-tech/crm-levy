@@ -15,7 +15,18 @@
 --   - a data de corte compara o DIA DO PAGAMENTO com a conexão.
 
 -- ===========================================================================
--- Parte 1: provider novo, liberação por loja
+-- Parte 0: o canal "nuvemshop" no tipo marketplace. RODAR SOZINHO, numa
+-- execução só: ALTER TYPE ... ADD VALUE não pode dividir transação com o resto
+-- (descoberto no primeiro teste, 21/10/2026: a loja do Contatta não era criada).
+-- ===========================================================================
+-- alter type public.marketplace add value if not exists 'nuvemshop';
+--
+-- Conferência: 'nuvemshop' tem que aparecer na lista
+-- select enum_range(null::public.marketplace);
+
+
+-- ===========================================================================
+-- Parte 1: provider novo, liberação por loja (depois da parte 0)
 -- ===========================================================================
 
 -- erp_connections.provider aceitava só 'bling'
@@ -28,8 +39,9 @@ alter table public.erp_connections
 -- Só o master altera clients (policy "crm update clients").
 alter table public.clients add column if not exists nuvemshop_liberado boolean not null default false;
 
--- Conferência da parte 1: as duas têm que vir true
+-- Conferência da parte 1: as três têm que vir true
 select
+  'nuvemshop' = any (enum_range(null::public.marketplace)::text[])              as canal_ok,
   exists (select 1 from pg_constraint
           where conname = 'erp_connections_provider_check'
             and pg_get_constraintdef(oid) like '%nuvemshop%')                    as provider_ok,

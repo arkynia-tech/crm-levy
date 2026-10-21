@@ -74,8 +74,9 @@ No portal de parceiros (`partners.nuvemshop.com.br`), criar um aplicativo:
 
 ## Pôr no ar
 
-1. Rodar a **parte 1** de `supabase/nuvemshop.sql` (as duas colunas da conferência
-   têm que vir `true`).
+1. Rodar a **parte 0** de `supabase/nuvemshop.sql` sozinha (`alter type public.marketplace
+   add value if not exists 'nuvemshop'`; o campo marketplace de `stores` e `orders` é um
+   enum) e depois a **parte 1** (as três colunas da conferência têm que vir `true`).
 2. Cadastrar os secrets (pede os valores numa janela, nada aparece na tela):
    ```bash
    cd ~/projetos/crm-levy-nuvemshop && read -s "NID?App ID da Nuvemshop: " && echo && read -s "NSEC?Client Secret da Nuvemshop: " && echo && supabase secrets set --project-ref lopdvdblwasuowjdokpo NUVEMSHOP_CLIENT_ID="$NID" NUVEMSHOP_CLIENT_SECRET="$NSEC"; unset NID NSEC
