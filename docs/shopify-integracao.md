@@ -6,29 +6,35 @@ do próprio Contatta. Segue o molde da Nuvemshop (`docs/nuvemshop-integracao.md`
 mesmas tabelas `erp_*`, mesma fila, mesma função que grava (`crm_erp_gravar_pedido`),
 mesma trava de crédito.
 
-## Por que um app por loja (decisão de 21/10/2026)
+## Como a loja conecta (decisão de 21/10/2026)
 
-A Shopify só deixa um app ser instalado por várias lojas sem ligação entre si com
-**distribuição pública**, e aí exige revisão do app e aprovação para ler dado
-protegido do cliente (nome, e-mail, telefone, endereço), com exigências de proteção
-de dados. Para começar sem revisão, cada loja usa um app de **distribuição
-personalizada**, que instala numa loja só e não passa por aprovação.
+Igual à Nuvemshop (um app só para todas as lojas, sem preparo nenhum) só com app
+**público** na loja de apps da Shopify, e a regra 1.2 dela não deixa app com cobrança
+fora da Shopify: o Contatta cobra pelo Asaas. Por isso cada loja usa as chaves de um
+app próprio, guardadas por loja em `erp_app_credentials`. Dois caminhos, na mesma tela:
 
-Na prática:
-- o **master** cria, no painel de parceiros da Shopify, um app para cada loja cliente
-  (uns 5 minutos) e cola no Contatta o domínio da loja e as chaves do app;
-- o **admin** da loja clica em Conectar Shopify e autoriza, como na Nuvemshop.
+1. **O lojista cria o app** no Dev Dashboard, com a conta dona da loja (desde
+   janeiro de 2026 é lá que se cria app para a própria loja). Ele cola endereço,
+   Client ID e Client secret no Contatta e clica em **Salvar e conectar**: o Contatta
+   pega o acesso só com as chaves (client credentials grant, token de 24 h pedido de
+   novo quando vence, guardado com `refresh_token = 'client_credentials'`) e conecta
+   na hora, sem tela de autorização. O cartão mostra o passo a passo.
+2. **O master cria um app de distribuição personalizada** para a loja do cliente.
+   As chaves são de outra organização, então a Shopify recusa o acesso direto
+   (`shop_not_permitted`): o Contatta guarda as chaves e mostra o botão **Conectar
+   Shopify**, que leva à autorização (authorization code grant, token de 1 h com
+   refresh de 90 dias).
 
-As chaves ficam por loja em `erp_app_credentials`. Se um dia houver um app público
-aprovado, o código não muda: basta cadastrar as mesmas chaves em todas as lojas.
+Admin e master veem o cartão e salvam as chaves. Uma loja da Shopify fica em uma
+conta do Contatta só.
 
 ## O que muda em relação à Nuvemshop
 
 | | Nuvemshop | Shopify |
 |---|---|---|
-| App | um só, para todas as lojas | um por loja (distribuição personalizada) |
-| Quem prepara | ninguém | o master, com as chaves do app da loja |
-| Token | não vence | acesso de 1 h e refresh de 90 dias (`expiring=1`), renovado na hora de usar |
+| App | um só, para todas as lojas | um por loja (do lojista, ou de distribuição personalizada do master) |
+| Quem cola as chaves | ninguém | o lojista (ou o master) |
+| Token | não vence | app do lojista: 24 h, pedido de novo com as chaves; app do master: 1 h com refresh de 90 dias. Renovado na hora de usar |
 | A venda que entra | pedido pago | pedido pago (`displayFinancialStatus` PAID ou PARTIALLY_REFUNDED) |
 | Chave do pedido | `number` | `name` sem o `#` (ex.: `1001`) |
 | Data de corte | dia do pagamento | dia do processamento do pedido (`processedAt`). A Shopify não tem data de pagamento no pedido: um Pix ou boleto gerado na véspera da conexão e pago depois fica como histórico |

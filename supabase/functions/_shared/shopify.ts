@@ -157,6 +157,17 @@ async function pedirToken(ch: ChavesApp, corpo: Record<string, string>): Promise
 export const trocarCode = (ch: ChavesApp, code: string) => pedirToken(ch, { code, expiring: '1' })
 const renovar = (ch: ChavesApp, refresh: string) => pedirToken(ch, { grant_type: 'refresh_token', refresh_token: refresh })
 
+/**
+ * App criado pelo próprio lojista no Dev Dashboard, na organização da loja: o
+ * acesso sai só com Client ID e Client secret, sem tela de autorização
+ * (client credentials grant). Vale 24 h e é pedido de novo quando vence. Com app
+ * de outra organização (ex.: o app de distribuição personalizada criado pelo
+ * master) a Shopify responde shop_not_permitted e a loja usa a autorização.
+ */
+export const MODO_CHAVES = 'client_credentials'
+export const acessoPelasChaves = (ch: ChavesApp) => pedirToken(ch, { grant_type: 'client_credentials' })
+export const naoPermitido = (erro: string | null) => /shop_not_permitted|cannot be performed on this shop/i.test(erro ?? '')
+
 // ---------------------------------------------------------------------------
 // tokens guardados (erp_connection_tokens, sem policy)
 
@@ -177,6 +188,21 @@ export async function tokenDaConexao(connectionId: string, clientId: string): Pr
   if (!t || !ch) return { ok: false, erro: 'sem token: a loja precisa conectar de novo', morto: true }
   if (new Date(t.access_expires_at).getTime() - Date.now() > 5 * 60_000 || !t.refresh_token) {
     return { ok: true, token: t.access_token, shop: ch.shop_domain }
+  }
+  if (t.refresh_token === MODO_CHAVES) {
+    // acesso pelas chaves do app do lojista: pede outro (não há refresh)
+    const n = await acessoPelasChaves(ch)
+    if (n.tokens) {
+      await banco.from('erp_connection_tokens')
+        .update({ access_token: n.tokens.access_token, access_expires_at: n.tokens.access_expires_at, updated_at: new Date().toISOString() })
+        .eq('connection_id', connectionId)
+      await banco.from('erp_connections').update({ last_refresh_at: new Date().toISOString(), last_error: null }).eq('id', connectionId)
+      return { ok: true, token: n.tokens.access_token, shop: ch.shop_domain }
+    }
+    const morto = n.status === 400 || n.status === 401
+    const erro = `acesso pelas chaves recusado (${n.status}): ${n.erro}`
+    await banco.from('erp_connections').update(morto ? { status: 'reconectar', last_error: erro } : { last_error: erro }).eq('id', connectionId)
+    return { ok: false, erro, morto }
   }
   const r = await renovar(ch, t.refresh_token)
   if (r.tokens) {
