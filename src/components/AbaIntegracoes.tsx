@@ -18,8 +18,7 @@ import { PainelConectadas, Secao } from './integracao-ui'
  *
  * `mostraBling` / `mostraNuvemshop`: quem pode ver cada fonte (Bling ainda é
  * liberado loja a loja; Nuvemshop está aberta para todas). A Shopify aparece para
- * admin e master, mas só conecta depois que o master prepara o app da loja; sem
- * isso o admin continua vendo a Shopify no Em breve.
+ * admin e master: o admin cola as chaves do app da loja dele e conecta.
  */
 export function AbaIntegracoes({
   isMaster,
@@ -48,10 +47,8 @@ export function AbaIntegracoes({
   // undefined = falta o SQL daquela integração: só o master fica sabendo
   const blingDisponivel = mostraBling && !blingLigado && bling.data !== undefined
   const nuvemDisponivel = mostraNuvemshop && !nuvemLigada && nuvem.data !== undefined
-  // Shopify: só aparece para conectar com app preparado (o master vê para preparar)
-  const shopDisponivel = Boolean(
-    mostraShopify && !shopLigada && shop.data !== undefined && prep.data && (prep.data.preparado || isMaster),
-  )
+  // Shopify: o admin conecta com as chaves do app da loja dele (ou autoriza, se as chaves já estão guardadas)
+  const shopDisponivel = Boolean(mostraShopify && !shopLigada && shop.data !== undefined && prep.data)
   const faltaSql = isMaster && ((mostraBling && !bling.isLoading && bling.data === undefined) || (mostraNuvemshop && !nuvem.isLoading && nuvem.data === undefined) || (mostraShopify && !shop.isLoading && shop.data === undefined))
 
   if (carregando) {
@@ -83,10 +80,10 @@ export function AbaIntegracoes({
           titulo={blingLigado || nuvemLigada || shopLigada ? 'Conectar outra fonte de vendas' : 'Conectar uma fonte de vendas'}
           texto="Ligue o sistema de onde vêm as suas vendas. O Contatta só lê: nada muda do outro lado."
         >
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
             {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data ?? null} />}
-            {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} isMaster={isMaster} />}
+            {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
           </div>
           {faltaSql && (
             <p className="mt-3 text-sm text-amber-800">

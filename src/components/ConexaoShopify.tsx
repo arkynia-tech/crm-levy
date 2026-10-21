@@ -1,17 +1,20 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Copy, Link2, RefreshCw, Settings2 } from 'lucide-react'
+import { ChevronDown, Copy, KeyRound, Link2, RefreshCw } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
 import type { ConexaoErp } from '../hooks/bling'
-import { chamarShopify, SHOPIFY_RETORNO_URL, type ShopifyPreparado, type StatusShopify } from '../hooks/shopify'
+import { chamarShopify, SHOPIFY_APP_URL, type ShopifyPreparado, type StatusShopify } from '../hooks/shopify'
 import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Shopify por app de distribuição personalizada (decisão de 21/10/2026): cada
- * loja tem um app criado pelo master no painel de parceiros da Shopify, sem
- * revisão. O master prepara a loja aqui (domínio e chaves do app); depois disso o
- * admin conecta com um clique.
+ * Shopify (decisão de 21/10/2026): a loja conecta com as chaves de um app.
+ *   - App criado pelo próprio lojista no Dev Dashboard, na conta da loja: ele cola
+ *     endereço, Client ID e Client secret e conecta na hora (client credentials).
+ *   - App de distribuição personalizada criado pelo master: as chaves ficam
+ *     guardadas e a loja conecta pelo botão de autorizar.
+ * Um app público (um só para todas as lojas, como na Nuvemshop) esbarra na regra
+ * de cobrança da loja de apps da Shopify.
  */
 
 function useConectarShopify() {
@@ -33,57 +36,113 @@ function useConectarShopify() {
   return { conectar, abrindo, erro }
 }
 
-/** Shopify não ligada: cartão com o botão de conectar (e, para o master, o preparo da loja). */
-export function CartaoShopify({
-  conexao,
-  preparado,
-  isMaster,
-}: {
-  conexao: ConexaoErp | null
-  preparado: ShopifyPreparado
-  isMaster: boolean
-}) {
+/** Shopify não ligada: cartão com o passo a passo e as chaves do app. */
+export function CartaoShopify({ conexao, preparado }: { conexao: ConexaoErp | null; preparado: ShopifyPreparado }) {
   const { conectar, abrindo, erro } = useConectarShopify()
-  const [preparando, setPreparando] = useState(!preparado.preparado && isMaster)
-  const pronto = preparado.preparado
+  // chaves guardadas que não conectam sozinhas: a loja autoriza pelo botão
+  const [autorizar, setAutorizar] = useState(preparado.preparado)
+  const [editando, setEditando] = useState(!preparado.preparado)
 
   return (
     <CartaoDisponivel
       marca="shopify"
       nome="Shopify"
       categoria="Loja virtual"
-      texto="Os pedidos pagos e os clientes da sua loja Shopify entram sozinhos no Contatta. Para o CPF vir junto, o checkout da loja precisa pedir o CPF."
+      texto="Os pedidos pagos e os clientes da sua loja Shopify entram sozinhos no Contatta. Para conectar, você cria um app na sua loja e cola as chaves aqui. Leva uns 5 minutos."
       nota={
         conexao?.status === 'desconectado' && conexao.disconnected_at
           ? `Desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
-          : pronto
-            ? `Loja ${preparado.shop_domain}. Deixe o painel dela aberto neste mesmo navegador antes de conectar.`
-            : 'Só o master vê este cartão até preparar a loja. Depois disso, o admin da loja conecta com um clique.'
+          : undefined
       }
       erro={erro}
       botao={
         <div className="space-y-3">
-          {pronto && (
-            <button type="button" className={`btn-primary w-full ${press}`} onClick={() => void conectar()} disabled={abrindo}>
-              <Link2 className="h-4 w-4" aria-hidden />
-              {abrindo ? 'Abrindo a Shopify…' : conexao?.status === 'desconectado' ? 'Conectar de novo' : 'Conectar Shopify'}
-            </button>
+          {autorizar && !editando && (
+            <>
+              <p className="text-xs text-gray-600">
+                Loja {preparado.shop_domain}. Deixe o painel dela aberto neste mesmo navegador e clique para autorizar.
+              </p>
+              <button type="button" className={`btn-primary w-full ${press}`} onClick={() => void conectar()} disabled={abrindo}>
+                <Link2 className="h-4 w-4" aria-hidden />
+                {abrindo ? 'Abrindo a Shopify…' : conexao?.status === 'desconectado' ? 'Conectar de novo' : 'Conectar Shopify'}
+              </button>
+              <button type="button" className={`btn-secondary w-full ${press}`} onClick={() => setEditando(true)}>
+                <KeyRound className="h-4 w-4" aria-hidden /> Trocar as chaves do app
+              </button>
+            </>
           )}
-          {isMaster && !preparando && (
-            <button type="button" className={`btn-secondary w-full ${press}`} onClick={() => setPreparando(true)}>
-              <Settings2 className="h-4 w-4" aria-hidden />
-              {pronto ? 'Trocar o app desta loja (master)' : 'Preparar a Shopify desta loja (master)'}
-            </button>
+          {editando && (
+            <ChavesShopify
+              preparado={preparado}
+              onPrecisaAutorizar={() => {
+                setAutorizar(true)
+                setEditando(false)
+              }}
+              onCancelar={preparado.preparado ? () => setEditando(false) : undefined}
+            />
           )}
-          {isMaster && preparando && <PrepararShopify preparado={preparado} onFechar={() => setPreparando(false)} />}
         </div>
       }
     />
   )
 }
 
-/** Só master: domínio da loja e chaves do app de distribuição personalizada criado para ela. */
-function PrepararShopify({ preparado, onFechar }: { preparado: ShopifyPreparado; onFechar: () => void }) {
+/** Passo a passo de como criar o app na loja. É uma sequência de verdade, por isso numerado. */
+function PassoAPassoShopify() {
+  const [copiado, setCopiado] = useState(false)
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(SHOPIFY_APP_URL)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 1600)
+    } catch {
+      /* sem permissão de área de transferência: o endereço está à vista */
+    }
+  }
+  return (
+    <details className="group rounded-md border border-gray-200 bg-white" open>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
+        Como criar o app na sua loja
+        <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200 ease-out group-open:rotate-180" aria-hidden />
+      </summary>
+      <ol className="space-y-2.5 border-t border-gray-100 px-3 py-3 text-xs text-gray-600">
+        {[
+          <>Entre no <span className="font-medium text-gray-900">Dev Dashboard</span> da Shopify (dev.shopify.com) com a mesma conta que é dona da loja. Pelo painel da loja, o caminho é Configurações, Apps, Desenvolver apps.</>,
+          <>Crie um app com o nome <span className="font-medium text-gray-900">Contatta</span>. Se pedir o endereço do app, use o de baixo.</>,
+          <>Na configuração do app, marque as permissões de <span className="font-medium text-gray-900">ler pedidos</span> e <span className="font-medium text-gray-900">ler clientes</span> e libere os dados do cliente: nome, e-mail, telefone e endereço. Salve e publique a versão.</>,
+          <><span className="font-medium text-gray-900">Instale o app</span> na sua loja.</>,
+          <>Nas configurações do app, copie o <span className="font-medium text-gray-900">Client ID</span> e o <span className="font-medium text-gray-900">Client secret</span> e cole abaixo, junto com o endereço da sua loja.</>,
+        ].map((passo, n) => (
+          <li key={n} className="flex gap-2.5">
+            <span className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-semibold tabular-nums text-gray-700">
+              {n + 1}
+            </span>
+            <span>{passo}</span>
+          </li>
+        ))}
+        <li className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
+          <code className="min-w-0 flex-1 truncate text-xs text-gray-700">{SHOPIFY_APP_URL}</code>
+          <button type="button" onClick={() => void copiar()} className={`shrink-0 text-xs font-medium text-brand-700 ${press}`}>
+            <Copy className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+            {copiado ? 'Copiado' : 'Copiar'}
+          </button>
+        </li>
+        <li className="text-gray-500">Para o CPF do cliente vir junto, o checkout da sua loja precisa pedir o CPF. Sem CPF o pedido não entra.</li>
+      </ol>
+    </details>
+  )
+}
+
+/** Endereço da loja e chaves do app. Salva e já tenta conectar. */
+function ChavesShopify({
+  preparado,
+  onPrecisaAutorizar,
+  onCancelar,
+}: {
+  preparado: ShopifyPreparado
+  onPrecisaAutorizar: () => void
+  onCancelar?: () => void
+}) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   const [shop, setShop] = useState(preparado.shop_domain ?? '')
@@ -91,14 +150,13 @@ function PrepararShopify({ preparado, onFechar }: { preparado: ShopifyPreparado;
   const [segredo, setSegredo] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [copiado, setCopiado] = useState(false)
 
   const salvar = async (e: FormEvent) => {
     e.preventDefault()
     if (!activeClient) return
     setSalvando(true)
     setErro(null)
-    const r = await chamarShopify({
+    const r = await chamarShopify<{ conectado: boolean; precisa_autorizar: boolean; aviso?: string }>({
       action: 'preparar', client_id: activeClient.id,
       shop_domain: shop, app_client_id: clientId, app_client_secret: segredo,
     })
@@ -109,36 +167,24 @@ function PrepararShopify({ preparado, onFechar }: { preparado: ShopifyPreparado;
     }
     setSegredo('')
     void queryClient.invalidateQueries({ queryKey: ['shopify-preparado', activeClient.id] })
-    onFechar()
-  }
-
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(SHOPIFY_RETORNO_URL)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 1600)
-    } catch {
-      /* sem permissão de área de transferência: o endereço está à vista */
+    if (r.conectado) {
+      void queryClient.invalidateQueries({ queryKey: ['erp-connection', 'shopify'] })
+      void queryClient.invalidateQueries({ queryKey: ['stores'] })
+      return
     }
+    if (r.precisa_autorizar) {
+      onPrecisaAutorizar()
+      return
+    }
+    setErro(r.aviso ?? 'A Shopify não deu acesso com essas chaves.')
   }
 
   return (
-    <form onSubmit={(e) => void salvar(e)} className="revelar space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3 text-left">
-      <p className="text-xs text-gray-600">
-        No Dev Dashboard da Shopify, crie um app com distribuição personalizada para esta loja, com o endereço de retorno
-        abaixo, as permissões de ler pedidos e clientes e o acesso aos dados do cliente (nome, e-mail, telefone e
-        endereço). Depois cole aqui o Client ID e o Client secret.
-      </p>
-      <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5">
-        <code className="min-w-0 flex-1 truncate text-xs text-gray-700">{SHOPIFY_RETORNO_URL}</code>
-        <button type="button" onClick={() => void copiar()} className={`shrink-0 text-xs font-medium text-brand-700 ${press}`}>
-          <Copy className="mr-1 inline h-3.5 w-3.5" aria-hidden />
-          {copiado ? 'Copiado' : 'Copiar'}
-        </button>
-      </div>
+    <form onSubmit={(e) => void salvar(e)} className="space-y-3 text-left">
+      <PassoAPassoShopify />
       <label className="block text-xs text-gray-600">
         Endereço da loja
-        <input className="input mt-1" value={shop} onChange={(e) => setShop(e.target.value)} placeholder="loja.myshopify.com" required autoComplete="off" />
+        <input className="input mt-1" value={shop} onChange={(e) => setShop(e.target.value)} placeholder="sualoja.myshopify.com" required autoComplete="off" />
       </label>
       <label className="block text-xs text-gray-600">
         Client ID do app
@@ -158,11 +204,14 @@ function PrepararShopify({ preparado, onFechar }: { preparado: ShopifyPreparado;
       </label>
       {erro && <p className="text-sm text-red-700">{erro}</p>}
       <div className="flex gap-2">
-        <button type="button" className={`btn-secondary flex-1 ${press}`} onClick={onFechar} disabled={salvando}>
-          Cancelar
-        </button>
+        {onCancelar && (
+          <button type="button" className={`btn-secondary flex-1 ${press}`} onClick={onCancelar} disabled={salvando}>
+            Cancelar
+          </button>
+        )}
         <button type="submit" className={`btn-primary flex-1 ${press}`} disabled={salvando}>
-          {salvando ? 'Salvando…' : 'Salvar'}
+          <Link2 className="h-4 w-4" aria-hidden />
+          {salvando ? 'Conectando…' : 'Salvar e conectar'}
         </button>
       </div>
     </form>

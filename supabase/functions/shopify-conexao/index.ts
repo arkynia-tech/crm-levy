@@ -1,8 +1,11 @@
 // Conexão de uma loja do Contatta com a Shopify (Configurações e /shopify/retorno).
 // Ações:
-//   preparar      só master: guarda o domínio da loja (loja.myshopify.com) e as
-//                 chaves do app de distribuição personalizada criado para ela no
-//                 painel de parceiros da Shopify. Sem isso a loja não conecta.
+//   preparar      admin ou master: guarda o domínio da loja (loja.myshopify.com) e
+//                 as chaves do app e já tenta conectar. App criado pelo próprio
+//                 lojista no Dev Dashboard conecta na hora, só com as chaves
+//                 (client credentials). App de outra organização (distribuição
+//                 personalizada criada pelo master) volta precisa_autorizar e a
+//                 loja usa o botão Conectar (autorização).
 //   preparado     admin ou master: diz se a loja já tem app preparado (sem as chaves).
 //   autorizar     admin ou master: devolve a URL de autorização na loja, com state.
 //   retorno       quem clicou: confere o hmac e o state, troca o code pelo token,
@@ -13,8 +16,9 @@
 
 import { type Json } from '../_shared/asaas.ts'
 import {
-  chavesDaLoja, chavesDoDominio, garantirLoja, garantirWebhooks, lerLoja, lojaValida, PROVEDOR, removerWebhooks,
-  retornoConfere, tokenDaConexao, trocarCode, urlDeAutorizacao,
+  acessoPelasChaves, chavesDaLoja, chavesDoDominio, garantirLoja, garantirWebhooks, lerLoja, lojaValida, MODO_CHAVES,
+  naoPermitido, PROVEDOR, removerWebhooks, retornoConfere, tokenDaConexao, trocarCode, urlDeAutorizacao,
+  type ChavesApp,
 } from '../_shared/shopify.ts'
 import { banco, cors, responder, rpc } from '../_shared/comum.ts'
 
@@ -41,11 +45,10 @@ Deno.serve(async (req) => {
     if (typeof b.client_id !== 'string' || !b.client_id) return falha(400, 'Loja não informada.')
 
     const { papel } = await rpc('crm_role_check', { p_user_id: userId, p_client_id: b.client_id })
-    if (b.action === 'preparar') {
-      return papel === 'master' ? await preparar(b.client_id, b) : falha(403, 'Só o master prepara a Shopify de uma loja.')
-    }
     if (papel !== 'master' && papel !== 'admin') return falha(403, 'Só o administrador da loja conecta a Shopify.')
     switch (b.action) {
+      case 'preparar':
+        return await preparar(b.client_id, b, userId)
       case 'preparado':
         return await preparado(b.client_id)
       case 'autorizar':
@@ -74,7 +77,7 @@ async function conexaoDaLoja(clientId: string): Promise<Json | null> {
 
 // ---------------------------------------------------------------------------
 
-async function preparar(clientId: string, b: Json) {
+async function preparar(clientId: string, b: Json, userId: string) {
   const shop = lojaValida(b.shop_domain)
   const id = String(b.app_client_id ?? '').trim()
   const segredo = String(b.app_client_secret ?? '').trim()
@@ -99,7 +102,45 @@ async function preparar(clientId: string, b: Json) {
     if (error.code === '23505') return falha(409, 'Essa loja da Shopify já está preparada em outra conta do Contatta.')
     throw new Error('erp_app_credentials: ' + error.message)
   }
-  return ok({ ok: true, shop_domain: shop })
+  const ch = await chavesDaLoja(clientId)
+  return await conectarPelasChaves(clientId, ch!, userId)
+}
+
+/**
+ * Tenta conectar só com as chaves (app do próprio lojista). Sem permissão para
+ * isso (app de outra organização), devolve precisa_autorizar: a loja conecta pelo
+ * botão. Outro erro volta como mensagem, com as chaves já guardadas.
+ */
+async function conectarPelasChaves(clientId: string, ch: ChavesApp, userId: string) {
+  const a = await acessoPelasChaves(ch)
+  if (!a.tokens) {
+    if (naoPermitido(a.erro)) return ok({ ok: true, shop_domain: ch.shop_domain, conectado: false, precisa_autorizar: true })
+    console.error('acesso pelas chaves recusado', ch.shop_domain, a.status, a.erro)
+    return ok({
+      ok: true, shop_domain: ch.shop_domain, conectado: false, precisa_autorizar: false,
+      aviso: a.status === 401 || /invalid_client|client/i.test(a.erro ?? '')
+        ? 'A Shopify recusou as chaves. Confira o Client ID e o Client secret do app.'
+        : 'A Shopify não deu acesso com essas chaves. Confira se o app está instalado na sua loja e se o endereço da loja está certo.',
+    })
+  }
+  const loja = await lerLoja(ch.shop_domain, a.tokens.access_token)
+  const r = await rpc('crm_erp_conectar', {
+    p_client_id: clientId, p_provider: PROVEDOR, p_user_id: userId,
+    p_access: a.tokens.access_token, p_refresh: MODO_CHAVES,
+    p_access_expires: a.tokens.access_expires_at, p_refresh_expires: '2099-12-31T00:00:00.000Z',
+    p_account_id: ch.shop_domain, p_account_name: loja.nome,
+  })
+  if (!r.connection_id) throw new Error('crm_erp_conectar não devolveu a conexão')
+  await banco.from('erp_connections').update({ account_id: ch.shop_domain, account_name: loja.nome, last_error: null }).eq('id', r.connection_id)
+  await garantirLoja({ connection_id: r.connection_id, client_id: clientId, account_id: ch.shop_domain, account_name: loja.nome })
+  const wh = await garantirWebhooks(ch.shop_domain, a.tokens.access_token)
+  if (wh.erro) {
+    console.error('webhooks da Shopify', ch.shop_domain, wh.erro)
+    await banco.from('erp_connections').update({ last_error: 'webhooks: ' + wh.erro }).eq('id', r.connection_id)
+  }
+  return ok({
+    ok: true, shop_domain: ch.shop_domain, conectado: true, conta: loja.nome, cutoff_at: r.cutoff_at, webhooks_ok: !wh.erro,
+  })
 }
 
 async function preparado(clientId: string) {

@@ -8,8 +8,10 @@ import type { ConexaoErp } from './bling'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const FUNCAO = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/shopify-conexao` : undefined
 
-/** Para onde a Shopify devolve depois de autorizar. Vai no app de cada loja, no painel de parceiros. */
+/** Para onde a Shopify devolve depois de autorizar (app de distribuição personalizada do master). */
 export const SHOPIFY_RETORNO_URL = 'https://app.contatta.pro/shopify/retorno'
+/** Endereço do app que o lojista informa ao criar o app na loja dele. */
+export const SHOPIFY_APP_URL = 'https://app.contatta.pro'
 
 /** Conexão da loja com a Shopify. `undefined` = falta rodar o shopify.sql. */
 export function useConexaoShopify(clientId: string | undefined) {
