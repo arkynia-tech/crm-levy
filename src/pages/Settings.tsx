@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -36,11 +36,10 @@ import { useDefinirCreditoAvulso, useSaldoCreditos } from '../hooks/creditos'
 import { SaldoCreditos } from '../components/SaldoCreditos'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
-import StoresGrid from '../components/StoresGrid'
-import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
-import { BLING_ABERTO_PARA_LOJAS, ConexaoBling } from '../components/ConexaoBling'
+import { AbaIntegracoes } from '../components/AbaIntegracoes'
+import { BLING_ABERTO_PARA_LOJAS } from '../components/ConexaoBling'
 import { useBlingLiberado } from '../hooks/bling'
-import { NUVEMSHOP_ABERTO_PARA_LOJAS, ConexaoNuvemshop } from '../components/ConexaoNuvemshop'
+import { NUVEMSHOP_ABERTO_PARA_LOJAS } from '../components/ConexaoNuvemshop'
 import { useNuvemshopLiberado } from '../hooks/nuvemshop'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
@@ -777,16 +776,6 @@ function Abas({ abas, ativa, onChange }: { abas: typeof ABAS; ativa: Aba; onChan
   )
 }
 
-function Grupo({ titulo, texto, children }: { titulo: string; texto: string; children: ReactNode }) {
-  return (
-    <section>
-      <h2 className="font-display text-base font-semibold text-gray-900">{titulo}</h2>
-      <p className="mt-0.5 max-w-2xl text-sm text-gray-500">{texto}</p>
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
-
 export default function Settings() {
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
@@ -819,20 +808,7 @@ export default function Settings() {
 
       <div role="tabpanel" id={`painel-${ativa}`} aria-labelledby={`aba-${ativa}`} tabIndex={0} className="mt-6 focus-visible:ring-offset-4">
         {ativa === 'integracoes' && (
-          <div className="space-y-10">
-            <Grupo titulo="ERP" texto="Pedidos, clientes e notas de todos os canais que o seu ERP já recebe.">
-              {mostraBling && <ConexaoBling isMaster={isMaster} />}
-              <IntegracoesEmBreve grupo="erp" sem={mostraBling ? ['bling'] : []} />
-            </Grupo>
-            <Grupo titulo="Marketplaces" texto="Suas lojas em cada canal de venda e o volume de pedidos dos últimos 30 dias.">
-              <StoresGrid />
-              <IntegracoesEmBreve grupo="marketplace" />
-            </Grupo>
-            <Grupo titulo="Loja virtual" texto="Pedidos pagos e clientes da sua loja própria, na hora em que o pagamento é confirmado.">
-              {mostraNuvemshop && <ConexaoNuvemshop isMaster={isMaster} />}
-              <IntegracoesEmBreve grupo="ecommerce" sem={mostraNuvemshop ? ['nuvemshop'] : []} />
-            </Grupo>
-          </div>
+          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} />
         )}
 
         {ativa === 'disparos' && (
