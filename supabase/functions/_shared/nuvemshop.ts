@@ -22,7 +22,8 @@ import type { Json } from './asaas.ts'
 const AUTORIZAR = 'https://www.nuvemshop.com.br/apps'
 const TOKEN_URL = Deno.env.get('NUVEMSHOP_TOKEN_URL') ?? 'https://www.tiendanube.com/apps/authorize/token'
 const API = (Deno.env.get('NUVEMSHOP_API_URL') ?? 'https://api.nuvemshop.com.br/2025-03').replace(/\/+$/, '')
-const USER_AGENT = 'Contatta (https://contatta.pro)'
+// A Nuvemshop pede o nome do app e um contato no User-Agent: o e-mail é o cadastrado no app do portal de parceiros.
+const USER_AGENT = Deno.env.get('NUVEMSHOP_USER_AGENT') ?? 'Contatta (contato@arkynia.com)'
 
 export const PROVEDOR = 'nuvemshop'
 export const SEM_VENCIMENTO = '2099-12-31T00:00:00.000Z'
