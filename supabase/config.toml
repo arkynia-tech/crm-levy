@@ -58,3 +58,16 @@ verify_jwt = false
 
 [functions.nuvemshop-pedidos]
 verify_jwt = false
+
+# Shopify, sem a checagem de JWT do gateway:
+# - shopify-conexao confere o login por dentro (auth.getUser);
+# - shopify-webhook é chamado pela Shopify e confere o X-Shopify-Hmac-SHA256;
+# - shopify-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.shopify-conexao]
+verify_jwt = false
+
+[functions.shopify-webhook]
+verify_jwt = false
+
+[functions.shopify-pedidos]
+verify_jwt = false

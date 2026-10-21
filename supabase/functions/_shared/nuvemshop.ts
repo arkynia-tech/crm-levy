@@ -270,7 +270,8 @@ export function montarPedido(o: Json, storeId: string): Json {
       const qtd = numero(i.quantity) ?? 1
       const unit = numero(i.price)
       return {
-        external_item_id: i.variant_id != null ? String(i.variant_id) : i.product_id != null ? String(i.product_id) : texto(String(i.id ?? '')),
+        // id da linha: a mesma variante pode vir em duas linhas (campos personalizados diferentes)
+        external_item_id: i.id != null ? String(i.id) : i.variant_id != null ? String(i.variant_id) : null,
         sku: texto(i.sku),
         product_name: texto(i.name),
         quantity: qtd,
@@ -533,8 +534,10 @@ export async function buscarTodas(ate: number): Promise<{ conexoes: number; enfi
       console.error('busca', con.id, e)
     }
   }
+  // pendência de LGPD (lgpd_pendente) fica até o master tratar
   await banco.from('erp_order_events').delete()
     .eq('provider', PROVEDOR)
     .in('status', ['feito', 'ignorado', 'erro']).lt('received_at', new Date(Date.now() - 30 * 86400_000).toISOString())
+    .or('resultado.is.null,resultado.neq.lgpd_pendente')
   return { conexoes, enfileirados }
 }

@@ -1,8 +1,10 @@
 import { useCompany } from '../context/CompanyContext'
 import { useConexaoBling } from '../hooks/bling'
 import { useConexaoNuvemshop } from '../hooks/nuvemshop'
+import { useConexaoShopify, useShopifyPreparado } from '../hooks/shopify'
 import { CartaoBling, LinhaBling } from './ConexaoBling'
 import { CartaoNuvemshop, LinhaNuvemshop } from './ConexaoNuvemshop'
+import { CartaoShopify, LinhaShopify } from './ConexaoShopify'
 import { IntegracoesEmBreve } from './IntegracoesEmBreve'
 import StoresGrid from './StoresGrid'
 import { PainelConectadas, Secao } from './integracao-ui'
@@ -15,30 +17,42 @@ import { PainelConectadas, Secao } from './integracao-ui'
  *   4. Em breve: o resto, numa lista só, com filtro por tipo.
  *
  * `mostraBling` / `mostraNuvemshop`: quem pode ver cada fonte (Bling ainda é
- * liberado loja a loja; Nuvemshop está aberta para todas).
+ * liberado loja a loja; Nuvemshop está aberta para todas). A Shopify aparece para
+ * admin e master, mas só conecta depois que o master prepara o app da loja; sem
+ * isso o admin continua vendo a Shopify no Em breve.
  */
 export function AbaIntegracoes({
   isMaster,
   mostraBling,
   mostraNuvemshop,
+  mostraShopify,
 }: {
   isMaster: boolean
   mostraBling: boolean
   mostraNuvemshop: boolean
+  mostraShopify: boolean
 }) {
   const { activeClient } = useCompany()
   const bling = useConexaoBling(mostraBling ? activeClient?.id : undefined)
   const nuvem = useConexaoNuvemshop(mostraNuvemshop ? activeClient?.id : undefined)
+  const shop = useConexaoShopify(mostraShopify ? activeClient?.id : undefined)
+  const prep = useShopifyPreparado(activeClient?.id, mostraShopify)
 
-  const carregando = (mostraBling && bling.isLoading) || (mostraNuvemshop && nuvem.isLoading)
+  const carregando =
+    (mostraBling && bling.isLoading) || (mostraNuvemshop && nuvem.isLoading) || (mostraShopify && (shop.isLoading || prep.isLoading))
   const ligada = (s: string | undefined) => s === 'conectado' || s === 'reconectar'
 
   const blingLigado = mostraBling && bling.data && ligada(bling.data.status)
   const nuvemLigada = mostraNuvemshop && nuvem.data && ligada(nuvem.data.status)
+  const shopLigada = mostraShopify && shop.data && ligada(shop.data.status)
   // undefined = falta o SQL daquela integração: só o master fica sabendo
   const blingDisponivel = mostraBling && !blingLigado && bling.data !== undefined
   const nuvemDisponivel = mostraNuvemshop && !nuvemLigada && nuvem.data !== undefined
-  const faltaSql = isMaster && ((mostraBling && !bling.isLoading && bling.data === undefined) || (mostraNuvemshop && !nuvem.isLoading && nuvem.data === undefined))
+  // Shopify: só aparece para conectar com app preparado (o master vê para preparar)
+  const shopDisponivel = Boolean(
+    mostraShopify && !shopLigada && shop.data !== undefined && prep.data && (prep.data.preparado || isMaster),
+  )
+  const faltaSql = isMaster && ((mostraBling && !bling.isLoading && bling.data === undefined) || (mostraNuvemshop && !nuvem.isLoading && nuvem.data === undefined) || (mostraShopify && !shop.isLoading && shop.data === undefined))
 
   if (carregando) {
     return (
@@ -54,29 +68,32 @@ export function AbaIntegracoes({
 
   return (
     <div className="space-y-10">
-      {(blingLigado || nuvemLigada) && (
+      {(blingLigado || nuvemLigada || shopLigada) && (
         <Secao titulo="Conectadas" texto="As vendas destas fontes entram sozinhas no Contatta.">
           <PainelConectadas>
             {blingLigado && bling.data && <LinhaBling conexao={bling.data} isMaster={isMaster} />}
             {nuvemLigada && nuvem.data && <LinhaNuvemshop conexao={nuvem.data} />}
+            {shopLigada && shop.data && <LinhaShopify conexao={shop.data} />}
           </PainelConectadas>
         </Secao>
       )}
 
-      {(blingDisponivel || nuvemDisponivel || faltaSql) && (
+      {(blingDisponivel || nuvemDisponivel || shopDisponivel || faltaSql) && (
         <Secao
-          titulo={blingLigado || nuvemLigada ? 'Conectar outra fonte de vendas' : 'Conectar uma fonte de vendas'}
+          titulo={blingLigado || nuvemLigada || shopLigada ? 'Conectar outra fonte de vendas' : 'Conectar uma fonte de vendas'}
           texto="Ligue o sistema de onde vêm as suas vendas. O Contatta só lê: nada muda do outro lado."
         >
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
             {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data ?? null} />}
+            {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} isMaster={isMaster} />}
           </div>
           {faltaSql && (
             <p className="mt-3 text-sm text-amber-800">
               Falta rodar no Supabase o SQL de {[
                 mostraBling && bling.data === undefined ? 'bling-conexao.sql' : null,
                 mostraNuvemshop && nuvem.data === undefined ? 'nuvemshop.sql' : null,
+                mostraShopify && shop.data === undefined ? 'shopify.sql' : null,
               ].filter(Boolean).join(' e ')} para ligar essa integração.
             </p>
           )}
@@ -88,7 +105,7 @@ export function AbaIntegracoes({
       </Secao>
 
       <Secao titulo="Em breve" texto="Marque o que você usa. É por essas que a gente começa.">
-        <IntegracoesEmBreve sem={[...(mostraBling ? ['bling'] : []), ...(mostraNuvemshop ? ['nuvemshop'] : [])]} />
+        <IntegracoesEmBreve sem={[...(mostraBling ? ['bling'] : []), ...(mostraNuvemshop ? ['nuvemshop'] : []), ...(shopDisponivel || shopLigada ? ['shopify'] : [])]} />
       </Secao>
     </div>
   )
