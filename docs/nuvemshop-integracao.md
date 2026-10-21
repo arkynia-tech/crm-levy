@@ -34,7 +34,7 @@ Contatta, a conexão é recusada (o webhook acha a conexão pela loja).
 | `nuvemshop-conexao` | ações `autorizar`, `retorno`, `desconectar` e `status` (confere token e recadastra webhooks) |
 | `nuvemshop-webhook` | recebe `order/paid`, `order/cancelled`, `order/updated`, `app/uninstalled`, `store/redact`, `customers/*`; confere o HMAC; grava na fila e responde na hora |
 | `nuvemshop-pedidos` | pg_cron: `processar` a cada minuto (só quando há evento vencido) e `buscar` de hora em hora |
-| Configurações | grupo **Loja virtual**, cartão da Nuvemshop. Só o master vê, ou o admin de loja liberada (`clients.nuvemshop_liberado`). Abrir para todas: `NUVEMSHOP_ABERTO_PARA_LOJAS` em `src/components/ConexaoNuvemshop.tsx` e o secret `NUVEMSHOP_ABERTO_PARA_LOJAS=1` |
+| Configurações | grupo **Loja virtual**, cartão da Nuvemshop. **Aberto para todas as lojas desde 21/10/2026**: o admin de qualquer loja conecta (`NUVEMSHOP_ABERTO_PARA_LOJAS = true` em `src/components/ConexaoNuvemshop.tsx` e o secret `NUVEMSHOP_ABERTO_PARA_LOJAS=1`). Para voltar a liberar loja a loja: `false` e apagar o secret; aí vale `clients.nuvemshop_liberado` |
 | `/nuvemshop/retorno` | página fora do menu com mensagem de sucesso e de erro |
 
 Como uma venda entra:
@@ -61,7 +61,16 @@ ficam registrados na fila como `ignorado` / `lgpd_pendente`, com o payload, para
 o master tratar à mão (apagar o cliente, ou mandar o relatório ao lojista). Isso
 só é exigido quando o app for público na loja de apps da Nuvemshop.
 
-## Criar o app na Nuvemshop (uma vez, só o Mohamad)
+## O app na Nuvemshop
+
+Criado em 21/10/2026: app **Contatta**, ID 47972, distribuição **Para os seus clientes**
+(app privado: sem homologação e sem lista de lojas autorizadas). Qualquer lojista instala
+pelo link de autorização (`/apps/47972/authorize`), que é o que o botão Conectar Nuvemshop
+abre. Ele precisa estar logado na loja dele no mesmo navegador. Mudar escopo exige
+reinstalar (desconectar e conectar de novo). No portal ficaram a URL de redirecionamento e
+as três URLs de LGPD apontando para `nuvemshop-webhook`.
+
+### Como foi criado (referência)
 
 No portal de parceiros (`partners.nuvemshop.com.br`), criar um aplicativo:
 

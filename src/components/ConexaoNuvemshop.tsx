@@ -7,11 +7,12 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { MarcaLogo, temLogo } from './MarcaLogo'
 
 /**
- * Até abrir para todas as lojas, só o master vê o cartão (ou o admin de uma loja
- * que o master liberou em clients.nuvemshop_liberado). Virar para true depois
- * do primeiro lojista real com as vendas entrando.
+ * Aberto para todas as lojas desde 21/10/2026 (decisão do Mohamad depois do teste
+ * na loja demo): o admin de qualquer loja vê o cartão e conecta. Vai junto com o
+ * secret NUVEMSHOP_ABERTO_PARA_LOJAS=1 da nuvemshop-conexao. Para voltar a liberar
+ * loja a loja (clients.nuvemshop_liberado), false aqui e apagar o secret.
  */
-export const NUVEMSHOP_ABERTO_PARA_LOJAS = false
+export const NUVEMSHOP_ABERTO_PARA_LOJAS = true
 
 const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 

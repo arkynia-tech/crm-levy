@@ -157,8 +157,7 @@ webhooks na loja e cada pedido pago entra como venda, com cliente, CPF e telefon
 gastando 1 crédito. A loja do Contatta é criada e ligada sozinha ao conectar.
 Rode `supabase/nuvemshop.sql` e siga `docs/nuvemshop-integracao.md` (app no portal
 de parceiros, secrets `NUVEMSHOP_CLIENT_ID`/`NUVEMSHOP_CLIENT_SECRET`, três funções).
-Até abrir para todas, só o master vê o cartão, ou o admin de loja com
-`clients.nuvemshop_liberado`.
+Aberto para todas as lojas desde 21/10/2026: o admin de qualquer loja conecta.
 
 ## Saldo de notas
 
