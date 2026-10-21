@@ -369,8 +369,28 @@ async function processarPedido(token: string, con: Json, resourceId: string): Pr
   if (res === 'novo' || res === 'atualizado') return { status: 'feito', resultado: res }
   if (res === 'aguardando_loja') return { status: 'aguardando_loja', resultado: null }
   if (res === 'sem_credito') return { status: 'sem_credito', resultado: 'sem_credito' }
+  if (res === 'sem_cpf') return { status: 'ignorado', resultado: 'sem_cpf ' + ondeEstaODocumento(o) }
   if (IGNORADOS.has(res)) return { status: 'ignorado', resultado: res }
   return { status: 'pendente', resultado: res || 'resposta vazia do banco', adiar: 'sim' }
+}
+
+/** Para diagnóstico, sem o número: em que campos do pedido veio algum documento e com quantos dígitos. */
+function ondeEstaODocumento(o: Json): string {
+  const cliente = (o.customer && typeof o.customer === 'object' ? o.customer : null) as Json | null
+  const partes = [
+    `contact_identification=${digitos(o.contact_identification).length}d`,
+    cliente ? `customer.identification=${digitos(cliente.identification).length}d` : 'customer=ausente',
+  ]
+  // outros campos do pedido que pareçam documento
+  for (const [k, v] of Object.entries(o)) {
+    if (/identification|document|cpf|cnpj/i.test(k) && k !== 'contact_identification' && typeof v === 'string') partes.push(`${k}=${digitos(v).length}d`)
+  }
+  if (cliente) {
+    for (const [k, v] of Object.entries(cliente)) {
+      if (/identification|document|cpf|cnpj/i.test(k) && k !== 'identification' && typeof v === 'string') partes.push(`customer.${k}=${digitos(v).length}d`)
+    }
+  }
+  return `(${partes.join(', ')})`
 }
 
 /** Fila de uma conexão (já reservada por crm_erp_fila_pegar). */
