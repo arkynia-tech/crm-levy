@@ -30,7 +30,7 @@ export function LojasBling({ clientId }: { clientId: string }) {
   }
 
   return (
-    <div className="border-t border-gray-100 px-5 py-4">
+    <div className="border-t border-gray-100 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
           <p className="text-sm font-medium text-gray-900">Em qual loja do Contatta cada loja do Bling entra</p>
@@ -62,7 +62,7 @@ export function LojasBling({ clientId }: { clientId: string }) {
       {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
 
       {data && (
-        <ul className={`mt-3 divide-y divide-gray-100 rounded-md border border-gray-200 ${isFetching ? 'opacity-70' : ''}`}>
+        <ul className={`mt-3 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white ${isFetching ? 'opacity-70' : ''}`}>
           {data.lojas_bling.map((l) => (
             <LinhaLoja key={l.id} clientId={clientId} loja={l} lojasContatta={data.lojas_contatta} />
           ))}

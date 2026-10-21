@@ -49,3 +49,14 @@
 @media (prefers-reduced-motion: reduce) {
   [class*='animate-[popIn'], [class*='animate-[fadeIn'] { animation: none; }
 }
+
+/* Detalhes que abrem no lugar (Integrações: "Gerenciar"). Curto e saindo rápido. */
+.revelar {
+  animation: revelar 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes revelar {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .revelar { animation: fadeIn 120ms ease-out; }
+}

@@ -3,30 +3,37 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
-import { MarcaLogo } from './MarcaLogo'
+import { Marca, press } from './integracao-ui'
+import { temLogo } from './MarcaLogo'
 
 type Integracao = { id: string; nome: string; descricao: string }
 
 export type GrupoIntegracao = 'erp' | 'marketplace' | 'ecommerce'
 
+const ROTULO_GRUPO: Record<GrupoIntegracao, string> = {
+  erp: 'ERP',
+  marketplace: 'Marketplace',
+  ecommerce: 'Loja virtual',
+}
+
 const GRUPOS: Record<GrupoIntegracao, Integracao[]> = {
   erp: [
-    { id: 'bling', nome: 'Bling', descricao: 'Pedidos, clientes, produtos e estoque' },
-    { id: 'tiny', nome: 'Olist Tiny', descricao: 'Pedidos, clientes, produtos e estoque' },
-    { id: 'omie', nome: 'Omie', descricao: 'Pedidos, clientes e notas fiscais' },
+    { id: 'bling', nome: 'Bling', descricao: 'Vendas com nota e clientes de todos os canais' },
+    { id: 'tiny', nome: 'Olist Tiny', descricao: 'Vendas com nota e clientes de todos os canais' },
+    { id: 'omie', nome: 'Omie', descricao: 'Vendas, clientes e notas fiscais' },
   ],
   marketplace: [
-    { id: 'mercado_livre', nome: 'Mercado Livre', descricao: 'Pedidos e produtos da sua conta' },
-    { id: 'shopee', nome: 'Shopee', descricao: 'Pedidos e produtos da sua loja' },
-    { id: 'amazon', nome: 'Amazon', descricao: 'Pedidos, taxas e estoque' },
-    { id: 'tiktok_shop', nome: 'TikTok Shop', descricao: 'Pedidos e produtos da sua loja' },
+    { id: 'mercado_livre', nome: 'Mercado Livre', descricao: 'Vendas direto da sua conta de vendedor' },
+    { id: 'shopee', nome: 'Shopee', descricao: 'Vendas direto da sua loja' },
+    { id: 'amazon', nome: 'Amazon', descricao: 'Vendas direto da sua conta de vendedor' },
+    { id: 'tiktok_shop', nome: 'TikTok Shop', descricao: 'Vendas direto da sua loja' },
   ],
   ecommerce: [
-    { id: 'nuvemshop', nome: 'Nuvemshop', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
-    { id: 'shopify', nome: 'Shopify', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
-    { id: 'woocommerce', nome: 'WooCommerce', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
-    { id: 'tray', nome: 'Tray', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
-    { id: 'loja_integrada', nome: 'Loja Integrada', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
+    { id: 'nuvemshop', nome: 'Nuvemshop', descricao: 'Pedidos pagos e clientes da loja virtual' },
+    { id: 'shopify', nome: 'Shopify', descricao: 'Pedidos pagos e clientes da loja virtual' },
+    { id: 'woocommerce', nome: 'WooCommerce', descricao: 'Pedidos pagos e clientes da loja virtual' },
+    { id: 'tray', nome: 'Tray', descricao: 'Pedidos pagos e clientes da loja virtual' },
+    { id: 'loja_integrada', nome: 'Loja Integrada', descricao: 'Pedidos pagos e clientes da loja virtual' },
   ],
 }
 
@@ -52,12 +59,18 @@ function useInteresse() {
   })
 }
 
-/** `sem`: integrações que já têm cartão próprio e saem da lista de "em breve". */
-export function IntegracoesEmBreve({ grupo, sem = [] }: { grupo: GrupoIntegracao; sem?: string[] }) {
+type Filtro = 'todos' | GrupoIntegracao
+
+/**
+ * Tudo o que ainda vem pela frente, numa lista só, com filtro por tipo.
+ * `sem`: integrações que já têm cartão ou linha própria e saem daqui.
+ */
+export function IntegracoesEmBreve({ sem = [] }: { sem?: string[] }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   const { data: pedidos = [] } = useInteresse()
   const [salvando, setSalvando] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState<Filtro>('todos')
 
   const alternar = async (id: string) => {
     if (!activeClient) return
@@ -76,51 +89,72 @@ export function IntegracoesEmBreve({ grupo, sem = [] }: { grupo: GrupoIntegracao
     void queryClient.invalidateQueries({ queryKey: ['settings', CHAVE] })
   }
 
-  const itens = GRUPOS[grupo].filter((i) => !sem.includes(i.id))
-  if (itens.length === 0) return null
+  const todos = (Object.keys(GRUPOS) as GrupoIntegracao[]).flatMap((g) =>
+    GRUPOS[g].filter((i) => !sem.includes(i.id)).map((i) => ({ ...i, grupo: g })),
+  )
+  if (todos.length === 0) return null
+  const grupos = (Object.keys(GRUPOS) as GrupoIntegracao[]).filter((g) => todos.some((i) => i.grupo === g))
+  const itens = filtro === 'todos' ? todos : todos.filter((i) => i.grupo === filtro)
+
+  const filtros: { id: Filtro; rotulo: string }[] = [
+    { id: 'todos', rotulo: 'Todas' },
+    ...grupos.map((g) => ({ id: g as Filtro, rotulo: ROTULO_GRUPO[g] })),
+  ]
 
   return (
-    <div className="mt-6 first:mt-0">
-      <h4 className="text-sm font-medium text-gray-900">Em breve</h4>
-      <p className="mt-0.5 text-sm text-gray-500">
-        {grupo === 'erp'
-          ? 'As vendas vão entrar sozinhas, sem importar arquivo. Marque o ERP que você usa: é por ele que a gente começa.'
-          : 'Para quem não usa ERP: as vendas vão chegar direto da conta de vendedor. Marque onde você vende.'}
-      </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div>
+      <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap gap-1.5">
+        {filtros.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            aria-pressed={filtro === f.id}
+            onClick={() => setFiltro(f.id)}
+            className={`rounded-full border px-3 py-1 text-sm transition-[background-color,border-color,color] duration-150 ease-out ${press} ${
+              filtro === f.id
+                ? 'border-gray-900 bg-gray-900 text-white'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
+            }`}
+          >
+            {f.rotulo}
+          </button>
+        ))}
+      </div>
+
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {itens.map((i) => {
           const marcado = pedidos.includes(i.id)
           return (
-            <div key={i.id} className="flex flex-col rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <MarcaLogo id={i.id} />
-                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Em breve</span>
-              </div>
-              <p className="mt-4 font-medium text-gray-900">{i.nome}</p>
-              <p className="mt-0.5 flex-1 text-xs text-gray-500">{i.descricao}</p>
+            <li key={i.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+              {/* sem logo oficial, o nome sozinho (a placa com o nome repetiria) */}
+              {temLogo(i.id) && <Marca id={i.id} nome={i.nome} />}
+              <p className="min-w-0 flex-1 truncate py-2 text-sm font-medium text-gray-900" title={i.descricao}>
+                {i.nome}
+              </p>
               <button
                 type="button"
                 onClick={() => void alternar(i.id)}
                 disabled={salvando === i.id}
                 aria-pressed={marcado}
-                className={`mt-4 inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] ${
+                aria-label={marcado ? `${i.nome}: vamos avisar você. Desmarcar` : `Quero a integração com ${i.nome}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-[background-color,border-color,color] duration-150 ease-out ${press} ${
                   marcado
-                    ? 'border-brand-600 bg-brand-600 text-white hover:bg-brand-700'
+                    ? 'border-brand-100 bg-brand-50 text-brand-700 hover:border-brand-500'
                     : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {marcado ? (
                   <>
-                    <Check className="h-4 w-4" aria-hidden /> Avisaremos você
+                    <Check className="h-3.5 w-3.5" aria-hidden /> Avisaremos
                   </>
                 ) : (
-                  'Quero esse'
+                  'Quero'
                 )}
               </button>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </div>
   )
 }
