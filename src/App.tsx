@@ -27,6 +27,7 @@ import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
 import BlingRetorno from './pages/BlingRetorno'
 import NuvemshopRetorno from './pages/NuvemshopRetorno'
+import ShopifyRetorno from './pages/ShopifyRetorno'
 import Novidades from './pages/Novidades'
 
 function ProtectedRoutes() {
@@ -122,6 +123,7 @@ function Rotas() {
       {/* Volta da autorização no Bling: fora do menu, trata sessão e erro por conta própria */}
       <Route path="/bling/retorno" element={<BlingRetorno />} />
       <Route path="/nuvemshop/retorno" element={<NuvemshopRetorno />} />
+      <Route path="/shopify/retorno" element={<ShopifyRetorno />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"

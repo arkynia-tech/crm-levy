@@ -6,6 +6,7 @@ import shopee from '../assets/marcas/shopee.svg'
 import amazon from '../assets/marcas/amazon.svg'
 import tiktokShop from '../assets/marcas/tiktok-shop.png'
 import nuvemshop from '../assets/marcas/nuvemshop.png'
+import shopify from '../assets/marcas/shopify.svg'
 
 /**
  * Logos oficiais de ERPs e marketplaces (fontes em src/assets/marcas/FONTES.md).
@@ -21,6 +22,7 @@ const MARCAS: Record<string, { src: string; nome: string; altura: string; escura
   amazon: { src: amazon, nome: 'Amazon', altura: 'h-6' },
   tiktok_shop: { src: tiktokShop, nome: 'TikTok Shop', altura: 'h-8', escura: true },
   nuvemshop: { src: nuvemshop, nome: 'Nuvemshop', altura: 'h-6' },
+  shopify: { src: shopify, nome: 'Shopify', altura: 'h-6' },
 }
 
 export function temLogo(id: string | null | undefined): boolean {

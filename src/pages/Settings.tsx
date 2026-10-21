@@ -785,6 +785,8 @@ export default function Settings() {
   const mostraBling = isMaster || (role === 'admin' && (BLING_ABERTO_PARA_LOJAS || blingLiberado))
   const { data: nuvemshopLiberado = false } = useNuvemshopLiberado(activeClient?.id, role === 'admin' && !NUVEMSHOP_ABERTO_PARA_LOJAS)
   const mostraNuvemshop = isMaster || (role === 'admin' && (NUVEMSHOP_ABERTO_PARA_LOJAS || nuvemshopLiberado))
+  // Shopify: o master prepara o app de cada loja; o admin conecta quando estiver preparado
+  const mostraShopify = isMaster || role === 'admin'
 
   const abas = ABAS.filter((a) => (a.id === 'usuarios' ? canManageUsers : a.id === 'master' ? isMaster : true))
   // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Integrações.
@@ -808,7 +810,7 @@ export default function Settings() {
 
       <div role="tabpanel" id={`painel-${ativa}`} aria-labelledby={`aba-${ativa}`} tabIndex={0} className="mt-6 focus-visible:ring-offset-4">
         {ativa === 'integracoes' && (
-          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} />
+          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} mostraShopify={mostraShopify} />
         )}
 
         {ativa === 'disparos' && (

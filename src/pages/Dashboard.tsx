@@ -21,6 +21,7 @@ const MP_COLORS: Record<string, string> = {
   amazon: '#ff9900',
   tiktok_shop: '#111827',
   nuvemshop: '#0ea5e9',
+  shopify: '#5e8e3e',
 }
 
 function Kpi({

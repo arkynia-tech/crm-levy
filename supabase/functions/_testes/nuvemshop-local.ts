@@ -49,10 +49,17 @@ igual('UF a partir do nome do estado', p.uf, 'SP')
 igual('endereço do envio', p.endereco, {
   logradouro: 'Rua das Flores', numero: '10', complemento: 'ap 12', bairro: 'Centro', cidade: 'São Paulo', uf: 'SP', cep: '01001000',
 })
-igual('itens pela variante, com total calculado', p.itens, [
-  { external_item_id: '77', sku: 'CAM-AZ-M', product_name: 'Camiseta Azul M', quantity: 2, unit_price: 89.95, total_price: 179.9 },
-  { external_item_id: '78', sku: null, product_name: 'Boné', quantity: 1, unit_price: 20, total_price: 20 },
+igual('itens pelo id da linha, com total calculado', p.itens, [
+  { external_item_id: '1', sku: 'CAM-AZ-M', product_name: 'Camiseta Azul M', quantity: 2, unit_price: 89.95, total_price: 179.9 },
+  { external_item_id: '2', sku: null, product_name: 'Boné', quantity: 1, unit_price: 20, total_price: 20 },
 ])
+
+// a mesma variante em duas linhas (campos personalizados diferentes) continua duas linhas
+const repetida = montarPedido({ ...pedido, products: [
+  { id: 10, product_id: 55, variant_id: 77, name: 'Camiseta (nome A)', price: '50.00', quantity: 1, sku: 'C' },
+  { id: 11, product_id: 55, variant_id: 77, name: 'Camiseta (nome B)', price: '50.00', quantity: 1, sku: 'C' },
+] }, '1')
+igual('mesma variante em duas linhas não se funde', repetida.itens.map((i: any) => i.external_item_id), ['10', '11'])
 
 // pagamento virou o dia em São Paulo (23:40 -03:00 = 02:40 UTC do dia seguinte)
 igual('dia do pagamento não escorrega para o dia seguinte', diaSP('2026-10-21T23:40:00-03:00'), '2026-10-21')

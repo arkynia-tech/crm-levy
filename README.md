@@ -159,6 +159,14 @@ Rode `supabase/nuvemshop.sql` e siga `docs/nuvemshop-integracao.md` (app no port
 de parceiros, secrets `NUVEMSHOP_CLIENT_ID`/`NUVEMSHOP_CLIENT_SECRET`, três funções).
 Aberto para todas as lojas desde 21/10/2026: o admin de qualquer loja conecta.
 
+## Shopify (loja virtual)
+
+Mesmo molde da Nuvemshop, com uma diferença: cada loja usa um app de distribuição
+personalizada da Shopify (sem revisão), criado pelo master no painel de parceiros.
+O master prepara a loja em Configurações (domínio e chaves do app) e o admin conecta.
+O pedido pago com CPF entra como venda e gasta 1 crédito. Rode `supabase/shopify.sql`
+e siga `docs/shopify-integracao.md`.
+
 ## Saldo de notas
 
 1 crédito = 1 nota fiscal importada. Cada importação desconta o total de notas

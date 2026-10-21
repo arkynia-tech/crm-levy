@@ -30,7 +30,7 @@ function useOrigemDasLojas(storeIds: string[]) {
   })
 }
 
-const ORIGEM: Record<string, string> = { bling: 'Bling', nuvemshop: 'Nuvemshop' }
+const ORIGEM: Record<string, string> = { bling: 'Bling', nuvemshop: 'Nuvemshop', shopify: 'Shopify' }
 
 function comoEntra(origem: string | undefined, externalId: string | null): string {
   if (origem && ORIGEM[origem]) return ORIGEM[origem]
@@ -44,7 +44,7 @@ function comoEntra(origem: string | undefined, externalId: string | null): strin
  * (bling:, nuvemshop:, emit:) e o que já aparece no nome ficam de fora.
  */
 function identificador(externalId: string | null, nome: string | null): string | null {
-  if (!externalId || /^(bling|nuvemshop|emit):/.test(externalId)) return null
+  if (!externalId || /^(bling|nuvemshop|shopify|emit):/.test(externalId)) return null
   if (nome && nome.toLowerCase().includes(externalId.toLowerCase())) return null
   return externalId
 }

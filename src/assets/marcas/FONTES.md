@@ -13,3 +13,4 @@ se uma marca mudar a logo, baixe de novo da mesma fonte.
 | amazon.svg | https://m.media-amazon.com/images/G/01/sell/navigation/logos/amazon-com-br-half-logo.svg (cabeçalho do venda.amazon.com.br) |
 | tiktok-shop.png | https://lf16-scmcdn.oecstatic.com/obj/oec-magellan-sg/gec/atlas/account-l2l/assets/logo_tts.j3oqa81u.png (cabeçalho do seller-br.tiktok.com). Letra branca: só vai sobre fundo escuro, como a TikTok mostra |
 | nuvemshop.png | https://app-insti-cdn.nuvemshop.com.br/site/dist/images/Nuvemshop.png (site institucional nuvemshop.com.br, baixado em 21/10/2026) |
+| shopify.svg | https://cdn.shopify.com/shopifycloud/brochure/assets/brand-assets/shopify-logo-primary-logo-456baa801ee66a0a435671082365958316831c9960c480451dd0330bcdae304f.svg (logo principal dos brand assets da Shopify, baixado em 21/10/2026) |
