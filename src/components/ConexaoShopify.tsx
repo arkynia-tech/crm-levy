@@ -58,7 +58,7 @@ export function CartaoShopify({
           ? `Desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
           : pronto
             ? `Loja ${preparado.shop_domain}. Deixe o painel dela aberto neste mesmo navegador antes de conectar.`
-            : 'A Shopify é liberada loja a loja pela equipe do Contatta. Fale com a gente para preparar a sua.'
+            : 'Só o master vê este cartão até preparar a loja. Depois disso, o admin da loja conecta com um clique.'
       }
       erro={erro}
       botao={
@@ -125,8 +125,9 @@ function PrepararShopify({ preparado, onFechar }: { preparado: ShopifyPreparado;
   return (
     <form onSubmit={(e) => void salvar(e)} className="revelar space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3 text-left">
       <p className="text-xs text-gray-600">
-        No painel de parceiros da Shopify, crie um app com distribuição personalizada para esta loja, com o endereço de
-        retorno abaixo e as permissões de ler pedidos e clientes. Depois cole aqui o Client ID e o Client secret.
+        No Dev Dashboard da Shopify, crie um app com distribuição personalizada para esta loja, com o endereço de retorno
+        abaixo, as permissões de ler pedidos e clientes e o acesso aos dados do cliente (nome, e-mail, telefone e
+        endereço). Depois cole aqui o Client ID e o Client secret.
       </p>
       <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5">
         <code className="min-w-0 flex-1 truncate text-xs text-gray-700">{SHOPIFY_RETORNO_URL}</code>
