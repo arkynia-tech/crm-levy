@@ -8,6 +8,7 @@ export function MarketplaceBadge({ marketplace }: { marketplace: string | null |
     mercado_livre: 'bg-yellow-50 text-yellow-800 border-yellow-300',
     amazon: 'bg-amber-50 text-amber-900 border-amber-300',
     tiktok_shop: 'bg-gray-900 text-white border-gray-900',
+    nuvemshop: 'bg-sky-50 text-sky-800 border-sky-200',
   }
   const cls = styles[marketplace ?? ''] ?? 'bg-gray-100 text-gray-700 border-gray-200'
   return (

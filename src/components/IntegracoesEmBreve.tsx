@@ -7,7 +7,7 @@ import { MarcaLogo } from './MarcaLogo'
 
 type Integracao = { id: string; nome: string; descricao: string }
 
-export type GrupoIntegracao = 'erp' | 'marketplace'
+export type GrupoIntegracao = 'erp' | 'marketplace' | 'ecommerce'
 
 const GRUPOS: Record<GrupoIntegracao, Integracao[]> = {
   erp: [
@@ -20,6 +20,13 @@ const GRUPOS: Record<GrupoIntegracao, Integracao[]> = {
     { id: 'shopee', nome: 'Shopee', descricao: 'Pedidos e produtos da sua loja' },
     { id: 'amazon', nome: 'Amazon', descricao: 'Pedidos, taxas e estoque' },
     { id: 'tiktok_shop', nome: 'TikTok Shop', descricao: 'Pedidos e produtos da sua loja' },
+  ],
+  ecommerce: [
+    { id: 'nuvemshop', nome: 'Nuvemshop', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
+    { id: 'shopify', nome: 'Shopify', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
+    { id: 'woocommerce', nome: 'WooCommerce', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
+    { id: 'tray', nome: 'Tray', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
+    { id: 'loja_integrada', nome: 'Loja Integrada', descricao: 'Pedidos pagos e clientes da sua loja virtual' },
   ],
 }
 

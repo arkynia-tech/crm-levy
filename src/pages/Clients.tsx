@@ -13,7 +13,7 @@ import { formatCnpj, formatDate, marketplaceLabel, storeStatusLabel } from '../l
 import { EmptyState, ErrorState, LoadingBlock, MarketplaceBadge, PageHeader, StatusBadge } from '../components/ui'
 import { AssinaturaDoCliente } from '../components/Assinatura'
 
-const MARKETPLACES = ['shopee', 'mercado_livre', 'amazon', 'tiktok_shop'] as const
+const MARKETPLACES = ['shopee', 'mercado_livre', 'amazon', 'tiktok_shop', 'nuvemshop'] as const
 
 function somenteDigitos(v: string): string {
   return v.replace(/\D/g, '')

@@ -12,3 +12,4 @@ se uma marca mudar a logo, baixe de novo da mesma fonte.
 | shopee.svg | SVG do cabeçalho do shopee.com.br (`svg.icon-shopee-logo`), com a cor #EE4D2D que o site aplica; o desenho é o mesmo, conferido por SHA-256 |
 | amazon.svg | https://m.media-amazon.com/images/G/01/sell/navigation/logos/amazon-com-br-half-logo.svg (cabeçalho do venda.amazon.com.br) |
 | tiktok-shop.png | https://lf16-scmcdn.oecstatic.com/obj/oec-magellan-sg/gec/atlas/account-l2l/assets/logo_tts.j3oqa81u.png (cabeçalho do seller-br.tiktok.com). Letra branca: só vai sobre fundo escuro, como a TikTok mostra |
+| nuvemshop.png | https://app-insti-cdn.nuvemshop.com.br/site/dist/images/Nuvemshop.png (site institucional nuvemshop.com.br, baixado em 21/10/2026) |

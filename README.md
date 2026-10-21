@@ -149,6 +149,17 @@ sem n8n. Só leitura. Fase 1: conectar, renovar o token e um diagnóstico para o
 master ver o dado antes de gravar qualquer pedido. Rode `supabase/bling-conexao.sql`
 e siga `docs/bling-integracao.md`.
 
+## Nuvemshop (loja virtual)
+
+Mesmo molde do Bling, com a venda sendo o **pedido pago** em vez da nota: a loja
+conecta pela Nuvemshop (OAuth, token que não vence), o Contatta cadastra os
+webhooks na loja e cada pedido pago entra como venda, com cliente, CPF e telefone,
+gastando 1 crédito. A loja do Contatta é criada e ligada sozinha ao conectar.
+Rode `supabase/nuvemshop.sql` e siga `docs/nuvemshop-integracao.md` (app no portal
+de parceiros, secrets `NUVEMSHOP_CLIENT_ID`/`NUVEMSHOP_CLIENT_SECRET`, três funções).
+Até abrir para todas, só o master vê o cartão, ou o admin de loja com
+`clients.nuvemshop_liberado`.
+
 ## Saldo de notas
 
 1 crédito = 1 nota fiscal importada. Cada importação desconta o total de notas

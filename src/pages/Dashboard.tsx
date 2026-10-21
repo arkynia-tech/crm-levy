@@ -20,6 +20,7 @@ const MP_COLORS: Record<string, string> = {
   mercado_livre: '#e6c700',
   amazon: '#ff9900',
   tiktok_shop: '#111827',
+  nuvemshop: '#0ea5e9',
 }
 
 function Kpi({

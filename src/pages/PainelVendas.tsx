@@ -150,6 +150,11 @@ const NOME_INTEGRACAO: Record<string, string> = {
   shopee: 'Shopee',
   amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  nuvemshop: 'Nuvemshop',
+  shopify: 'Shopify',
+  woocommerce: 'WooCommerce',
+  tray: 'Tray',
+  loja_integrada: 'Loja Integrada',
 }
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']

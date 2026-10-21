@@ -45,3 +45,16 @@ verify_jwt = false
 # Agendador de disparos: chamado pelo pg_cron com o token do cron (x-cron-token).
 [functions.campanhas-agendadas]
 verify_jwt = false
+
+# Nuvemshop, também sem a checagem de JWT do gateway:
+# - nuvemshop-conexao confere o login por dentro (auth.getUser);
+# - nuvemshop-webhook é chamado pela Nuvemshop e confere o x-linkedstore-hmac-sha256;
+# - nuvemshop-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.nuvemshop-conexao]
+verify_jwt = false
+
+[functions.nuvemshop-webhook]
+verify_jwt = false
+
+[functions.nuvemshop-pedidos]
+verify_jwt = false

@@ -40,6 +40,8 @@ import StoresGrid from '../components/StoresGrid'
 import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
 import { BLING_ABERTO_PARA_LOJAS, ConexaoBling } from '../components/ConexaoBling'
 import { useBlingLiberado } from '../hooks/bling'
+import { NUVEMSHOP_ABERTO_PARA_LOJAS, ConexaoNuvemshop } from '../components/ConexaoNuvemshop'
+import { useNuvemshopLiberado } from '../hooks/nuvemshop'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -792,6 +794,8 @@ export default function Settings() {
   const { activeClient } = useCompany()
   const { data: blingLiberado = false } = useBlingLiberado(activeClient?.id, role === 'admin' && !BLING_ABERTO_PARA_LOJAS)
   const mostraBling = isMaster || (role === 'admin' && (BLING_ABERTO_PARA_LOJAS || blingLiberado))
+  const { data: nuvemshopLiberado = false } = useNuvemshopLiberado(activeClient?.id, role === 'admin' && !NUVEMSHOP_ABERTO_PARA_LOJAS)
+  const mostraNuvemshop = isMaster || (role === 'admin' && (NUVEMSHOP_ABERTO_PARA_LOJAS || nuvemshopLiberado))
 
   const abas = ABAS.filter((a) => (a.id === 'usuarios' ? canManageUsers : a.id === 'master' ? isMaster : true))
   // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Integrações.
@@ -823,6 +827,10 @@ export default function Settings() {
             <Grupo titulo="Marketplaces" texto="Suas lojas em cada canal de venda e o volume de pedidos dos últimos 30 dias.">
               <StoresGrid />
               <IntegracoesEmBreve grupo="marketplace" />
+            </Grupo>
+            <Grupo titulo="Loja virtual" texto="Pedidos pagos e clientes da sua loja própria, na hora em que o pagamento é confirmado.">
+              {mostraNuvemshop && <ConexaoNuvemshop isMaster={isMaster} />}
+              <IntegracoesEmBreve grupo="ecommerce" sem={mostraNuvemshop ? ['nuvemshop'] : []} />
             </Grupo>
           </div>
         )}
