@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Copy, KeyRound, Link2, RefreshCw } from 'lucide-react'
+import { ExternalLink, KeyRound, Link2, RefreshCw } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
 import type { ConexaoErp } from '../hooks/bling'
-import { chamarShopify, SHOPIFY_APP_URL, type ShopifyPreparado, type StatusShopify } from '../hooks/shopify'
+import { chamarShopify, SHOPIFY_GUIA_URL, type ShopifyPreparado, type StatusShopify } from '../hooks/shopify'
 import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
@@ -87,49 +87,24 @@ export function CartaoShopify({ conexao, preparado }: { conexao: ConexaoErp | nu
   )
 }
 
-/** Passo a passo de como criar o app na loja. É uma sequência de verdade, por isso numerado. */
+/** Resumo de como criar o app; o passo a passo com imagens fica na página de ajuda. */
 function PassoAPassoShopify() {
-  const [copiado, setCopiado] = useState(false)
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(SHOPIFY_APP_URL)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 1600)
-    } catch {
-      /* sem permissão de área de transferência: o endereço está à vista */
-    }
-  }
   return (
-    <details className="group rounded-md border border-gray-200 bg-white" open>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
-        Como criar o app na sua loja
-        <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200 ease-out group-open:rotate-180" aria-hidden />
-      </summary>
-      <ol className="space-y-2.5 border-t border-gray-100 px-3 py-3 text-xs text-gray-600">
-        {[
-          <>Entre no <span className="font-medium text-gray-900">Dev Dashboard</span> da Shopify (dev.shopify.com) com a mesma conta que é dona da loja. Pelo painel da loja, o caminho é Configurações, Apps, Desenvolver apps.</>,
-          <>Crie um app com o nome <span className="font-medium text-gray-900">Contatta</span>. Se pedir o endereço do app, use o de baixo.</>,
-          <>Na configuração do app, marque as permissões de <span className="font-medium text-gray-900">ler pedidos</span> e <span className="font-medium text-gray-900">ler clientes</span> e libere os dados do cliente: nome, e-mail, telefone e endereço. Salve e publique a versão.</>,
-          <><span className="font-medium text-gray-900">Instale o app</span> na sua loja.</>,
-          <>Nas configurações do app, copie o <span className="font-medium text-gray-900">Client ID</span> e o <span className="font-medium text-gray-900">Client secret</span> e cole abaixo, junto com o endereço da sua loja.</>,
-        ].map((passo, n) => (
-          <li key={n} className="flex gap-2.5">
-            <span className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-semibold tabular-nums text-gray-700">
-              {n + 1}
-            </span>
-            <span>{passo}</span>
-          </li>
-        ))}
-        <li className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
-          <code className="min-w-0 flex-1 truncate text-xs text-gray-700">{SHOPIFY_APP_URL}</code>
-          <button type="button" onClick={() => void copiar()} className={`shrink-0 text-xs font-medium text-brand-700 ${press}`}>
-            <Copy className="mr-1 inline h-3.5 w-3.5" aria-hidden />
-            {copiado ? 'Copiado' : 'Copiar'}
-          </button>
-        </li>
-        <li className="text-gray-500">Para o CPF do cliente vir junto, o checkout da sua loja precisa pedir o CPF. Sem CPF o pedido não entra.</li>
-      </ol>
-    </details>
+    <div className="rounded-md border border-gray-200 bg-white px-3 py-3 text-xs text-gray-600">
+      <p>
+        Na Shopify, com a conta dona da loja, crie um app chamado <span className="font-medium text-gray-900">Contatta</span>,
+        dê as permissões de ler pedidos e clientes, instale na loja e copie as chaves.
+      </p>
+      <a
+        href={SHOPIFY_GUIA_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`mt-2.5 inline-flex items-center gap-1.5 font-medium text-brand-700 hover:underline ${press}`}
+      >
+        Ver o passo a passo com imagens
+        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+      </a>
+    </div>
   )
 }
 

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como conectar a Shopify ao Contatta</title>
+<meta name="description" content="Passo a passo com imagens para criar o app do Contatta na sua loja Shopify, pegar as chaves e conectar. Uns 5 minutos.">
+<link rel="canonical" href="https://contatta.pro/shopify/como-conectar/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:title" content="Como conectar a Shopify ao Contatta">
+<meta property="og:description" content="Crie o app na sua loja, cole as chaves no Contatta e os pedidos pagos começam a entrar sozinhos.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://contatta.pro/shopify/como-conectar/">
+<meta property="og:image" content="https://contatta.pro/img/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/bling/estilo.css">
+<style>
+  /* Print da tela da Shopify: a imagem real, com moldura discreta e legenda */
+  .print{margin:16px 0 0}
+  .print img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--gray-200);background:#1a1c1c}
+  .print figcaption{font-size:13.5px;color:var(--gray-500);margin-top:8px}
+  .campo{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:4px 16px;margin:12px 0 14px;padding:14px 16px;border-radius:12px;background:var(--mist);font-size:14.5px}
+  .campo dt{color:var(--gray-500)}
+  .campo dd{margin:0;color:var(--gray-900);font-weight:500;overflow-wrap:anywhere}
+  .campo code{font-size:13.5px;background:#fff;border:1px solid var(--gray-200);border-radius:6px;padding:1px 6px}
+  @media(max-width:560px){.campo{grid-template-columns:1fr}.campo dd{margin-bottom:8px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5b57ea"/><stop offset="1" stop-color="#4a31d0"/>
+        </linearGradient></defs>
+        <rect width="32" height="32" rx="7.2" fill="url(#lg)"/>
+        <path d="M21 12.4A5.6 5.6 0 1 0 21 19.6" fill="none" stroke="#fff" stroke-width="4.3" stroke-linecap="round"/>
+        <circle cx="19.35" cy="16" r="1.85" fill="#a5b4fc"/>
+      </svg>
+      <span>Contatta</span><em>com Shopify</em>
+    </a>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="/shopify/como-conectar/" aria-current="page">Como conectar</a>
+      <a class="btn btn-primary" href="https://app.contatta.pro/configuracoes?aba=integracoes">Abrir o Contatta</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="capa">
+  <div class="wrap">
+    <p class="trilha entra">Integração com a Shopify / Manual</p>
+    <h1 class="entra d1">Como conectar a Shopify ao Contatta</h1>
+    <p class="lead entra d2">Você cria um app do Contatta na sua loja, copia duas chaves e cola no
+      Contatta. Leva uns 5 minutos e é feito uma vez só. Depois disso, cada pedido pago entra sozinho.</p>
+  </div>
+</div>
+
+<div class="wrap manual">
+  <nav class="indice" aria-label="Nesta página">
+    <p>Nesta página</p>
+    <ol>
+      <li><a href="#antes">Antes de começar</a></li>
+      <li><a href="#passo-a-passo">Passo a passo</a></li>
+      <li><a href="#cpf">O CPF do cliente</a></li>
+      <li><a href="#data-de-corte">A data de corte</a></li>
+      <li><a href="#desconectar">Desconectar</a></li>
+    </ol>
+  </nav>
+
+  <div class="conteudo">
+    <section id="antes" aria-labelledby="antes-titulo">
+      <h2 id="antes-titulo">Antes de começar</h2>
+      <ul class="lista">
+        <li>Entrar no Contatta como <b>administrador</b> da conta.</li>
+        <li>Entrar na Shopify com a conta <b>dona da loja</b>. O app precisa ser criado por ela.</li>
+        <li>O checkout da loja pedindo o <b>CPF</b> do cliente. Veja <a href="#cpf">por quê</a>.</li>
+      </ul>
+      <div class="nota">
+        <p>O Contatta só lê pedidos e clientes. Ele não cria, não altera e não apaga nada na sua loja.</p>
+      </div>
+    </section>
+
+    <section id="passo-a-passo" aria-labelledby="passos-titulo">
+      <h2 id="passos-titulo">Passo a passo</h2>
+      <ol class="passos">
+        <li class="passo">
+          <h3>Abra o Dev Dashboard da Shopify</h3>
+          <p>Entre em <a href="https://dev.shopify.com/dashboard" target="_blank" rel="noopener">dev.shopify.com/dashboard</a>
+            com a conta dona da loja. É lá que a Shopify cria os apps de uma loja desde 2026. Pelo painel
+            da loja, o caminho é <b>Configurações</b>, <b>Apps</b>, <b>Desenvolver apps</b>.</p>
+        </li>
+
+        <li class="passo">
+          <h3>Crie o app Contatta</h3>
+          <p>Clique para criar um app e dê o nome <b>Contatta</b>.</p>
+        </li>
+
+        <li class="passo">
+          <h3>Preencha os endereços</h3>
+          <p>Na configuração do app, em <b>URLs</b>:</p>
+          <dl class="campo">
+            <dt>App URL</dt><dd><code>https://app.contatta.pro</code></dd>
+            <dt>Embed app in Shopify admin</dt><dd>desmarcado</dd>
+            <dt>Allowed redirection URL(s)</dt><dd><code>https://app.contatta.pro/shopify/retorno</code></dd>
+          </dl>
+          <figure class="print">
+            <img src="/shopify/img/app-urls.png" width="1648" height="1154" loading="lazy"
+                 alt="Tela de configuração do app na Shopify, com o nome Contatta e o campo App URL preenchido com https://app.contatta.pro">
+            <figcaption>Nome do app e App URL. Lembre de deixar desmarcado o "Embed app in Shopify admin".</figcaption>
+          </figure>
+        </li>
+
+        <li class="passo">
+          <h3>Dê as permissões de leitura</h3>
+          <p>Em <b>API access</b>, no campo <b>Scopes</b>, escreva exatamente:</p>
+          <dl class="campo">
+            <dt>Scopes</dt><dd><code>read_customers,read_orders</code></dd>
+          </dl>
+          <figure class="print">
+            <img src="/shopify/img/app-escopos.png" width="1640" height="648" loading="lazy"
+                 alt="Seção API access do app na Shopify, com o campo Scopes preenchido com read_customers,read_orders">
+            <figcaption>Só leitura de clientes e de pedidos.</figcaption>
+          </figure>
+        </li>
+
+        <li class="passo">
+          <h3>Libere os dados do cliente</h3>
+          <p>Na parte de dados protegidos do cliente (<b>Protected customer data</b>), marque
+            <b>nome</b>, <b>e-mail</b>, <b>telefone</b> e <b>endereço</b>. Sem isso a Shopify esconde
+            esses dados e os pedidos não entram.</p>
+        </li>
+
+        <li class="passo">
+          <h3>Publique e instale na sua loja</h3>
+          <p>Salve e publique a versão do app (<b>Release</b>). Depois clique em <b>Install</b> e escolha a
+            sua loja.</p>
+        </li>
+
+        <li class="passo">
+          <h3>Copie as chaves</h3>
+          <p>Nas configurações do app, copie o <b>Client ID</b> e o <b>Client secret</b>. Guarde o
+            Client secret só pra colar no Contatta: ele é a senha do app.</p>
+        </li>
+
+        <li class="passo">
+          <h3>Cole no Contatta e conecte</h3>
+          <p>No Contatta, abra <b>Configurações</b>, <b>Integrações</b>. No cartão da Shopify, cole o
+            endereço da loja (<b>sualoja.myshopify.com</b>), o Client ID e o Client secret, e clique em
+            <b>Salvar e conectar</b>.</p>
+          <figure class="tela" aria-hidden="true">
+            <div class="tela-corpo">
+              <div>
+                <b class="t">Shopify</b>
+                <p>Endereço da loja, Client ID e Client secret do app.</p>
+              </div>
+              <span class="ui-btn p">Salvar e conectar</span>
+            </div>
+          </figure>
+        </li>
+      </ol>
+
+      <div class="nota">
+        <p><b>Pronto.</b> A loja aparece em <b>Conectadas</b> e, a partir de agora, cada pedido pago
+          com CPF entra sozinho no Contatta, com o cliente.</p>
+      </div>
+      <div class="nota aviso">
+        <p><b>Deu erro ao conectar?</b> Confira se o app foi instalado na loja e se o endereço termina em
+          <b>.myshopify.com</b>. Se continuar, escreva para
+          <a href="mailto:contato@arkynia.com">contato@arkynia.com</a>.</p>
+      </div>
+    </section>
+
+    <section id="cpf" aria-labelledby="cpf-titulo">
+      <h2 id="cpf-titulo">O CPF do cliente</h2>
+      <p>O Contatta organiza a base pelo CPF de quem comprou. Pedido sem CPF não entra.</p>
+      <ul class="lista">
+        <li>O jeito mais simples é ativar no checkout da Shopify o campo de documento do Brasil
+          (CPF/CNPJ).</li>
+        <li>Se a sua loja usa um app de CPF no checkout, o Contatta também lê o CPF que ele grava no
+          pedido.</li>
+      </ul>
+    </section>
+
+    <section id="data-de-corte" aria-labelledby="corte-titulo">
+      <h2 id="corte-titulo">A data de corte</h2>
+      <p>É o dia em que você conectou a Shopify pela primeira vez. Entram os pedidos pagos a partir desse
+        dia; os anteriores ficam como histórico. Ela não muda, nem se você desconectar e conectar de novo.</p>
+      <ul class="lista">
+        <li>Cada pedido novo que entra gasta <b>1 pedido</b> da franquia do seu plano. Sem saldo, ele
+          espera e entra quando você comprar mais.</li>
+        <li>Pedido cancelado na loja aparece como cancelado no Contatta.</li>
+      </ul>
+    </section>
+
+    <section id="desconectar" aria-labelledby="desc-titulo">
+      <h2 id="desc-titulo">Desconectar</h2>
+      <p>No Contatta, em <b>Configurações</b>, <b>Integrações</b>, abra <b>Gerenciar</b> na linha da Shopify
+        e clique em <b>Desconectar a Shopify</b>. Os pedidos param de entrar e nada do que já está no
+        Contatta é apagado. Para tirar o app da loja, desinstale também na Shopify.</p>
+    </section>
+  </div>
+</div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>© 2026 Contatta, um produto da arkynIA tech</span>
+    <nav aria-label="Rodapé">
+      <a href="/politica-de-privacidade.html">Privacidade</a>
+      <a href="/termos-de-uso.html">Termos</a>
+      <a href="mailto:contato@arkynia.com">contato@arkynia.com</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Índice: marca a seção que está na tela.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.indice a'))
+    if (!links.length || !('IntersectionObserver' in window)) return
+    var porId = {}
+    links.forEach(function (a) { porId[a.getAttribute('href').slice(1)] = a })
+    var visiveis = {}
+    var obs = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) { visiveis[e.target.id] = e.isIntersecting })
+      var atual = null
+      for (var i = 0; i < links.length; i++) {
+        var id = links[i].getAttribute('href').slice(1)
+        if (visiveis[id]) { atual = id; break }
+      }
+      if (!atual) return
+      links.forEach(function (a) { a.removeAttribute('aria-current') })
+      porId[atual].setAttribute('aria-current', 'true')
+    }, { rootMargin: '-90px 0px -55% 0px' })
+    Object.keys(porId).forEach(function (id) {
+      var s = document.getElementById(id)
+      if (s) obs.observe(s)
+    })
+  })()
+</script>
+</body>
+</html>
