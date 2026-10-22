@@ -71,3 +71,16 @@ verify_jwt = false
 
 [functions.shopify-pedidos]
 verify_jwt = false
+
+# TikTok Shop, também sem a checagem de JWT do gateway:
+# - tiktok-conexao confere o login por dentro (auth.getUser);
+# - tiktok-webhook é chamado pelo TikTok e confere o cabeçalho Authorization (HMAC);
+# - tiktok-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.tiktok-conexao]
+verify_jwt = false
+
+[functions.tiktok-webhook]
+verify_jwt = false
+
+[functions.tiktok-pedidos]
+verify_jwt = false

@@ -27,6 +27,7 @@ import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
 import BlingRetorno from './pages/BlingRetorno'
 import NuvemshopRetorno from './pages/NuvemshopRetorno'
+import TiktokRetorno from './pages/TiktokRetorno'
 import ShopifyRetorno from './pages/ShopifyRetorno'
 import Novidades from './pages/Novidades'
 
@@ -124,6 +125,7 @@ function Rotas() {
       <Route path="/bling/retorno" element={<BlingRetorno />} />
       <Route path="/nuvemshop/retorno" element={<NuvemshopRetorno />} />
       <Route path="/shopify/retorno" element={<ShopifyRetorno />} />
+      <Route path="/tiktok/retorno" element={<TiktokRetorno />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"
