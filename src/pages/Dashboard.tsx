@@ -6,6 +6,7 @@ import { useDashboard, useOutreachStats, type Period } from '../hooks/queries'
 import { formatCurrency, formatDateTime, marketplaceLabel } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, PageHeader } from '../components/ui'
 import { SEGMENTS } from '../lib/segments'
+import { FiltroCnpj } from '../components/FiltroCnpj'
 
 const inactiveDef = SEGMENTS.find((s) => s.key === 'inactive')
 
@@ -56,19 +57,22 @@ export default function Dashboard() {
   return (
     <div>
       <PageHeader title="Visão Geral" subtitle="Resumo da operação em todos os canais">
-        <div className="flex rounded-md border border-gray-300 bg-white p-0.5" role="group" aria-label="Período">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => setPeriod(p.value)}
-              className={`rounded px-3 py-1.5 text-sm ${
-                period === p.value ? 'bg-ink-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <FiltroCnpj />
+          <div className="flex rounded-md border border-gray-300 bg-white p-0.5" role="group" aria-label="Período">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setPeriod(p.value)}
+                className={`rounded px-3 py-1.5 text-sm ${
+                  period === p.value ? 'bg-ink-900 font-medium text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </PageHeader>
 

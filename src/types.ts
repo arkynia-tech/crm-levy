@@ -13,6 +13,8 @@ export interface Store {
   marketplace: Marketplace
   name: string | null
   external_shop_id: string | null
+  /** CNPJ da conta que vende nesta loja (14 dígitos); base do filtro "por CNPJ" */
+  cnpj?: string | null
   status: string | null
   created_at: string | null
   updated_at: string | null

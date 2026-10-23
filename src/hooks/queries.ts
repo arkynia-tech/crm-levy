@@ -13,15 +13,49 @@ export function useStores() {
     queryKey: ['stores', activeClient?.id],
     enabled: Boolean(activeClient),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stores')
-        .select('id, client_id, marketplace, name, external_shop_id, status, created_at, updated_at')
-        .eq('client_id', activeClient!.id)
-        .order('created_at', { ascending: true })
-      if (error) throw new Error(error.message)
-      return (data ?? []) as Store[]
+      const colunas = 'id, client_id, marketplace, name, external_shop_id, status, created_at, updated_at'
+      const ler = (cols: string) =>
+        supabase.from('stores').select(cols).eq('client_id', activeClient!.id).order('created_at', { ascending: true })
+      let r = await ler(`${colunas}, cnpj`)
+      // antes do multicontas-cnpj.sql a coluna cnpj não existe: lê sem ela
+      if (r.error?.code === '42703') r = await ler(colunas)
+      if (r.error) throw new Error(r.error.message)
+      return (r.data ?? []) as unknown as Store[]
     },
   })
+}
+
+/** Grupos do filtro por CNPJ: cada CNPJ com as suas lojas, e as lojas sem CNPJ. */
+export function gruposPorCnpj(stores: Store[]): { valor: string; cnpj: string | null; lojas: Store[] }[] {
+  const mapa = new Map<string, Store[]>()
+  for (const s of stores) {
+    const k = s.cnpj || 'sem'
+    if (!mapa.has(k)) mapa.set(k, [])
+    mapa.get(k)!.push(s)
+  }
+  return [...mapa.entries()]
+    .map(([valor, lojas]) => ({ valor, cnpj: valor === 'sem' ? null : valor, lojas }))
+    .sort((a, b) => (a.valor === 'sem' ? 1 : b.valor === 'sem' ? -1 : a.valor.localeCompare(b.valor)))
+}
+
+/**
+ * Lojas que entram nas contas do painel e dos pedidos, conforme o filtro
+ * "Todos / por CNPJ". Filtro de um CNPJ que não existe mais volta a "todos".
+ */
+export function useLojasDoFiltro() {
+  const { cnpjFiltro } = useCompany()
+  const r = useStores()
+  const todas = r.data
+  let lojas = todas
+  let filtrando = false
+  if (todas && cnpjFiltro) {
+    const escolhidas = todas.filter((s) => (cnpjFiltro === 'sem' ? !s.cnpj : s.cnpj === cnpjFiltro))
+    if (escolhidas.length > 0) {
+      lojas = escolhidas
+      filtrando = escolhidas.length < todas.length
+    }
+  }
+  return { ...r, data: lojas, filtrando }
 }
 
 export type Period = '30d' | 'month' | 'all'
@@ -56,7 +90,7 @@ interface OrderSlim {
  */
 function useSlimOrders(period: Period) {
   const { activeClient } = useCompany()
-  const { data: stores } = useStores()
+  const { data: stores } = useLojasDoFiltro()
   const storeIds = (stores ?? []).map((s) => s.id)
   return useQuery({
     queryKey: ['orders-slim', activeClient?.id, period, storeIds.join(',')],
@@ -95,13 +129,17 @@ export function useDashboard(period: Period) {
   const { activeClient } = useCompany()
   const { data: orders } = useSlimOrders(period)
   const { data: allOrders } = useSlimOrders('all')
+  const { data: lojas, filtrando } = useLojasDoFiltro()
+  const lojaIds = (lojas ?? []).map((s) => s.id)
 
   return useQuery({
-    queryKey: ['dashboard', activeClient?.id, period, orders?.length, allOrders?.length],
+    queryKey: ['dashboard', activeClient?.id, period, orders?.length, allOrders?.length, filtrando ? lojaIds.join(',') : 'todas'],
     enabled: Boolean(activeClient) && orders !== undefined && allOrders !== undefined,
     queryFn: async (): Promise<DashboardData> => {
       const clientId = activeClient!.id
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+      if (filtrando) return painelDoFiltro(clientId, monthStart, orders!, allOrders!, lojaIds)
 
       const [totalRes, newRes, recentOrdersRes, recentCustomersRes] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
@@ -127,66 +165,113 @@ export function useDashboard(period: Period) {
         if (res.error) throw new Error(res.error.message)
       }
 
-      // Recorrência: clientes com 2+ pedidos (sobre todo o histórico)
-      const byCustomer = new Map<string, number>()
-      for (const o of allOrders!) {
-        if (!o.customer_id || isCancelledStatus(o.status)) continue
-        byCustomer.set(o.customer_id, (byCustomer.get(o.customer_id) ?? 0) + 1)
-      }
-      const identified = byCustomer.size
-      const recurrent = [...byCustomer.values()].filter((n) => n >= 2).length
-      const recurrentPct = identified > 0 ? (recurrent / identified) * 100 : null
-
-      // Sumidos: última compra há 90+ dias. Potencial = uma compra de cada, no ticket médio dele.
-      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000
-      const perCustomer = new Map<string, { last: number; spent: number; n: number }>()
-      for (const o of allOrders!) {
-        if (!o.customer_id || isCancelledStatus(o.status) || !o.ordered_at) continue
-        const cur = perCustomer.get(o.customer_id) ?? { last: 0, spent: 0, n: 0 }
-        cur.last = Math.max(cur.last, new Date(o.ordered_at).getTime())
-        cur.spent += o.total_amount ?? 0
-        cur.n += 1
-        perCustomer.set(o.customer_id, cur)
-      }
-      let dormantCount = 0
-      let dormantPotential = 0
-      for (const c of perCustomer.values()) {
-        if (c.last >= cutoff) continue
-        dormantCount += 1
-        dormantPotential += c.spent / c.n
-      }
-
-      // Receita e gráfico por marketplace (período selecionado, sem cancelados)
-      const valid = orders!.filter((o) => !isCancelledStatus(o.status))
-      const revenue = valid.reduce((sum, o) => sum + (o.total_amount ?? 0), 0)
-      const byMp = new Map<string, { revenue: number; orders: number }>()
-      for (const o of valid) {
-        const key = o.marketplace ?? 'outro'
-        const cur = byMp.get(key) ?? { revenue: 0, orders: 0 }
-        cur.revenue += o.total_amount ?? 0
-        cur.orders += 1
-        byMp.set(key, cur)
-      }
-
       return {
+        ...metricasDosPedidos(orders!, allOrders!),
         totalCustomers: totalRes.count ?? 0,
         newThisMonth: newRes.count ?? 0,
-        recurrentPct,
-        revenue,
-        orderCount: valid.length,
-        revenueByMarketplace: [...byMp.entries()]
-          .map(([marketplace, v]) => ({ marketplace, ...v }))
-          .sort((a, b) => b.revenue - a.revenue),
-        dormant: {
-          count: dormantCount,
-          potential: dormantPotential,
-          avgTicket: dormantCount > 0 ? dormantPotential / dormantCount : 0,
-        },
         recentOrders: (recentOrdersRes.data ?? []) as unknown as Order[],
         recentCustomers: (recentCustomersRes.data ?? []) as Customer[],
       }
     },
   })
+}
+
+/** Painel de um CNPJ só: os clientes contam pelos pedidos das lojas daquele CNPJ. */
+async function painelDoFiltro(
+  clientId: string, monthStart: string, orders: OrderSlim[], allOrders: OrderSlim[], lojaIds: string[],
+): Promise<DashboardData> {
+  const primeira = new Map<string, number>()
+  for (const o of allOrders) {
+    if (!o.customer_id || !o.ordered_at) continue
+    const t = new Date(o.ordered_at).getTime()
+    primeira.set(o.customer_id, Math.min(primeira.get(o.customer_id) ?? t, t))
+  }
+  const inicioMes = new Date(monthStart).getTime()
+  // clientes mais recentes = donos dos últimos pedidos (allOrders vem do mais novo ao mais antigo)
+  const recentesIds: string[] = []
+  for (const o of allOrders) {
+    if (o.customer_id && !recentesIds.includes(o.customer_id)) recentesIds.push(o.customer_id)
+    if (recentesIds.length >= 5) break
+  }
+  const [recentOrdersRes, recentCustomersRes] = await Promise.all([
+    lojaIds.length
+      ? supabase.from('orders').select('*, stores!inner(client_id)').eq('stores.client_id', clientId)
+        .in('store_id', lojaIds).order('ordered_at', { ascending: false }).limit(8)
+      : Promise.resolve({ data: [], error: null }),
+    recentesIds.length
+      ? supabase.from('customers').select('*').eq('client_id', clientId).in('id', recentesIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (recentOrdersRes.error) throw new Error(recentOrdersRes.error.message)
+  if (recentCustomersRes.error) throw new Error(recentCustomersRes.error.message)
+  const ordem = new Map(recentesIds.map((id, i) => [id, i]))
+  const recentCustomers = ((recentCustomersRes.data ?? []) as Customer[])
+    .sort((a, b) => (ordem.get(a.id) ?? 0) - (ordem.get(b.id) ?? 0))
+  return {
+    ...metricasDosPedidos(orders, allOrders),
+    totalCustomers: primeira.size,
+    newThisMonth: [...primeira.values()].filter((t) => t >= inicioMes).length,
+    recentOrders: (recentOrdersRes.data ?? []) as unknown as Order[],
+    recentCustomers,
+  }
+}
+
+/** Recorrência, sumidos e receita por canal, a partir dos pedidos já filtrados. */
+function metricasDosPedidos(orders: OrderSlim[], allOrders: OrderSlim[]) {
+  // Recorrência: clientes com 2+ pedidos (sobre todo o histórico)
+  const byCustomer = new Map<string, number>()
+  for (const o of allOrders) {
+    if (!o.customer_id || isCancelledStatus(o.status)) continue
+    byCustomer.set(o.customer_id, (byCustomer.get(o.customer_id) ?? 0) + 1)
+  }
+  const identified = byCustomer.size
+  const recurrent = [...byCustomer.values()].filter((n) => n >= 2).length
+  const recurrentPct = identified > 0 ? (recurrent / identified) * 100 : null
+
+  // Sumidos: última compra há 90+ dias. Potencial = uma compra de cada, no ticket médio dele.
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000
+  const perCustomer = new Map<string, { last: number; spent: number; n: number }>()
+  for (const o of allOrders) {
+    if (!o.customer_id || isCancelledStatus(o.status) || !o.ordered_at) continue
+    const cur = perCustomer.get(o.customer_id) ?? { last: 0, spent: 0, n: 0 }
+    cur.last = Math.max(cur.last, new Date(o.ordered_at).getTime())
+    cur.spent += o.total_amount ?? 0
+    cur.n += 1
+    perCustomer.set(o.customer_id, cur)
+  }
+  let dormantCount = 0
+  let dormantPotential = 0
+  for (const c of perCustomer.values()) {
+    if (c.last >= cutoff) continue
+    dormantCount += 1
+    dormantPotential += c.spent / c.n
+  }
+
+  // Receita e gráfico por marketplace (período selecionado, sem cancelados)
+  const valid = orders.filter((o) => !isCancelledStatus(o.status))
+  const revenue = valid.reduce((sum, o) => sum + (o.total_amount ?? 0), 0)
+  const byMp = new Map<string, { revenue: number; orders: number }>()
+  for (const o of valid) {
+    const key = o.marketplace ?? 'outro'
+    const cur = byMp.get(key) ?? { revenue: 0, orders: 0 }
+    cur.revenue += o.total_amount ?? 0
+    cur.orders += 1
+    byMp.set(key, cur)
+  }
+
+  return {
+    recurrentPct,
+    revenue,
+    orderCount: valid.length,
+    revenueByMarketplace: [...byMp.entries()]
+      .map(([marketplace, v]) => ({ marketplace, ...v }))
+      .sort((a, b) => b.revenue - a.revenue),
+    dormant: {
+      count: dormantCount,
+      potential: dormantPotential,
+      avgTicket: dormantCount > 0 ? dormantPotential / dormantCount : 0,
+    },
+  }
 }
 
 export interface NewCustomerInput {
@@ -546,7 +631,7 @@ export interface OrdersFilter {
 
 export function useOrders({ marketplace, status, search, from: dateFrom, to: dateTo, page }: OrdersFilter) {
   const { activeClient } = useCompany()
-  const { data: stores } = useStores()
+  const { data: stores } = useLojasDoFiltro()
   const storeIds = (stores ?? []).map((s) => s.id)
   return useQuery({
     queryKey: ['orders', activeClient?.id, marketplace, status, search, dateFrom, dateTo, page, storeIds.join(',')],
@@ -583,7 +668,7 @@ export function useOrders({ marketplace, status, search, from: dateFrom, to: dat
 /** Valores de status realmente presentes no banco, para montar o filtro */
 export function useOrderStatuses() {
   const { activeClient } = useCompany()
-  const { data: stores } = useStores()
+  const { data: stores } = useLojasDoFiltro()
   const storeIds = (stores ?? []).map((s) => s.id)
   return useQuery({
     queryKey: ['order-statuses', activeClient?.id, storeIds.join(',')],

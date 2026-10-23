@@ -43,6 +43,7 @@ export const idDoApp = () => credenciais()?.id ?? null
 // OAuth com PKCE
 
 const enc = new TextEncoder()
+const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
 
 function base64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -198,17 +199,25 @@ export async function ml(token: string, caminho: string): Promise<RespostaMl> {
   return { status: 429, json: { message: 'limite de requisições do Mercado Livre' } }
 }
 
-/** Conta do vendedor que autorizou (id e apelido). */
-export async function lerVendedor(token: string): Promise<{ id: string; nickname: string | null } | null> {
+/**
+ * Conta do vendedor que autorizou: id, apelido e, quando o Mercado Livre
+ * informa (dado privado, só com o token do próprio vendedor), o CNPJ.
+ */
+export async function lerVendedor(token: string): Promise<{ id: string; nickname: string | null; cnpj: string | null } | null> {
   const r = await ml(token, '/users/me')
   if (r.status !== 200 || r.json?.id == null) return null
-  return { id: String(r.json.id), nickname: typeof r.json.nickname === 'string' ? r.json.nickname : null }
+  const ident = (r.json.identification ?? {}) as Json
+  const doc = digitos(ident.number)
+  return {
+    id: String(r.json.id),
+    nickname: typeof r.json.nickname === 'string' ? r.json.nickname : null,
+    cnpj: String(ident.type ?? '').toUpperCase() === 'CNPJ' && doc.length === 14 ? doc : null,
+  }
 }
 
 // ---------------------------------------------------------------------------
 // pedido do Mercado Livre -> o que crm_erp_gravar_pedido espera
 
-const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
 const texto = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
 const numero = (v: unknown) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
 
