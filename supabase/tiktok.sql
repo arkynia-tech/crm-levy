@@ -1,6 +1,7 @@
 -- Integração com o TikTok Shop — Contatta
--- Rodar no SQL Editor DEPOIS de bling-conexao.sql, bling-pedidos.sql e
--- marketplace-canais.sql (que criou o canal 'tiktok_shop' no tipo marketplace).
+-- Rodar no SQL Editor DEPOIS de bling-conexao.sql, bling-pedidos.sql,
+-- marketplace-canais.sql (que criou o canal 'tiktok_shop' no tipo marketplace)
+-- e enriquecimento-uma-vez.sql (regra "uma consulta por CPF", 23/10/2026).
 -- Usa as mesmas tabelas e funções da Nuvemshop (erp_connections,
 -- erp_connection_tokens, erp_oauth_states, erp_store_links, erp_order_events,
 -- crm_erp_conectar, crm_erp_fila_pegar, crm_erp_gravar_pedido).
@@ -61,8 +62,14 @@ revoke execute on function public.crm_cliente_so_tiktok(uuid) from public, anon,
 grant  execute on function public.crm_cliente_so_tiktok(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------
--- Fila do enriquecimento: igual à de enriquecimento-teto-1000.sql, menos quem
--- só veio do TikTok Shop.
+-- Enriquecer cliente que só veio do TikTok: fechado até o TikTok aprovar o
+-- pedido de enriquecimento (decisão do Mohamad, 23/10/2026: aprovou, libera).
+-- Para liberar: rodar de novo esta função devolvendo true.
+create or replace function public.crm_tiktok_enriquecimento_liberado()
+returns boolean language sql stable as $$ select false $$;
+
+-- Fila do enriquecimento: igual à de enriquecimento-uma-vez.sql (uma consulta
+-- por CPF, para sempre), menos quem só veio do TikTok Shop enquanto fechado.
 create or replace function public.crm_enrich_pendentes(p_client_id uuid, p_limit integer default 10)
 returns table (id uuid, cpf text, nome text)
 language sql stable security definer set search_path = public, pg_temp
@@ -73,23 +80,17 @@ as $$
     and c.cpf is not null
     and length(regexp_replace(c.cpf, '[^0-9]', '', 'g')) = 11
     and coalesce(trim(c.phone), '') = ''
-    and (
-      c.extra->>'enriched_at' is null                      -- nunca consultado
-      or c.extra->'novavida'->'CONSULTA' is null           -- consulta não comprovada
-      or coalesce(public.crm_ts(c.extra->>'enriched_at'), 'epoch'::timestamptz)
-         < now() - interval '180 days'                     -- respondeu vazio, já deu o prazo
-    )
-    and not public.crm_cliente_so_tiktok(c.id)             -- declarado ao TikTok (21/10/2026)
-  order by (c.extra->>'enriched_at' is null) desc,
-           (c.extra->'novavida'->'CONSULTA' is null) desc,
-           c.first_seen_at desc nulls last
+    and not public.crm_enrich_consultado(c.extra)         -- consultou uma vez, nunca mais
+    and (public.crm_tiktok_enriquecimento_liberado()
+         or not public.crm_cliente_so_tiktok(c.id))        -- declarado ao TikTok (21/10/2026)
+  order by c.first_seen_at desc nulls last
   limit greatest(1, least(coalesce(p_limit, 10), 1000));
 $$;
 
 revoke execute on function public.crm_enrich_pendentes(uuid, integer) from public, anon, authenticated;
 grant  execute on function public.crm_enrich_pendentes(uuid, integer) to service_role;
 
--- O número "na fila" da tela segue a mesma regra (consulta-sem-payload-nao-conta.sql + TikTok)
+-- O número "na fila" da tela segue a mesma regra (enriquecimento-uma-vez.sql + TikTok)
 create or replace function public.crm_enrich_pendentes_total(p_client_id uuid)
 returns integer
 language sql stable security definer set search_path = public, pg_temp
@@ -101,13 +102,8 @@ as $$
     and c.cpf is not null
     and length(regexp_replace(c.cpf, '[^0-9]', '', 'g')) = 11
     and coalesce(trim(c.phone), '') = ''
-    and (
-      c.extra->>'enriched_at' is null
-      or c.extra->'novavida'->'CONSULTA' is null
-      or coalesce(public.crm_ts(c.extra->>'enriched_at'), 'epoch'::timestamptz)
-         < now() - interval '180 days'
-    )
-    and not public.crm_cliente_so_tiktok(c.id);
+    and not public.crm_enrich_consultado(c.extra)
+    and (public.crm_tiktok_enriquecimento_liberado() or not public.crm_cliente_so_tiktok(c.id));
 $$;
 
 grant execute on function public.crm_enrich_pendentes_total(uuid) to authenticated;
@@ -127,16 +123,18 @@ declare
 begin
   if NEW.cpf is null or length(regexp_replace(NEW.cpf, '[^0-9]', '', 'g')) <> 11
      or coalesce(btrim(NEW.phone), '') <> ''
-     or NEW.extra->'novavida'->'CONSULTA' is not null then
+     or public.crm_enrich_consultado(NEW.extra) then
     return NEW;
   end if;
 
-  -- dado do TikTok Shop não passa pelo enriquecimento (declarado ao TikTok em 21/10/2026)
-  if current_setting('contatta.origem', true) = 'tiktok_shop' then
-    return NEW;
-  end if;
-  if TG_OP = 'UPDATE' and public.crm_cliente_so_tiktok(NEW.id) then
-    return NEW;
+  -- dado do TikTok Shop não passa pelo enriquecimento enquanto o TikTok não aprovar
+  if not public.crm_tiktok_enriquecimento_liberado() then
+    if current_setting('contatta.origem', true) = 'tiktok_shop' then
+      return NEW;
+    end if;
+    if TG_OP = 'UPDATE' and public.crm_cliente_so_tiktok(NEW.id) then
+      return NEW;
+    end if;
   end if;
 
   select o.extra->'novavida' as novavida, o.extra->>'enriched_at' as quando
@@ -145,9 +143,8 @@ begin
   where o.cpf = NEW.cpf
     and o.id is distinct from NEW.id
     and o.client_id <> NEW.client_id
-    and o.extra->'novavida'->'CONSULTA' is not null
-    and public.crm_ts(o.extra->>'enriched_at') > now() - interval '180 days'
-  order by public.crm_ts(o.extra->>'enriched_at') desc
+    and public.crm_enrich_consultado(o.extra)
+  order by public.crm_ts(o.extra->>'enriched_at') desc nulls last
   limit 1;
 
   if d.novavida is null then
@@ -159,7 +156,9 @@ begin
     'enriched_at', d.quando,
     'enriquecido_por', 'outra_loja',
     'reaproveitado_em', now());
-  NEW.phone := coalesce(public.crm_novavida_telefone(d.novavida->'CONSULTA'), NEW.phone);
+  NEW.phone := coalesce(
+    public.crm_novavida_telefone(coalesce(d.novavida->'CONSULTA', d.novavida->'resposta')),
+    NEW.phone);
   return NEW;
 end;
 $$;
