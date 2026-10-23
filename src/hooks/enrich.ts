@@ -1,4 +1,6 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useCompany } from '../context/CompanyContext'
 
 const ENRICH_URL = import.meta.env.VITE_N8N_ENRICH_URL as string | undefined
 
@@ -83,4 +85,42 @@ export async function registrarEnriquecimento(input: {
   } catch {
     // histórico é registro, não operação: o enriquecimento já aconteceu
   }
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Enriquecimento automático (enriquecimento-automatico.sql): com a chave
+ * ligada, cliente novo com CPF e sem telefone é consultado sozinho, uma vez,
+ * minutos depois da venda. Só admin e master mudam a chave.
+ * ------------------------------------------------------------------------- */
+
+export interface EnrichAuto {
+  ligado: boolean
+  desde?: string | null
+}
+
+export function useEnrichAuto() {
+  const { activeClient } = useCompany()
+  return useQuery({
+    queryKey: ['enrich-auto', activeClient?.id],
+    enabled: Boolean(activeClient),
+    queryFn: async (): Promise<EnrichAuto | null> => {
+      const { data, error } = await supabase.rpc('crm_enrich_auto_estado', { p_client_id: activeClient!.id })
+      if (error) return null // SQL ainda não rodado: a chave não aparece
+      return (data ?? { ligado: false }) as EnrichAuto
+    },
+  })
+}
+
+export function useDefinirEnrichAuto() {
+  const { activeClient } = useCompany()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ligado: boolean): Promise<EnrichAuto> => {
+      const { data, error } = await supabase.rpc('crm_enrich_auto_definir', { p_client_id: activeClient!.id, p_ligado: ligado })
+      if (error) throw new Error(error.message)
+      return data as EnrichAuto
+    },
+    onSuccess: (v) => queryClient.setQueryData(['enrich-auto', activeClient?.id], v),
+  })
 }
