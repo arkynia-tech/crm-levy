@@ -142,17 +142,26 @@ export async function tokenDaConexao(connectionId: string): Promise<Acesso> {
   return { ok: true, token: String(data.access_token) }
 }
 
-/** Nome, domínio e e-mail da loja (GET /store). O nome vem por idioma: {"pt": "..."}. */
-export async function lerLoja(token: string, storeId: string): Promise<{ nome: string | null; dominio: string | null; email: string | null }> {
+/**
+ * Nome, domínio, e-mail e CNPJ da loja (GET /store). O nome vem por idioma:
+ * {"pt": "..."}. O CNPJ sai de business_id (identificação fiscal do dono da
+ * loja) quando tem 14 dígitos; CPF ou vazio ficam de fora.
+ */
+export async function lerLoja(
+  token: string,
+  storeId: string,
+): Promise<{ nome: string | null; dominio: string | null; email: string | null; cnpj: string | null }> {
   const r = await nuvem(token, storeId, 'GET', '/store')
-  if (r.status !== 200) return { nome: null, dominio: null, email: null }
+  if (r.status !== 200) return { nome: null, dominio: null, email: null, cnpj: null }
   const nome = r.json.name
   const texto = typeof nome === 'string' ? nome : nome?.pt ?? nome?.es ?? nome?.en ?? (nome && typeof nome === 'object' ? Object.values(nome)[0] : null)
   const dominios = Array.isArray(r.json.domains) ? r.json.domains : []
+  const fiscal = String(r.json.business_id ?? '').replace(/\D/g, '')
   return {
     nome: typeof texto === 'string' && texto.trim() ? texto.trim().slice(0, 80) : null,
     dominio: (dominios[0] ?? r.json.original_domain ?? null) as string | null,
     email: typeof r.json.email === 'string' ? r.json.email : null,
+    cnpj: fiscal.length === 14 ? fiscal : null,
   }
 }
 

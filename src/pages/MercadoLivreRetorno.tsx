@@ -39,8 +39,8 @@ export default function MercadoLivreRetorno() {
         tipo: 'erro',
         titulo: 'O Mercado Livre não foi conectado',
         texto: params.get('error') === 'access_denied'
-          ? 'A autorização foi cancelada no Mercado Livre. Quando quiser, conecte de novo pelas Configurações do Contatta.'
-          : 'O Mercado Livre não mandou a autorização completa. Volte às Configurações do Contatta e conecte de novo.',
+          ? 'A autorização foi cancelada no Mercado Livre. Quando quiser, conecte de novo pela tela Integrações do Contatta.'
+          : 'O Mercado Livre não mandou a autorização completa. Volte à tela Integrações do Contatta e conecte de novo.',
       })
       return
     }
@@ -48,7 +48,7 @@ export default function MercadoLivreRetorno() {
       setEstado({
         tipo: 'erro',
         titulo: 'Entre no Contatta para conectar',
-        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o Mercado Livre de novo pelas Configurações.',
+        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o Mercado Livre de novo pela tela Integrações.',
       })
       return
     }
@@ -100,6 +100,13 @@ export default function MercadoLivreRetorno() {
                     entram sozinhas.
                   </p>
                 )}
+                {!estado.primeira && (
+                  <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Essa conta já estava ligada ao Contatta e foi só conectada de novo. Se a ideia era ligar outra conta,
+                    use "Conectar outra conta" em Integrações: o Contatta tira você desta conta no Mercado Livre e pede o
+                    login da outra.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -119,7 +126,7 @@ export default function MercadoLivreRetorno() {
           <div className="mt-6 flex flex-wrap gap-2">
             {session ? (
               <Link to="/integracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
-                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Configurações'}
+                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Integrações'}
               </Link>
             ) : (
               <Link to="/login" state={{ from: '/integracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">

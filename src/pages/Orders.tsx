@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useCompany } from '../context/CompanyContext'
 import { FiltroCnpj } from '../components/FiltroCnpj'
-import { Link } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { MapPin, Search, X } from 'lucide-react'
+import { ESTADOS } from '../lib/mapa-brasil'
 import { ORDERS_PAGE_SIZE, useOrders, useOrderStatuses, useStores } from '../hooks/queries'
 import { formatCurrency, formatDateTime, marketplaceLabel, orderStatusLabel } from '../lib/format'
 import {
@@ -15,12 +16,18 @@ import {
   OrderStatusBadge,
 } from '../components/ui'
 
+const NOME_DO_ESTADO = Object.fromEntries(ESTADOS.map((e) => [e.uf, e.nome]))
+
 export default function Orders() {
+  // ?uf=SP&de=AAAA-MM-DD: vindo do mapa da Visão Geral
+  const [params, setParams] = useSearchParams()
+  const uf = (params.get('uf') ?? '').toUpperCase()
+  const ufValido = NOME_DO_ESTADO[uf] ? uf : ''
   const [marketplace, setMarketplace] = useState('')
   const [status, setStatus] = useState('')
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
+  const [dateFrom, setDateFrom] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('de') ?? '') ? params.get('de')! : ''))
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(0)
   const { cnpjFiltro } = useCompany()
@@ -29,7 +36,7 @@ export default function Orders() {
 
   const { data: stores } = useStores()
   const { data: statuses } = useOrderStatuses()
-  const { data, isLoading, error, isFetching } = useOrders({ marketplace, status, search, from: dateFrom, to: dateTo, page })
+  const { data, isLoading, error, isFetching } = useOrders({ marketplace, status, search, from: dateFrom, to: dateTo, page, uf: ufValido })
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -40,7 +47,18 @@ export default function Orders() {
   }, [input])
 
   const marketplaces = [...new Set((stores ?? []).map((s) => s.marketplace))]
-  const hasFilter = Boolean(marketplace || status || search || dateFrom || dateTo)
+  const hasFilter = Boolean(marketplace || status || search || dateFrom || dateTo || ufValido)
+  const tirarEstado = () => {
+    setParams(
+      (p) => {
+        p.delete('uf')
+        p.delete('de')
+        return p
+      },
+      { replace: true },
+    )
+    setPage(0)
+  }
   const totalPeriodo = (data?.orders ?? [])
     .filter((o) => !(o.status ?? '').toLowerCase().includes('cancel'))
     .reduce((s, o) => s + (o.total_amount ?? 0), 0)
@@ -133,13 +151,30 @@ export default function Orders() {
               setInput('')
               setDateFrom('')
               setDateTo('')
-              setPage(0)
+              tirarEstado()
             }}
           >
             Limpar
           </button>
         )}
       </div>
+
+      {ufValido && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 py-1 pl-2.5 pr-1 text-brand-700">
+            <MapPin className="h-3.5 w-3.5" aria-hidden />
+            Clientes de {NOME_DO_ESTADO[ufValido]}
+            <button
+              type="button"
+              className="rounded-full p-0.5 hover:bg-brand-100"
+              onClick={tirarEstado}
+              aria-label={`Tirar o filtro de ${NOME_DO_ESTADO[ufValido]}`}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </span>
+        </div>
+      )}
 
       {(dateFrom || dateTo) && (
         <p className="mb-3 text-sm text-gray-600">

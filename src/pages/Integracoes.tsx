@@ -7,12 +7,12 @@ import { useCompany } from '../context/CompanyContext'
 import { useUserRole } from '../hooks/settings'
 import { useStores, useStoreVolumes } from '../hooks/queries'
 import { useBlingLiberado, useConexaoBling, type ConexaoErp } from '../hooks/bling'
-import { useConexaoNuvemshop, useNuvemshopLiberado } from '../hooks/nuvemshop'
+import { useConexoesNuvemshop, useNuvemshopLiberado } from '../hooks/nuvemshop'
 import { useConexaoShopify, useShopifyPreparado } from '../hooks/shopify'
 import { useConexoesMercadoLivre, useMercadoLivreLiberado } from '../hooks/mercadolivre'
 import { useConexoesTiktok, useTiktokLiberado } from '../hooks/tiktok'
 import { BLING_ABERTO_PARA_LOJAS, CartaoBling, LinhaBling } from '../components/ConexaoBling'
-import { CartaoNuvemshop, LinhaNuvemshop, NUVEMSHOP_ABERTO_PARA_LOJAS } from '../components/ConexaoNuvemshop'
+import { CartaoNuvemshop, LinhaNuvemshop, NUVEMSHOP_ABERTO_PARA_LOJAS, OutraLojaNuvemshop } from '../components/ConexaoNuvemshop'
 import { CartaoShopify, LinhaShopify } from '../components/ConexaoShopify'
 import {
   CartaoMercadoLivre,
@@ -289,7 +289,7 @@ export default function Integracoes() {
   const { activeClient } = useCompany()
   const ver = useCanaisVisiveis()
   const bling = useConexaoBling(ver.bling ? activeClient?.id : undefined)
-  const nuvem = useConexaoNuvemshop(ver.nuvemshop ? activeClient?.id : undefined)
+  const nuvem = useConexoesNuvemshop(ver.nuvemshop ? activeClient?.id : undefined)
   const shop = useConexaoShopify(ver.shopify ? activeClient?.id : undefined)
   const prep = useShopifyPreparado(activeClient?.id, ver.shopify)
   const ml = useConexoesMercadoLivre(ver.mercadoLivre ? activeClient?.id : undefined)
@@ -318,7 +318,9 @@ export default function Integracoes() {
   const tiktokContas: Conta[] = ver.tiktok
     ? (tiktok.data ?? []).filter((c) => ligada(c.status)).map((c) => ({ canal: 'tiktok_shop', conexao: c }))
     : []
-  const nuvemConta: Conta[] = ver.nuvemshop && nuvem.data && ligada(nuvem.data.status) ? [{ canal: 'nuvemshop', conexao: nuvem.data }] : []
+  const nuvemConta: Conta[] = ver.nuvemshop
+    ? (nuvem.data ?? []).filter((c) => ligada(c.status)).map((c) => ({ canal: 'nuvemshop', conexao: c }))
+    : []
   const shopConta: Conta[] = ver.shopify && shop.data && ligada(shop.data.status) ? [{ canal: 'shopify', conexao: shop.data }] : []
   const blingConta: Conta[] = ver.bling && bling.data && ligada(bling.data.status) ? [{ canal: 'bling', conexao: bling.data }] : []
   const contas = [...mlContas, ...tiktokContas, ...nuvemConta, ...shopConta, ...blingConta]
@@ -390,8 +392,8 @@ export default function Integracoes() {
                     </GrupoCanal>
                   )}
                   {nuvemConta.length > 0 && (
-                    <GrupoCanal marca="nuvemshop" nome="Nuvemshop" contas={nuvemConta}>
-                      <LinhaNuvemshop conexao={nuvemConta[0].conexao} />
+                    <GrupoCanal marca="nuvemshop" nome="Nuvemshop" contas={nuvemConta} outra={<OutraLojaNuvemshop />} rotuloOutra="Conectar outra loja" unidade={['loja', 'lojas']}>
+                      {nuvemConta.map((c) => <LinhaNuvemshop key={c.conexao.id} conexao={c.conexao} />)}
                     </GrupoCanal>
                   )}
                   {shopConta.length > 0 && (
@@ -417,7 +419,7 @@ export default function Integracoes() {
                 <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {mlDisponivel && <CartaoMercadoLivre ligadas={0} desconectadas={mlDesligadas} />}
                   {tiktokDisponivel && <CartaoTiktok conexao={tiktok.data?.[0] ?? null} />}
-                  {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data ?? null} />}
+                  {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data?.[0] ?? null} />}
                   {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
                   {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
                 </div>
