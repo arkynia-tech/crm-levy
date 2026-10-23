@@ -85,3 +85,7 @@ verify_jwt = false
 
 [functions.mercadolivre-pedidos]
 verify_jwt = false
+
+# Enriquecimento automático: chamado só pelo pg_cron, com o token do cron.
+[functions.enriquecimento-auto]
+verify_jwt = false

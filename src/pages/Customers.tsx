@@ -11,7 +11,8 @@ import {
   useCustomerSituacoes,
   type EnrichFilter,
 } from '../hooks/queries'
-import { enrichCustomers, registrarEnriquecimento } from '../hooks/enrich'
+import { enrichCustomers, registrarEnriquecimento, useDefinirEnrichAuto, useEnrichAuto } from '../hooks/enrich'
+import { useUserRole } from '../hooks/settings'
 import { useCompany } from '../context/CompanyContext'
 
 import { formatCurrency, formatDate, formatDateTime, formatPhone, maskCpf, toE164 } from '../lib/format'
@@ -25,8 +26,8 @@ type CustTab = EnrichFilter
 // havia gente sem telefone dentro de "Enriquecidos".
 const TABS: { key: CustTab; label: string; title: string }[] = [
   { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido, dá para mandar WhatsApp hoje' },
-  { key: 'na_fila', label: 'Na fila', title: 'Sem número e vale consultar: nunca consultado, ou consultado há mais de 180 dias' },
-  { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, sem telefone encontrado. Voltam para a fila depois de 180 dias' },
+  { key: 'na_fila', label: 'Na fila', title: 'Sem número e ainda não consultados' },
+  { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, sem telefone encontrado. Cada CPF é consultado uma vez só' },
 ]
 
 /**
@@ -126,10 +127,11 @@ function EnrichControl() {
         <span className={`text-xs ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</span>
       )}
       {pendentes !== undefined && (
-        <span className="text-xs text-gray-500" title="Ainda não consultados, ou consultados sem telefone">
+        <span className="text-xs text-gray-500" title="Com CPF, sem telefone e ainda não consultados">
           <span className="font-medium tabular-nums text-gray-700">{pendentes}</span> na fila
         </span>
       )}
+      <ChaveAutomatico />
       <button
         type="button"
         className="text-xs text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline"
@@ -143,6 +145,57 @@ function EnrichControl() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Chave do enriquecimento automático: ligada, cliente novo com CPF e sem
+ * telefone é consultado sozinho minutos depois da venda (uma vez só). Só admin
+ * e master veem; sem o SQL rodado, não aparece.
+ */
+function ChaveAutomatico() {
+  const { data: papel } = useUserRole()
+  const { data: estado } = useEnrichAuto()
+  const definir = useDefinirEnrichAuto()
+  if (!estado || (papel !== 'admin' && papel !== 'master')) return null
+  const ligado = estado.ligado
+  const mudar = () => {
+    if (
+      !ligado &&
+      !window.confirm(
+        'Consultar sozinho os clientes novos?\n\n' +
+          'Cada cliente novo com CPF e sem telefone é consultado uma vez na base parceira, minutos depois da venda. ' +
+          'Os clientes que já estão na base continuam no botão "Completar contatos".',
+      )
+    )
+      return
+    definir.mutate(!ligado)
+  }
+  return (
+    <span className="inline-flex items-center gap-2 text-xs text-gray-600">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={ligado}
+        aria-label="Consultar sozinho os clientes novos"
+        onClick={mudar}
+        disabled={definir.isPending}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-60 ${
+          ligado ? 'bg-brand-600' : 'bg-gray-300'
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+            ligado ? 'translate-x-[18px]' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+      <span title="Cliente novo com CPF e sem telefone é consultado sozinho, uma vez, minutos depois da venda">
+        {ligado ? 'Clientes novos: automático' : 'Clientes novos: manual'}
+      </span>
+      {definir.isError && <span className="text-red-700">{(definir.error as Error).message}</span>}
+    </span>
   )
 }
 
