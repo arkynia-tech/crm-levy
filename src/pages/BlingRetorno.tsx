@@ -40,8 +40,8 @@ export default function BlingRetorno() {
         tipo: 'erro',
         titulo: 'O Bling não foi conectado',
         texto: params.get('error') === 'access_denied'
-          ? 'A autorização foi cancelada no Bling. Quando quiser, conecte de novo pelas Configurações do Contatta.'
-          : 'O Bling não mandou a autorização completa. Volte às Configurações do Contatta e conecte de novo.',
+          ? 'A autorização foi cancelada no Bling. Quando quiser, conecte de novo pela tela Integrações do Contatta.'
+          : 'O Bling não mandou a autorização completa. Volte à tela Integrações do Contatta e conecte de novo.',
       })
       return
     }
@@ -49,7 +49,7 @@ export default function BlingRetorno() {
       setEstado({
         tipo: 'erro',
         titulo: 'Entre no Contatta para conectar',
-        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o Bling de novo pelas Configurações.',
+        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o Bling de novo pela tela Integrações.',
       })
       return
     }
@@ -120,7 +120,7 @@ export default function BlingRetorno() {
           <div className="mt-6 flex flex-wrap gap-2">
             {session ? (
               <Link to="/integracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
-                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Configurações'}
+                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Integrações'}
               </Link>
             ) : (
               <Link to="/login" state={{ from: '/integracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
