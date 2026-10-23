@@ -100,6 +100,13 @@ export default function MercadoLivreRetorno() {
                     entram sozinhas.
                   </p>
                 )}
+                {!estado.primeira && (
+                  <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Essa conta já estava ligada ao Contatta e foi só conectada de novo. Se a ideia era ligar outra conta,
+                    use "Conectar outra conta" em Integrações: o Contatta tira você desta conta no Mercado Livre e pede o
+                    login da outra.
+                  </p>
+                )}
               </div>
             </div>
           )}
