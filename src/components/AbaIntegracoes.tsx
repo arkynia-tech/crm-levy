@@ -2,7 +2,7 @@ import { useCompany } from '../context/CompanyContext'
 import { useConexaoBling } from '../hooks/bling'
 import { useConexaoNuvemshop } from '../hooks/nuvemshop'
 import { useConexaoShopify, useShopifyPreparado } from '../hooks/shopify'
-import { useConexaoMercadoLivre } from '../hooks/mercadolivre'
+import { useConexoesMercadoLivre } from '../hooks/mercadolivre'
 import { CartaoBling, LinhaBling } from './ConexaoBling'
 import { CartaoNuvemshop, LinhaNuvemshop } from './ConexaoNuvemshop'
 import { CartaoShopify, LinhaShopify } from './ConexaoShopify'
@@ -41,7 +41,7 @@ export function AbaIntegracoes({
   const nuvem = useConexaoNuvemshop(mostraNuvemshop ? activeClient?.id : undefined)
   const shop = useConexaoShopify(mostraShopify ? activeClient?.id : undefined)
   const prep = useShopifyPreparado(activeClient?.id, mostraShopify)
-  const ml = useConexaoMercadoLivre(mostraMercadoLivre ? activeClient?.id : undefined)
+  const ml = useConexoesMercadoLivre(mostraMercadoLivre ? activeClient?.id : undefined)
 
   const carregando =
     (mostraBling && bling.isLoading) || (mostraNuvemshop && nuvem.isLoading) || (mostraShopify && (shop.isLoading || prep.isLoading)) ||
@@ -51,13 +51,17 @@ export function AbaIntegracoes({
   const blingLigado = mostraBling && bling.data && ligada(bling.data.status)
   const nuvemLigada = mostraNuvemshop && nuvem.data && ligada(nuvem.data.status)
   const shopLigada = mostraShopify && shop.data && ligada(shop.data.status)
-  const mlLigado = mostraMercadoLivre && ml.data && ligada(ml.data.status)
+  // Mercado Livre: várias contas (uma por CNPJ)
+  const mlLigadas = mostraMercadoLivre ? (ml.data ?? []).filter((c) => ligada(c.status)) : []
+  const mlDesligadas = (ml.data ?? []).filter((c) => !ligada(c.status))
+  const mlLigado = mlLigadas.length > 0
   // undefined = falta o SQL daquela integração: só o master fica sabendo
   const blingDisponivel = mostraBling && !blingLigado && bling.data !== undefined
   const nuvemDisponivel = mostraNuvemshop && !nuvemLigada && nuvem.data !== undefined
   // Shopify: o admin conecta com as chaves do app da loja dele (ou autoriza, se as chaves já estão guardadas)
   const shopDisponivel = Boolean(mostraShopify && !shopLigada && shop.data !== undefined && prep.data)
-  const mlDisponivel = mostraMercadoLivre && !mlLigado && ml.data !== undefined
+  // sempre dá para conectar outra conta
+  const mlDisponivel = mostraMercadoLivre && ml.data !== undefined
   const faltaSql = isMaster && ((mostraBling && !bling.isLoading && bling.data === undefined) || (mostraNuvemshop && !nuvem.isLoading && nuvem.data === undefined) || (mostraShopify && !shop.isLoading && shop.data === undefined) || (mostraMercadoLivre && !ml.isLoading && ml.data === undefined))
 
   if (carregando) {
@@ -80,7 +84,7 @@ export function AbaIntegracoes({
             {blingLigado && bling.data && <LinhaBling conexao={bling.data} isMaster={isMaster} />}
             {nuvemLigada && nuvem.data && <LinhaNuvemshop conexao={nuvem.data} />}
             {shopLigada && shop.data && <LinhaShopify conexao={shop.data} />}
-            {mlLigado && ml.data && <LinhaMercadoLivre conexao={ml.data} isMaster={isMaster} />}
+            {mlLigadas.map((c) => <LinhaMercadoLivre key={c.id} conexao={c} isMaster={isMaster} />)}
           </PainelConectadas>
         </Secao>
       )}
@@ -94,7 +98,7 @@ export function AbaIntegracoes({
             {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
             {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data ?? null} />}
             {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
-            {mlDisponivel && <CartaoMercadoLivre conexao={ml.data ?? null} />}
+            {mlDisponivel && <CartaoMercadoLivre ligadas={mlLigadas.length} desconectadas={mlDesligadas} />}
           </div>
           {faltaSql && (
             <p className="mt-3 text-sm text-amber-800">

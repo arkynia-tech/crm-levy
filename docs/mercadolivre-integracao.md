@@ -40,6 +40,18 @@ mesma venda nas duas gasta crédito nas duas. Decisão de 18/10: responsabilidad
 | Configurações | cartão "Mercado Livre" com a caixa de aceite (`src/components/ConexaoMercadoLivre.tsx`), `MERCADOLIVRE_ABERTO_PARA_LOJAS = false` |
 | `/mercadolivre/retorno` | página fora do menu |
 
+## Várias contas e CNPJ (desde 23/10/2026)
+
+Uma loja do Contatta pode ligar várias contas do Mercado Livre (uma por CNPJ).
+Cada conta é uma conexão (`erp_connections`, única por loja + canal + conta) e uma
+loja do Contatta. As ações `desconectar`, `status` e `usuario_teste` recebem
+`connection_id`. Ao conectar, o CNPJ da conta (`/users/me`, `identification`
+do tipo CNPJ, quando o Mercado Livre informa) vai para `stores.cnpj`; senão o
+lojista preenche em Configurações, na lista de lojas. Para conectar a segunda
+conta, o lojista sai da primeira no Mercado Livre antes (a tela de autorização
+usa a conta que estiver logada no navegador). Regras e SQL em
+`supabase/multicontas-cnpj.sql`.
+
 ## O app no DevCenter
 
 App **Contatta**, ID 1959994769279528, criado em 18/10/2026, ajustado em 23/10/2026:

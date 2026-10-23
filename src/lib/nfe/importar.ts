@@ -177,6 +177,25 @@ export async function importarNotas(
     for (const s of data ?? []) idPorLoja.set(`${s.marketplace}|${s.external_shop_id}`, s.id)
   }
 
+  // CNPJ de cada loja = CNPJ do emitente das notas dela. Só preenche loja sem
+  // CNPJ: o que o lojista corrigiu em Configurações fica. Falhar aqui não para
+  // a importação (é só a etiqueta do filtro por CNPJ).
+  {
+    const lojasPorCnpj = new Map<string, Set<string>>()
+    for (const n of notas) {
+      if (!/^\d{14}$/.test(n.emit_cnpj)) continue
+      const l = lojaDaNota(n)
+      const id = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
+      if (!id) continue
+      if (!lojasPorCnpj.has(n.emit_cnpj)) lojasPorCnpj.set(n.emit_cnpj, new Set())
+      lojasPorCnpj.get(n.emit_cnpj)!.add(id)
+    }
+    for (const [cnpj, ids] of lojasPorCnpj) {
+      const { error } = await supabase.from('stores').update({ cnpj }).in('id', [...ids]).is('cnpj', null)
+      if (error) console.warn('CNPJ das lojas:', error.message)
+    }
+  }
+
   // -------------------------------------------------------------- crédito
   // Cada pedido NOVO gasta 1 crédito. Os que não cabem no saldo saem aqui,
   // antes de gravar cliente, pedido, item ou estoque: tem 100 e mandou 200,

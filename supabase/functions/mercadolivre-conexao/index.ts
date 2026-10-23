@@ -5,9 +5,14 @@
 //                 e PKCE amarrados à loja e a quem clicou.
 //   retorno       quem clicou: troca o code pelo token (com o code_verifier),
 //                 grava a conexão e o aceite e cria a loja do Contatta.
-//   desconectar   admin liberado ou master: apaga o token. Os dados ficam, e a
-//                 data de corte também (como no Bling).
-//   status        admin liberado ou master: confere se o acesso ainda vale.
+//   desconectar   admin liberado ou master, numa conta (connection_id): apaga o
+//                 token. Os dados ficam, e a data de corte também (como no Bling).
+//   status        admin liberado ou master, numa conta: confere se o acesso vale.
+//
+// Desde 23/10/2026 a loja do Contatta pode ter várias contas do Mercado Livre
+// (uma por CNPJ): cada uma é uma conexão e uma loja; as ações por conta recebem
+// connection_id. Ao conectar, o CNPJ da conta (quando o Mercado Livre informa)
+// vai para stores.cnpj.
 //   usuario_teste só master: cria um usuário de teste do Mercado Livre com o
 //                 acesso da conta conectada (o Mercado Livre não tem sandbox; o
 //                 teste é com usuários de teste, até 10 por conta) e devolve o
@@ -55,12 +60,12 @@ Deno.serve(async (req) => {
         if (b.aceite !== true) return falha(400, 'Confirme que você é o responsável pelos dados dos seus clientes antes de conectar.')
         return await autorizar(b.client_id, userId)
       case 'desconectar':
-        return await desconectar(b.client_id)
+        return await desconectar(b.client_id, String(b.connection_id ?? ''))
       case 'status':
-        return await status(b.client_id)
+        return await status(b.client_id, String(b.connection_id ?? ''))
       case 'usuario_teste':
         if (papel !== 'master') return falha(403, 'Só o master cria usuário de teste.')
-        return await usuarioTeste(b.client_id)
+        return await usuarioTeste(b.client_id, String(b.connection_id ?? ''))
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -77,10 +82,13 @@ async function liberadoParaAdmin(clientId: string): Promise<boolean> {
   return data?.mercadolivre_liberado === true
 }
 
-async function conexaoDaLoja(clientId: string): Promise<Json | null> {
+/** Uma conta do Mercado Livre desta loja do Contatta (a conexão tem de ser dela). */
+async function conexaoDaLoja(clientId: string, connectionId: string): Promise<Json | null> {
+  if (!connectionId) return null
   const { data, error } = await banco
     .from('erp_connections')
     .select('id, client_id, status, cutoff_at, account_id, account_name')
+    .eq('id', connectionId)
     .eq('client_id', clientId)
     .eq('provider', PROVEDOR)
     .maybeSingle()
@@ -160,6 +168,10 @@ async function retorno(b: Json, userId: string) {
   const lojaContatta = r.connection_id
     ? await garantirLoja({ connection_id: r.connection_id, client_id: s.client_id, account_id: sellerId, account_name: nome })
     : null
+  // CNPJ da conta, quando o Mercado Livre informa; não sobrescreve o que o lojista já preencheu
+  if (lojaContatta && vendedor?.cnpj) {
+    await banco.from('stores').update({ cnpj: vendedor.cnpj }).eq('id', lojaContatta).is('cnpj', null)
+  }
 
   return ok({
     ok: true, client_id: s.client_id, conta: nome, cutoff_at: r.cutoff_at,
@@ -167,8 +179,8 @@ async function retorno(b: Json, userId: string) {
   })
 }
 
-async function desconectar(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
+async function desconectar(clientId: string, connectionId: string) {
+  const c = await conexaoDaLoja(clientId, connectionId)
   if (!c) return ok({ ok: true })
   await banco.from('erp_connection_tokens').delete().eq('connection_id', c.id)
   const { error } = await banco
@@ -183,8 +195,8 @@ async function desconectar(clientId: string) {
  * Cria um usuário de teste (POST /users/test_user) com o acesso da conta
  * conectada. O login e a senha são de teste e só aparecem para o master.
  */
-async function usuarioTeste(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
+async function usuarioTeste(clientId: string, connectionId: string) {
+  const c = await conexaoDaLoja(clientId, connectionId)
   if (!c || c.status !== 'conectado') return falha(409, 'Conecte uma conta do Mercado Livre nesta loja antes de criar usuário de teste.')
   const a = await acessoDaConexao(c.id)
   if (!a.ok) return falha(409, 'A conexão com o Mercado Livre expirou. Conecte de novo.')
@@ -206,9 +218,9 @@ async function usuarioTeste(clientId: string) {
 }
 
 /** Confere se o acesso ainda vale (renova se precisar) e quantos pedidos esperam na fila. */
-async function status(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
-  if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com o Mercado Livre conectado.')
+async function status(clientId: string, connectionId: string) {
+  const c = await conexaoDaLoja(clientId, connectionId)
+  if (!c || c.status !== 'conectado') return falha(409, 'Esta conta do Mercado Livre não está conectada.')
   const a = await acessoDaConexao(c.id)
   if (!a.ok) return falha(409, 'A conexão com o Mercado Livre expirou. Conecte de novo.')
   const vendedor = await lerVendedor(a.token)

@@ -68,21 +68,28 @@ function ConectarComAceite({ rotulo, largura }: { rotulo: string; largura?: 'che
   )
 }
 
-/** Mercado Livre ainda não ligado (ou desconectado): cartão com o aceite e o botão de conectar. */
-export function CartaoMercadoLivre({ conexao }: { conexao: ConexaoErp | null }) {
-  const desconectado = conexao?.status === 'desconectado' && conexao.disconnected_at
+/**
+ * Cartão de conectar uma conta do Mercado Livre. Cada conta (CNPJ) vira uma loja
+ * no Contatta; com uma já ligada, o cartão vira "Conectar outra conta".
+ */
+export function CartaoMercadoLivre({ ligadas, desconectadas }: { ligadas: number; desconectadas: ConexaoErp[] }) {
+  const ultima = desconectadas[0]
   return (
     <CartaoDisponivel
       marca="mercado_livre"
       nome="Mercado Livre"
       categoria="Marketplace"
-      texto="As vendas pagas da sua conta de vendedor entram sozinhas, com o nome e o CPF do comprador. O Mercado Livre não repassa telefone nem e-mail."
-      nota={
-        desconectado
-          ? `Desconectado em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
-          : 'Entre com a conta principal (administradora) do vendedor neste mesmo navegador antes de conectar.'
+      texto={
+        ligadas > 0
+          ? 'Vende com mais de um CNPJ no Mercado Livre? Conecte cada conta: cada uma vira uma loja aqui, e o painel mostra tudo junto ou por CNPJ.'
+          : 'As vendas pagas da sua conta de vendedor entram sozinhas, com o nome e o CPF do comprador. O Mercado Livre não repassa telefone nem e-mail. Dá para conectar mais de uma conta (um CNPJ em cada).'
       }
-      botao={<ConectarComAceite rotulo={desconectado ? 'Conectar de novo' : 'Conectar Mercado Livre'} largura="cheia" />}
+      nota={
+        ultima?.disconnected_at
+          ? `${ultima.account_name ?? 'Uma conta'} foi desconectada em ${formatDate(ultima.disconnected_at)}. O que já entrou continua aqui; conectando a mesma conta de novo, a data de corte fica a mesma.`
+          : 'Entre com a conta principal (administradora) do vendedor neste mesmo navegador antes de conectar. Para outra conta, saia da anterior no Mercado Livre antes.'
+      }
+      botao={<ConectarComAceite rotulo={ligadas > 0 ? 'Conectar outra conta' : 'Conectar Mercado Livre'} largura="cheia" />}
     />
   )
 }
@@ -101,7 +108,7 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
   const criarUsuarioTeste = async () => {
     setOcupado('teste')
     setMsg(null)
-    const r = await chamarMercadoLivre<{ nickname: string; senha: string | null }>({ action: 'usuario_teste', client_id: activeClient.id })
+    const r = await chamarMercadoLivre<{ nickname: string; senha: string | null }>({ action: 'usuario_teste', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     if (r.ok) setTestes((t) => [...t, { nickname: r.nickname, senha: r.senha }])
     else setMsg(r.error)
@@ -112,7 +119,7 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
   const desconectar = async () => {
     setOcupado('desconectar')
     setMsg(null)
-    const r = await chamarMercadoLivre({ action: 'desconectar', client_id: activeClient.id })
+    const r = await chamarMercadoLivre({ action: 'desconectar', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     setConferido(null)
     if (!r.ok) setMsg(r.error)
@@ -122,7 +129,7 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
   const conferir = async () => {
     setOcupado('conferir')
     setMsg(null)
-    const r = await chamarMercadoLivre<StatusMercadoLivre>({ action: 'status', client_id: activeClient.id })
+    const r = await chamarMercadoLivre<StatusMercadoLivre>({ action: 'status', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     if (r.ok) setConferido(r as StatusMercadoLivre)
     else setMsg(r.error)
@@ -136,7 +143,7 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
   return (
     <LinhaConectada
       marca="mercado_livre"
-      nome="Mercado Livre"
+      nome={conexao.account_name ? `Mercado Livre · ${conexao.account_name}` : 'Mercado Livre'}
       estado={reconectar ? 'reconectar' : 'conectado'}
       resumo={resumo}
       acao={reconectar ? <ConectarComAceite rotulo="Conectar de novo" /> : undefined}

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useCompany } from '../context/CompanyContext'
+import { FiltroCnpj } from '../components/FiltroCnpj'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { ORDERS_PAGE_SIZE, useOrders, useOrderStatuses, useStores } from '../hooks/queries'
@@ -21,6 +23,9 @@ export default function Orders() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(0)
+  const { cnpjFiltro } = useCompany()
+  // trocar o CNPJ volta para a primeira página
+  useEffect(() => setPage(0), [cnpjFiltro])
 
   const { data: stores } = useStores()
   const { data: statuses } = useOrderStatuses()
@@ -42,7 +47,9 @@ export default function Orders() {
 
   return (
     <div>
-      <PageHeader title="Vendas" subtitle="Todos os pedidos importados dos marketplaces" />
+      <PageHeader title="Vendas" subtitle="Todos os pedidos importados dos marketplaces">
+        <FiltroCnpj />
+      </PageHeader>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative w-full sm:w-64">
