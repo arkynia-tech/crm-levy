@@ -8,6 +8,10 @@
 //   desconectar   admin liberado ou master: apaga o token. Os dados ficam, e a
 //                 data de corte também (como no Bling).
 //   status        admin liberado ou master: confere se o acesso ainda vale.
+//   usuario_teste só master: cria um usuário de teste do Mercado Livre com o
+//                 acesso da conta conectada (o Mercado Livre não tem sandbox; o
+//                 teste é com usuários de teste, até 10 por conta) e devolve o
+//                 login dele. Serve para montar vendedor e comprador de teste.
 //
 // Os avisos de pedido (tópico orders_v2) são configurados no próprio app do
 // DevCenter, não por loja: não há webhook para cadastrar aqui.
@@ -54,6 +58,9 @@ Deno.serve(async (req) => {
         return await desconectar(b.client_id)
       case 'status':
         return await status(b.client_id)
+      case 'usuario_teste':
+        if (papel !== 'master') return falha(403, 'Só o master cria usuário de teste.')
+        return await usuarioTeste(b.client_id)
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -170,6 +177,32 @@ async function desconectar(clientId: string) {
     .eq('id', c.id)
   if (error) throw new Error('erp_connections: ' + error.message)
   return ok({ ok: true })
+}
+
+/**
+ * Cria um usuário de teste (POST /users/test_user) com o acesso da conta
+ * conectada. O login e a senha são de teste e só aparecem para o master.
+ */
+async function usuarioTeste(clientId: string) {
+  const c = await conexaoDaLoja(clientId)
+  if (!c || c.status !== 'conectado') return falha(409, 'Conecte uma conta do Mercado Livre nesta loja antes de criar usuário de teste.')
+  const a = await acessoDaConexao(c.id)
+  if (!a.ok) return falha(409, 'A conexão com o Mercado Livre expirou. Conecte de novo.')
+  try {
+    const res = await fetch(`${Deno.env.get('ML_API_URL') ?? 'https://api.mercadolibre.com'}/users/test_user`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ site_id: 'MLB' }),
+    })
+    const json = ((await res.json().catch(() => ({}))) ?? {}) as Json
+    if (!res.ok || !json.nickname) {
+      console.error('usuario de teste recusado', res.status, json?.message ?? json?.error)
+      return falha(422, `O Mercado Livre não criou o usuário de teste (${json?.message ?? json?.error ?? res.status}).`)
+    }
+    return ok({ ok: true, id: json.id ?? null, nickname: json.nickname, senha: json.password ?? null })
+  } catch {
+    return falha(502, 'Sem resposta do Mercado Livre. Tente de novo em instantes.')
+  }
 }
 
 /** Confere se o acesso ainda vale (renova se precisar) e quantos pedidos esperam na fila. */

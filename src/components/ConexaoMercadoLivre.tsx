@@ -88,13 +88,24 @@ export function CartaoMercadoLivre({ conexao }: { conexao: ConexaoErp | null }) 
 }
 
 /** Mercado Livre conectado (ou precisando reconectar): linha no painel "Conectadas". */
-export function LinhaMercadoLivre({ conexao }: { conexao: ConexaoErp }) {
+export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; isMaster: boolean }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
-  const [ocupado, setOcupado] = useState<'conferir' | 'desconectar' | null>(null)
+  const [ocupado, setOcupado] = useState<'conferir' | 'desconectar' | 'teste' | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [conferido, setConferido] = useState<StatusMercadoLivre | null>(null)
+  const [testes, setTestes] = useState<{ nickname: string; senha: string | null }[]>([])
   if (!activeClient) return null
+
+  // Só master: o Mercado Livre não tem sandbox; o teste é com usuários de teste
+  const criarUsuarioTeste = async () => {
+    setOcupado('teste')
+    setMsg(null)
+    const r = await chamarMercadoLivre<{ nickname: string; senha: string | null }>({ action: 'usuario_teste', client_id: activeClient.id })
+    setOcupado(null)
+    if (r.ok) setTestes((t) => [...t, { nickname: r.nickname, senha: r.senha }])
+    else setMsg(r.error)
+  }
 
   const reconectar = conexao.status === 'reconectar'
 
@@ -164,6 +175,33 @@ export function LinhaMercadoLivre({ conexao }: { conexao: ConexaoErp }) {
               Tudo certo: acesso ok{conferido.conta ? ` na conta ${conferido.conta}` : ''}.
               {conferido.na_fila > 0 ? ` ${conferido.na_fila} pedido${conferido.na_fila === 1 ? '' : 's'} na fila para entrar.` : ''}
             </p>
+          )}
+        </Faixa>
+      )}
+
+      {isMaster && !reconectar && (
+        <Faixa>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="max-w-xl">
+              <p className="text-sm font-medium text-gray-900">Usuário de teste (só master)</p>
+              <p className="text-sm text-gray-500">
+                Cria um vendedor ou comprador de teste do Mercado Livre com o acesso desta conta. São até 10 por conta.
+              </p>
+            </div>
+            <button type="button" className={`btn-secondary ${press}`} onClick={() => void criarUsuarioTeste()} disabled={ocupado !== null}>
+              {ocupado === 'teste' ? 'Criando…' : 'Criar usuário de teste'}
+            </button>
+          </div>
+          {testes.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm text-gray-700">
+              {testes.map((u) => (
+                <li key={u.nickname}>
+                  Login <span className="font-mono">{u.nickname}</span>
+                  {u.senha ? <> · senha <span className="font-mono">{u.senha}</span></> : null}
+                </li>
+              ))}
+              <li className="text-xs text-gray-500">Anote agora: a senha não aparece de novo.</li>
+            </ul>
           )}
         </Faixa>
       )}

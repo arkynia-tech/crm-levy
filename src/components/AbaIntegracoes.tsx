@@ -80,7 +80,7 @@ export function AbaIntegracoes({
             {blingLigado && bling.data && <LinhaBling conexao={bling.data} isMaster={isMaster} />}
             {nuvemLigada && nuvem.data && <LinhaNuvemshop conexao={nuvem.data} />}
             {shopLigada && shop.data && <LinhaShopify conexao={shop.data} />}
-            {mlLigado && ml.data && <LinhaMercadoLivre conexao={ml.data} />}
+            {mlLigado && ml.data && <LinhaMercadoLivre conexao={ml.data} isMaster={isMaster} />}
           </PainelConectadas>
         </Secao>
       )}
