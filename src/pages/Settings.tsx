@@ -41,6 +41,8 @@ import { BLING_ABERTO_PARA_LOJAS } from '../components/ConexaoBling'
 import { useBlingLiberado } from '../hooks/bling'
 import { NUVEMSHOP_ABERTO_PARA_LOJAS } from '../components/ConexaoNuvemshop'
 import { useNuvemshopLiberado } from '../hooks/nuvemshop'
+import { MERCADOLIVRE_ABERTO_PARA_LOJAS } from '../components/ConexaoMercadoLivre'
+import { useMercadoLivreLiberado } from '../hooks/mercadolivre'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -787,6 +789,9 @@ export default function Settings() {
   const mostraNuvemshop = isMaster || (role === 'admin' && (NUVEMSHOP_ABERTO_PARA_LOJAS || nuvemshopLiberado))
   // Shopify: o master prepara o app de cada loja; o admin conecta quando estiver preparado
   const mostraShopify = isMaster || role === 'admin'
+  // Mercado Livre: liberado loja a loja (risco nos termos aceito com essa proteção)
+  const { data: mercadoLivreLiberado = false } = useMercadoLivreLiberado(activeClient?.id, role === 'admin' && !MERCADOLIVRE_ABERTO_PARA_LOJAS)
+  const mostraMercadoLivre = isMaster || (role === 'admin' && (MERCADOLIVRE_ABERTO_PARA_LOJAS || mercadoLivreLiberado))
 
   const abas = ABAS.filter((a) => (a.id === 'usuarios' ? canManageUsers : a.id === 'master' ? isMaster : true))
   // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Integrações.
@@ -810,7 +815,7 @@ export default function Settings() {
 
       <div role="tabpanel" id={`painel-${ativa}`} aria-labelledby={`aba-${ativa}`} tabIndex={0} className="mt-6 focus-visible:ring-offset-4">
         {ativa === 'integracoes' && (
-          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} mostraShopify={mostraShopify} />
+          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} mostraShopify={mostraShopify} mostraMercadoLivre={mostraMercadoLivre} />
         )}
 
         {ativa === 'disparos' && (
