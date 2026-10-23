@@ -627,25 +627,29 @@ export interface OrdersFilter {
   from: string
   to: string
   page: number
+  /** estado do cliente (UF), vindo do mapa da Visão Geral */
+  uf?: string
 }
 
-export function useOrders({ marketplace, status, search, from: dateFrom, to: dateTo, page }: OrdersFilter) {
+export function useOrders({ marketplace, status, search, from: dateFrom, to: dateTo, page, uf = '' }: OrdersFilter) {
   const { activeClient } = useCompany()
   const { data: stores } = useLojasDoFiltro()
   const storeIds = (stores ?? []).map((s) => s.id)
   return useQuery({
-    queryKey: ['orders', activeClient?.id, marketplace, status, search, dateFrom, dateTo, page, storeIds.join(',')],
+    queryKey: ['orders', activeClient?.id, marketplace, status, search, dateFrom, dateTo, page, uf, storeIds.join(',')],
     enabled: Boolean(activeClient) && stores !== undefined,
     placeholderData: (prev) => prev,
     queryFn: async () => {
       if (storeIds.length === 0) return { orders: [] as (Order & { customers: { id: string; name: string | null } | null })[], total: 0 }
       const from = page * ORDERS_PAGE_SIZE
+      // com estado: só pedidos de clientes daquele estado (o mesmo critério do mapa)
       let q = supabase
         .from('orders')
-        .select('*, customers(id, name)', { count: 'exact' })
+        .select(uf ? '*, customers!inner(id, name, state)' : '*, customers(id, name)', { count: 'exact' })
         .in('store_id', storeIds)
         .order('ordered_at', { ascending: false })
         .range(from, from + ORDERS_PAGE_SIZE - 1)
+      if (uf) q = q.ilike('customers.state', uf)
       if (marketplace) q = q.eq('marketplace', marketplace)
       if (status) q = q.eq('status', status)
       if (dateFrom) q = q.gte('ordered_at', new Date(dateFrom + 'T00:00:00').toISOString())
