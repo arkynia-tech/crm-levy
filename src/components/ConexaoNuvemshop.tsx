@@ -93,10 +93,12 @@ export function LinhaNuvemshop({ conexao }: { conexao: ConexaoErp }) {
 
   const resumo = reconectar
     ? 'A Nuvemshop parou de aceitar o acesso do Contatta (o app pode ter sido desinstalado). Conecte de novo para as vendas voltarem a entrar.'
-    : resumoDaConexao(conexao.account_name, conexao.last_order_at)
+    : resumoDaConexao(conexao.last_order_at)
 
   return (
     <LinhaConectada
+      conexaoId={conexao.id}
+      conta={conexao.account_name}
       marca="nuvemshop"
       nome="Nuvemshop"
       feminino

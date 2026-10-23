@@ -94,7 +94,20 @@ export function CartaoMercadoLivre({ ligadas, desconectadas }: { ligadas: number
   )
 }
 
-/** Mercado Livre conectado (ou precisando reconectar): linha no painel "Conectadas". */
+/** "+ Conectar outra conta" no grupo do Mercado Livre: o passo a passo e o aceite. */
+export function OutraContaMercadoLivre() {
+  return (
+    <div className="max-w-xl space-y-3">
+      <p className="text-sm text-gray-600">
+        Cada conta vira uma loja aqui, com o CNPJ dela. Antes de conectar, saia da conta atual no Mercado Livre neste
+        navegador e entre com a conta principal (administradora) da outra.
+      </p>
+      <ConectarComAceite rotulo="Conectar outra conta" />
+    </div>
+  )
+}
+
+/** Uma conta do Mercado Livre conectada (ou precisando reconectar), dentro do grupo do canal. */
 export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; isMaster: boolean }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
@@ -138,12 +151,14 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
 
   const resumo = reconectar
     ? 'O Mercado Livre parou de aceitar o acesso do Contatta (senha trocada, autorização cancelada ou pendência na conta). Conecte de novo para as vendas voltarem a entrar.'
-    : resumoDaConexao(conexao.account_name, conexao.last_order_at)
+    : resumoDaConexao(conexao.last_order_at)
 
   return (
     <LinhaConectada
+      conexaoId={conexao.id}
+      conta={conexao.account_name}
       marca="mercado_livre"
-      nome={conexao.account_name ? `Mercado Livre · ${conexao.account_name}` : 'Mercado Livre'}
+      nome="Mercado Livre"
       estado={reconectar ? 'reconectar' : 'conectado'}
       resumo={resumo}
       acao={reconectar ? <ConectarComAceite rotulo="Conectar de novo" /> : undefined}
@@ -214,8 +229,8 @@ export function LinhaMercadoLivre({ conexao, isMaster }: { conexao: ConexaoErp; 
       )}
 
       <Desconectar
-        nome="o Mercado Livre"
-        aviso="As vendas param de entrar pelo Mercado Livre. Nada do que já está no Contatta é apagado, e ao conectar de novo a data de corte continua a mesma."
+        nome={conexao.account_name ? `a conta ${conexao.account_name}` : 'esta conta'}
+        aviso="As vendas desta conta param de entrar. As outras contas do Mercado Livre continuam ligadas, nada do que já está no Contatta é apagado, e ao conectar esta conta de novo a data de corte continua a mesma."
         onConfirmar={() => void desconectar()}
         ocupado={ocupado === 'desconectar'}
       />
