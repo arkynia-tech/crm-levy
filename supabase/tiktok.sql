@@ -68,6 +68,15 @@ grant  execute on function public.crm_cliente_so_tiktok(uuid) to service_role;
 create or replace function public.crm_tiktok_enriquecimento_liberado()
 returns boolean language sql stable as $$ select false $$;
 
+-- Quem pode ser enriquecido (consulta automática, enriquecimento-automatico.sql):
+-- o cliente só do TikTok fica fora enquanto a chave acima for false.
+create or replace function public.crm_enrich_permitido(p_customer_id uuid)
+returns boolean
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select public.crm_tiktok_enriquecimento_liberado() or not public.crm_cliente_so_tiktok(p_customer_id);
+$$;
+
 -- Fila do enriquecimento: igual à de enriquecimento-uma-vez.sql (uma consulta
 -- por CPF, para sempre), menos quem só veio do TikTok Shop enquanto fechado.
 create or replace function public.crm_enrich_pendentes(p_client_id uuid, p_limit integer default 10)
