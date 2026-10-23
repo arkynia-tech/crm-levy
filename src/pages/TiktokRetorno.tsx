@@ -40,8 +40,8 @@ export default function TiktokRetorno() {
         tipo: 'erro',
         titulo: 'O TikTok Shop não foi conectado',
         texto: params.get('error') === 'auth_denied'
-          ? 'A autorização foi cancelada no TikTok Shop. Quando quiser, conecte de novo pelas Configurações do Contatta.'
-          : 'O TikTok Shop não mandou a autorização completa. Volte às Configurações do Contatta e conecte de novo.',
+          ? 'A autorização foi cancelada no TikTok Shop. Quando quiser, conecte de novo pela tela Integrações do Contatta.'
+          : 'O TikTok Shop não mandou a autorização completa. Volte à tela Integrações do Contatta e conecte de novo.',
       })
       return
     }
@@ -49,7 +49,7 @@ export default function TiktokRetorno() {
       setEstado({
         tipo: 'erro',
         titulo: 'Entre no Contatta para conectar',
-        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o TikTok Shop de novo pelas Configurações.',
+        texto: 'Sua sessão no Contatta não estava aberta neste navegador. Entre com a sua conta e conecte o TikTok Shop de novo pela tela Integrações.',
       })
       return
     }
@@ -103,7 +103,7 @@ export default function TiktokRetorno() {
                 )}
                 {!estado.webhooks && (
                   <p className="mt-2 text-sm text-amber-700">
-                    A loja não aceitou os avisos de pedido agora. As vendas entram pela busca de hora em hora; em Configurações,
+                    A loja não aceitou os avisos de pedido agora. As vendas entram pela busca de hora em hora; em Integrações,
                     "Conferir" tenta cadastrar os avisos de novo.
                   </p>
                 )}
@@ -125,11 +125,11 @@ export default function TiktokRetorno() {
         {estado.tipo !== 'conectando' && (
           <div className="mt-6 flex flex-wrap gap-2">
             {session ? (
-              <Link to="/configuracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
-                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Configurações'}
+              <Link to="/integracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
+                {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Integrações'}
               </Link>
             ) : (
-              <Link to="/login" state={{ from: '/configuracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
+              <Link to="/login" state={{ from: '/integracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
                 Entrar no Contatta
               </Link>
             )}

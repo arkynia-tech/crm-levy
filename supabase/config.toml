@@ -84,3 +84,17 @@ verify_jwt = false
 
 [functions.tiktok-pedidos]
 verify_jwt = false
+
+# Mercado Livre, também sem a checagem de JWT do gateway:
+# - mercadolivre-conexao confere o login por dentro (auth.getUser);
+# - mercadolivre-webhook é chamado pelo Mercado Livre (sem assinatura: confere o
+#   application_id e relê o pedido na API) e pelo cron de aquecimento (GET);
+# - mercadolivre-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.mercadolivre-conexao]
+verify_jwt = false
+
+[functions.mercadolivre-webhook]
+verify_jwt = false
+
+[functions.mercadolivre-pedidos]
+verify_jwt = false

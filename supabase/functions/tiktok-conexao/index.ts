@@ -1,4 +1,4 @@
-// Conexão de uma loja do Contatta com o TikTok Shop (Configurações e /tiktok/retorno).
+// Conexão de uma loja do Contatta com o TikTok Shop (Integrações e /tiktok/retorno).
 // Ações:
 //   autorizar     admin liberado ou master: devolve o link de autorização do
 //                 TikTok com um state amarrado à loja e a quem clicou.
@@ -9,6 +9,9 @@
 //                 Os pedidos do TikTok ficam 30 dias e depois são apagados
 //                 (crm_tiktok_apagar_desconectados, ver tiktok.sql).
 //   status        admin liberado ou master: confere o token e os webhooks.
+//
+// Uma conta do Contatta liga várias lojas do TikTok Shop (uma conexão por loja,
+// como no Mercado Livre): desconectar e status pedem o connection_id.
 
 import { type Json } from '../_shared/asaas.ts'
 import {
@@ -49,9 +52,9 @@ Deno.serve(async (req) => {
       case 'autorizar':
         return await autorizar(b.client_id, userId)
       case 'desconectar':
-        return await desconectar(b.client_id)
+        return await desconectar(b.client_id, b.connection_id)
       case 'status':
-        return await status(b.client_id)
+        return await status(b.client_id, b.connection_id)
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -68,10 +71,13 @@ async function liberadoParaAdmin(clientId: string): Promise<boolean> {
   return data?.tiktok_liberado === true
 }
 
-async function conexaoDaLoja(clientId: string): Promise<Json | null> {
+/** A conexão pedida, sempre dentro da conta do Contatta de quem chamou. */
+async function conexaoDaLoja(clientId: string, connectionId: unknown): Promise<Json | null> {
+  if (typeof connectionId !== 'string' || !connectionId) return null
   const { data, error } = await banco
     .from('erp_connections')
     .select('id, client_id, status, cutoff_at, account_id, account_name, account_cipher')
+    .eq('id', connectionId)
     .eq('client_id', clientId)
     .eq('provider', PROVEDOR)
     .maybeSingle()
@@ -142,10 +148,11 @@ async function retorno(b: Json, userId: string) {
     p_access_expires: t.tokens.access_expires_at, p_refresh_expires: t.tokens.refresh_expires_at,
     p_account_id: loja.id, p_account_name: nome,
   })
-  // a conta guardada tem que ser a loja desta autorização (e o cipher dela)
+  // Loja nova vira conexão nova; a mesma loja de novo reaproveita a dela. O cipher
+  // não passa pela crm_erp_conectar: grava aqui.
   if (r.connection_id) {
     await banco.from('erp_connections')
-      .update({ account_id: loja.id, account_name: nome, account_cipher: loja.cipher, last_error: null })
+      .update({ account_cipher: loja.cipher, last_error: null })
       .eq('id', r.connection_id)
   }
 
@@ -165,9 +172,9 @@ async function retorno(b: Json, userId: string) {
   })
 }
 
-async function desconectar(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
-  if (!c) return ok({ ok: true })
+async function desconectar(clientId: string, connectionId: unknown) {
+  const c = await conexaoDaLoja(clientId, connectionId)
+  if (!c) return falha(404, 'Essa loja do TikTok Shop não está ligada a esta conta. Atualize a página.')
   const a = await acessoDaConexao(c.id).catch(() => null)
   if (a?.ok) await removerWebhooks(a.token, a.cipher).catch(() => undefined)
   await banco.from('erp_connection_tokens').delete().eq('connection_id', c.id)
@@ -180,8 +187,8 @@ async function desconectar(clientId: string) {
 }
 
 /** Confere se o token ainda vale e se os webhooks estão na loja; recadastra o que faltar. */
-async function status(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
+async function status(clientId: string, connectionId: unknown) {
+  const c = await conexaoDaLoja(clientId, connectionId)
   if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com o TikTok Shop conectado.')
   const a = await acessoDaConexao(c.id)
   if (!a.ok) return falha(409, 'A conexão com o TikTok Shop expirou. Conecte de novo.')

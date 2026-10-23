@@ -491,7 +491,7 @@ function EditorNovidade({ inicial, onFechar }: { inicial: NovidadeEdicao; onFech
             </Campo>
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo rotulo="Botão leva para" dica="Tela do app, como /whatsapp, ou um link completo.">
-                <input className="input" value={n.link ?? ''} placeholder="/configuracoes?aba=integracoes" onChange={(e) => set('link', e.target.value)} />
+                <input className="input" value={n.link ?? ''} placeholder="/integracoes" onChange={(e) => set('link', e.target.value)} />
               </Campo>
               <Campo rotulo="Texto do botão">
                 <input className="input" value={n.link_rotulo ?? ''} placeholder="Ver como funciona" maxLength={40} onChange={(e) => set('link_rotulo', e.target.value)} />

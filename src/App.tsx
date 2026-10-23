@@ -28,8 +28,10 @@ import PainelVendas from './pages/PainelVendas'
 import BlingRetorno from './pages/BlingRetorno'
 import NuvemshopRetorno from './pages/NuvemshopRetorno'
 import TiktokRetorno from './pages/TiktokRetorno'
+import MercadoLivreRetorno from './pages/MercadoLivreRetorno'
 import ShopifyRetorno from './pages/ShopifyRetorno'
 import Novidades from './pages/Novidades'
+import Integracoes from './pages/Integracoes'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -126,6 +128,7 @@ function Rotas() {
       <Route path="/nuvemshop/retorno" element={<NuvemshopRetorno />} />
       <Route path="/shopify/retorno" element={<ShopifyRetorno />} />
       <Route path="/tiktok/retorno" element={<TiktokRetorno />} />
+      <Route path="/mercadolivre/retorno" element={<MercadoLivreRetorno />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"
@@ -195,7 +198,10 @@ function Rotas() {
           path="/novidades"
           element={<RequirePermission permission="novidades"><Novidades /></RequirePermission>}
         />
-        <Route path="/integracoes" element={<Navigate to="/configuracoes" replace />} />
+        <Route
+          path="/integracoes"
+          element={<RequirePermission permission="integracoes"><Integracoes /></RequirePermission>}
+        />
         <Route path="*" element={<FallbackRoute />} />
       </Route>
     </Routes>

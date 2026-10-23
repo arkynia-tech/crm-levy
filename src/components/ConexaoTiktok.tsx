@@ -49,12 +49,12 @@ export function CartaoTiktok({ conexao }: { conexao: ConexaoErp | null }) {
       marca="tiktok_shop"
       nome="TikTok Shop"
       categoria="Marketplace"
-      texto="Os pedidos pagos da sua loja no TikTok Shop entram sozinhos, com o CPF e o nome da nota. O TikTok não repassa telefone nem e-mail do comprador."
+      texto="Os pedidos pagos da sua loja no TikTok Shop entram sozinhos, com o CPF e o nome da nota. O TikTok não repassa telefone nem e-mail do comprador. Dá para conectar mais de uma loja (um CNPJ em cada)."
       nota={
         desconectado
           ? conexao.last_error?.startsWith('dados do TikTok apagados')
-            ? `Desconectado em ${formatDate(conexao.disconnected_at)}. Os pedidos do TikTok já foram apagados do Contatta.`
-            : `Desconectado em ${formatDate(conexao.disconnected_at)}. Os pedidos do TikTok são apagados do Contatta em ${quandoApaga(conexao.disconnected_at!)}; conectando antes, nada se perde.`
+            ? `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela já foram apagados do Contatta.`
+            : `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela são apagados do Contatta em ${quandoApaga(conexao.disconnected_at!)}; conectando antes, nada se perde.`
           : 'Entre com a conta principal da loja no TikTok Shop, neste mesmo navegador, antes de conectar.'
       }
       erro={erro}
@@ -68,7 +68,25 @@ export function CartaoTiktok({ conexao }: { conexao: ConexaoErp | null }) {
   )
 }
 
-/** TikTok Shop conectado (ou precisando reconectar): linha no painel "Conectadas". */
+/** "+ Conectar outra loja" no grupo do TikTok Shop: o passo a passo e o botão. */
+export function OutraLojaTiktok() {
+  const { conectar, abrindo, erro } = useConectarTiktok()
+  return (
+    <div className="max-w-xl space-y-3">
+      <p className="text-sm text-gray-600">
+        Cada loja vira uma loja aqui, com o CNPJ dela. O TikTok conecta a conta que estiver aberta: antes, saia da conta
+        atual no Seller Center neste navegador e entre com a conta principal da outra loja.
+      </p>
+      <button type="button" className={`btn-primary ${press}`} onClick={() => void conectar()} disabled={abrindo}>
+        <Link2 className="h-4 w-4" aria-hidden />
+        {abrindo ? 'Abrindo o TikTok Shop…' : 'Conectar outra loja'}
+      </button>
+      {erro && <p className="text-sm text-red-700">{erro}</p>}
+    </div>
+  )
+}
+
+/** Uma loja do TikTok Shop conectada (ou precisando reconectar), dentro do grupo do canal. */
 export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
@@ -84,7 +102,7 @@ export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
   const desconectar = async () => {
     setOcupado('desconectar')
     setMsg(null)
-    const r = await chamarTiktok({ action: 'desconectar', client_id: activeClient.id })
+    const r = await chamarTiktok({ action: 'desconectar', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     setConferido(null)
     if (!r.ok) setMsg(r.error)
@@ -94,7 +112,7 @@ export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
   const conferir = async () => {
     setOcupado('conferir')
     setMsg(null)
-    const r = await chamarTiktok<StatusTiktok>({ action: 'status', client_id: activeClient.id })
+    const r = await chamarTiktok<StatusTiktok>({ action: 'status', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     if (r.ok) setConferido(r as StatusTiktok)
     else setMsg(r.error)
@@ -103,10 +121,12 @@ export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
 
   const resumo = reconectar
     ? 'O TikTok parou de aceitar o acesso do Contatta (a autorização pode ter vencido ou sido cancelada). Conecte de novo para as vendas voltarem a entrar.'
-    : resumoDaConexao(conexao.account_name, conexao.last_order_at)
+    : resumoDaConexao(conexao.last_order_at)
 
   return (
     <LinhaConectada
+      conexaoId={conexao.id}
+      conta={conexao.account_name}
       marca="tiktok_shop"
       nome="TikTok Shop"
       estado={reconectar ? 'reconectar' : 'conectado'}
@@ -164,8 +184,8 @@ export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
       )}
 
       <Desconectar
-        nome="o TikTok Shop"
-        aviso={`As vendas param de entrar pelo TikTok Shop. Como o Contatta combinou com o TikTok, os pedidos que vieram de lá e os clientes que só existem por eles são apagados ${DIAS_PARA_APAGAR} dias depois. Conectando de novo antes disso, nada se perde.`}
+        nome={conexao.account_name ? `a loja ${conexao.account_name}` : 'esta loja'}
+        aviso={`As vendas desta loja param de entrar; as outras lojas do TikTok Shop continuam ligadas. Como o Contatta combinou com o TikTok, os pedidos que vieram desta loja e os clientes que só existem por eles são apagados ${DIAS_PARA_APAGAR} dias depois. Conectando de novo antes disso, nada se perde.`}
         onConfirmar={() => void desconectar()}
         ocupado={ocupado === 'desconectar'}
       />

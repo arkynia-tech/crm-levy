@@ -46,7 +46,7 @@ mudar só depois do sim por escrito, e atualizar a Política de Privacidade junt
 | `tiktok-conexao` | `autorizar`, `retorno`, `desconectar`, `status` |
 | `tiktok-webhook` | type 1 (pedido) -> fila; type 6 (desautorizou) -> desconecta; type 7 (autorização vencendo) -> aviso na conexão |
 | `tiktok-pedidos` | pg_cron: `processar` a cada minuto e `buscar` de hora em hora |
-| Configurações | cartão "TikTok Shop" (`src/components/ConexaoTiktok.tsx`), `TIKTOK_ABERTO_PARA_LOJAS = false` |
+| Integrações | cartão "TikTok Shop" e grupo com "Conectar outra loja" (`src/components/ConexaoTiktok.tsx`), `TIKTOK_ABERTO_PARA_LOJAS = false` |
 | `/tiktok/retorno` | página fora do menu, com sucesso, recusa (`error=auth_denied`) e erro |
 
 ## Pôr no ar (só depois da DSPR aprovada)
@@ -69,7 +69,7 @@ mudar só depois do sim por escrito, e atualizar a Política de Privacidade junt
    ```
 6. Rodar a **parte 2** do SQL (os três crons).
 7. Juntar a PR (o site publica sozinho) e, como master, conectar uma loja de teste
-   (Partner Center > Development shops) pelo cartão em Configurações.
+   (Partner Center > Development shops) pelo cartão em Integrações.
 
 ## Roteiro do primeiro teste (loja de desenvolvimento do Partner Center)
 
@@ -115,3 +115,17 @@ só dá para conferir com a DSPR aprovada, na loja de desenvolvimento.
   lojas diferentes no Contatta, então o mesmo pedido pode aparecer nas duas.
 - Mostrar na aba "Na fila" do enriquecimento (view `customers_classificados`) a
   mesma regra do TikTok; hoje só o número e a fila real seguem a regra nova.
+
+## Várias lojas na mesma conta (23/10/2026)
+
+Cada loja do TikTok Shop (um CNPJ) é uma conexão (`account_id` = `shop_id`,
+com o `account_cipher` dela) e uma loja do Contatta (`tiktok:<shop_id>`). O
+`tiktok` já estava na lista "uma conexão por conta" desde `multicontas-cnpj.sql`.
+
+- `tiktok-conexao`: `desconectar` e `status` pedem `connection_id`; loja nova
+  vira conexão nova, a mesma loja reaproveita a dela.
+- A regra dos 30 dias já era por conexão: apaga os pedidos da loja desconectada
+  e só apaga o cliente que não tem pedido em mais nenhuma loja.
+- `tiktok.sql` mantém o `mercadolivre` na lista de providers (a versão anterior
+  da PR tirava).
+- Tela Integrações: grupo do TikTok Shop com "Conectar outra loja".

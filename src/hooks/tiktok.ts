@@ -8,23 +8,26 @@ import type { ConexaoErp } from './bling'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const FUNCAO = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/tiktok-conexao` : undefined
 
-/** Conexão da loja com o TikTok Shop. `undefined` = falta rodar o tiktok.sql. */
-export function useConexaoTiktok(clientId: string | undefined) {
+/**
+ * Lojas do TikTok Shop desta conta do Contatta (uma conexão por loja), da
+ * conectada mais recente para a mais antiga. `undefined` = falta rodar o tiktok.sql.
+ */
+export function useConexoesTiktok(clientId: string | undefined) {
   return useQuery({
     queryKey: ['erp-connection', 'tiktok', clientId],
     enabled: Boolean(clientId),
-    queryFn: async (): Promise<ConexaoErp | null | undefined> => {
+    queryFn: async (): Promise<ConexaoErp[] | undefined> => {
       const { data, error } = await supabase
         .from('erp_connections')
         .select('id, status, account_name, cutoff_at, last_order_at, connected_at, disconnected_at, last_error')
         .eq('client_id', clientId!)
         .eq('provider', 'tiktok')
-        .maybeSingle()
+        .order('connected_at', { ascending: false, nullsFirst: false })
       if (error) {
         if (error.code === '42P01' || error.code === 'PGRST205') return undefined
         throw new Error(error.message)
       }
-      return data as ConexaoErp | null
+      return (data ?? []) as ConexaoErp[]
     },
   })
 }

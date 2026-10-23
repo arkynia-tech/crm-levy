@@ -24,10 +24,10 @@
 -- Parte 1: provider, shop_cipher, liberação por loja, regras de dado
 -- ===========================================================================
 
--- erp_connections.provider: acrescenta 'tiktok' (mantém os que já existem)
+-- erp_connections.provider: acrescenta 'tiktok' (mantém os que já existem, inclusive o mercadolivre)
 alter table public.erp_connections drop constraint if exists erp_connections_provider_check;
 alter table public.erp_connections
-  add constraint erp_connections_provider_check check (provider in ('bling', 'nuvemshop', 'shopify', 'tiktok'));
+  add constraint erp_connections_provider_check check (provider in ('bling', 'nuvemshop', 'shopify', 'tiktok', 'mercadolivre'));
 
 -- shop_cipher do TikTok (identificador cifrado que toda chamada à loja exige)
 alter table public.erp_connections add column if not exists account_cipher text;

@@ -81,10 +81,13 @@ export function LinhaBling({ conexao, isMaster }: { conexao: ConexaoErp; isMaste
 
   const resumo = reconectar
     ? 'O Bling parou de aceitar o acesso do Contatta. Conecte de novo para as vendas voltarem a entrar.'
-    : resumoDaConexao(conexao.account_name, conexao.last_order_at)
+    : resumoDaConexao(conexao.last_order_at)
 
   return (
     <LinhaConectada
+      conexaoId={conexao.id}
+      conta={conexao.account_name}
+      semLojas
       marca="bling"
       nome="Bling"
       estado={reconectar ? 'reconectar' : 'conectado'}
