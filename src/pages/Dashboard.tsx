@@ -7,6 +7,7 @@ import { formatCurrency, formatDateTime, marketplaceLabel } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, PageHeader } from '../components/ui'
 import { SEGMENTS } from '../lib/segments'
 import { FiltroCnpj } from '../components/FiltroCnpj'
+import { MapaVendas } from '../components/MapaVendas'
 
 const inactiveDef = SEGMENTS.find((s) => s.key === 'inactive')
 
@@ -136,6 +137,8 @@ export default function Dashboard() {
           </Link>
         </div>
       )}
+
+      <MapaVendas period={period} />
 
       <h2 className="mb-2 mt-6 font-display text-sm font-semibold text-gray-900">Base &amp; WhatsApp</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
