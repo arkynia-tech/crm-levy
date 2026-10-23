@@ -1,13 +1,14 @@
 import { useId, useState, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react'
 import { MarcaLogo, temLogo } from './MarcaLogo'
+import { CnpjDaConexao, LojasDaConexao } from './lojas-da-conexao'
 
 /**
- * Peças visuais da aba Integrações (Configurações). A lógica de cada fonte
- * (Bling, Nuvemshop...) fica no componente dela; aqui só o desenho comum:
- *   - LinhaConectada: uma linha do painel "Conectadas", com o resumo à vista e
- *     os detalhes (datas, lojas, desconectar) abrindo no próprio lugar;
- *   - CartaoDisponivel: uma fonte que ainda não está ligada, com o botão de conectar.
+ * Peças visuais da página Integrações. A lógica de cada fonte (Bling,
+ * Nuvemshop...) fica no componente dela; aqui só o desenho comum:
+ *   - LinhaConectada: uma conta dentro do grupo do canal, com o resumo à vista
+ *     e os detalhes (datas, lojas, desconectar) abrindo no próprio lugar;
+ *   - CartaoDisponivel: um canal que ainda não está ligado, com o botão de conectar.
  */
 
 export const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
@@ -28,10 +29,9 @@ export function haQuanto(iso: string | null | undefined, agora = Date.now()): st
   return 'em ' + new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(t))
 }
 
-/** Resumo de uma conexão: o nome da conta e quando entrou a última venda. */
-export function resumoDaConexao(conta: string | null, ultimaVenda: string | null): string {
-  const venda = ultimaVenda ? `Última venda ${haQuanto(ultimaVenda)}.` : 'Nenhuma venda recebida ainda.'
-  return conta ? `${conta}. ${venda}` : venda
+/** Resumo de uma conexão: quando entrou a última venda (o nome da conta já é o título da linha). */
+export function resumoDaConexao(ultimaVenda: string | null): string {
+  return ultimaVenda ? `Última venda ${haQuanto(ultimaVenda)}.` : 'Nenhuma venda recebida ainda.'
 }
 
 export type EstadoConexao = 'conectado' | 'reconectar'
@@ -58,49 +58,63 @@ export function PillEstado({ estado, feminino = false }: { estado: EstadoConexao
   )
 }
 
-/** Painel que agrupa as linhas conectadas: uma lista só, separada por linhas finas. */
-export function PainelConectadas({ children }: { children: ReactNode }) {
-  return <ul className="card divide-y divide-gray-100 overflow-hidden">{children}</ul>
-}
-
 export function LinhaConectada({
+  conexaoId,
   marca,
   nome,
+  conta,
   estado,
-  feminino,
   resumo,
   acao,
+  semLojas = false,
   children,
   abrirDeInicio = false,
 }: {
+  /** liga a linha às lojas dela (CNPJ e pedidos) e serve de âncora (#conta-<id>) */
+  conexaoId: string
   marca: string
+  /** nome do canal: o grupo já mostra, aqui serve aos leitores de tela */
   nome: string
+  /** nome da conta no canal: é o título da linha */
+  conta: string | null
   estado: EstadoConexao
+  /** sem efeito: a linha é sempre de uma conta (feminino) */
   feminino?: boolean
-  /** uma ou duas frases curtas: conta, última venda */
+  /** uma ou duas frases curtas: última venda, ou o que fazer */
   resumo: ReactNode
-  /** botão que precisa ficar à vista (ex.: Conectar de novo) */
+  /** o que precisa ficar à vista, embaixo do resumo (ex.: Conectar de novo) */
   acao?: ReactNode
+  /** a fonte já mostra as lojas do jeito dela (Bling) */
+  semLojas?: boolean
   /** detalhes que abrem em "Gerenciar" */
   children: ReactNode
   abrirDeInicio?: boolean
 }) {
   const [aberto, setAberto] = useState(abrirDeInicio)
   const idDetalhes = useId()
+  const titulo = conta || 'Conta sem nome'
   return (
-    <li className={estado === 'reconectar' ? 'bg-amber-50/40' : undefined}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 sm:flex-nowrap sm:px-5">
-        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-          <Marca id={marca} nome={nome} />
+    <li id={`conta-${conexaoId}`} data-marca={marca} className={`scroll-mt-6 ${estado === 'reconectar' ? 'bg-amber-50/50' : ''}`}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 sm:flex-nowrap sm:px-5">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span
+            aria-hidden
+            className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${estado === 'conectado' ? 'bg-emerald-500 ring-4 ring-emerald-500/15' : 'bg-amber-500 ring-4 ring-amber-500/20'}`}
+          />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-display text-sm font-semibold text-gray-900">{nome}</p>
-              <PillEstado estado={estado} feminino={feminino} />
+              <p className="truncate text-sm font-semibold text-gray-900">{titulo}</p>
+              {estado === 'reconectar' ? (
+                <PillEstado estado={estado} feminino />
+              ) : (
+                <span className="sr-only">Conectada</span>
+              )}
             </div>
-            <p className="mt-0.5 text-sm text-gray-500">{resumo}</p>
+            <CnpjDaConexao conexaoId={conexaoId} />
+            <p className="mt-0.5 max-w-2xl text-sm text-gray-500">{resumo}</p>
+            {acao && <div className="mt-3 max-w-lg">{acao}</div>}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 max-sm:order-last max-sm:w-full max-sm:empty:hidden">{acao}</div>
         <div className="shrink-0 self-start sm:self-center">
           <button
             type="button"
@@ -108,7 +122,7 @@ export function LinhaConectada({
             onClick={() => setAberto((a) => !a)}
             aria-expanded={aberto}
             aria-controls={idDetalhes}
-            aria-label={`Gerenciar ${nome}`}
+            aria-label={`Gerenciar ${nome}: ${titulo}`}
           >
             <span className="hidden sm:inline">Gerenciar</span>
             <ChevronDown
@@ -120,6 +134,7 @@ export function LinhaConectada({
       </div>
       {aberto && (
         <div id={idDetalhes} className="revelar border-t border-gray-100 bg-gray-50/60">
+          {!semLojas && <LojasDaConexao conexaoId={conexaoId} />}
           {children}
         </div>
       )}
@@ -222,11 +237,16 @@ export function CartaoDisponivel({
   )
 }
 
-export function Secao({ titulo, texto, children }: { titulo: string; texto?: string; children: ReactNode }) {
+export function Secao({ id, titulo, texto, acao, children }: { id?: string; titulo: string; texto?: string; acao?: ReactNode; children: ReactNode }) {
   return (
-    <section>
-      <h2 className="font-display text-base font-semibold text-gray-900">{titulo}</h2>
-      {texto && <p className="mt-0.5 max-w-2xl text-sm text-gray-500">{texto}</p>}
+    <section id={id} className="scroll-mt-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-semibold text-gray-900">{titulo}</h2>
+          {texto && <p className="mt-0.5 max-w-2xl text-sm text-gray-500">{texto}</p>}
+        </div>
+        {acao}
+      </div>
       <div className="mt-4">{children}</div>
     </section>
   )

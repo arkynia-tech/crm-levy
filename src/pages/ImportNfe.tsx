@@ -269,7 +269,7 @@ export default function ImportNfe() {
         {papel !== 'collaborator' && (
           <>
             {' '}
-            <Link to="/configuracoes" className="font-medium text-brand-700 hover:underline">
+            <Link to="/integracoes" className="font-medium text-brand-700 hover:underline">
               Diga qual você usa
             </Link>
           </>

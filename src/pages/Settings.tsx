@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   Clock,
-  Plug,
   Save,
   ShieldCheck,
   Sparkles,
@@ -36,13 +35,6 @@ import { useDefinirCreditoAvulso, useSaldoCreditos } from '../hooks/creditos'
 import { SaldoCreditos } from '../components/SaldoCreditos'
 import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
-import { AbaIntegracoes } from '../components/AbaIntegracoes'
-import { BLING_ABERTO_PARA_LOJAS } from '../components/ConexaoBling'
-import { useBlingLiberado } from '../hooks/bling'
-import { NUVEMSHOP_ABERTO_PARA_LOJAS } from '../components/ConexaoNuvemshop'
-import { useNuvemshopLiberado } from '../hooks/nuvemshop'
-import { MERCADOLIVRE_ABERTO_PARA_LOJAS } from '../components/ConexaoMercadoLivre'
-import { useMercadoLivreLiberado } from '../hooks/mercadolivre'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
 
@@ -680,10 +672,9 @@ function EnrichStatsSection() {
   )
 }
 
-type Aba = 'integracoes' | 'disparos' | 'usuarios' | 'master'
+type Aba = 'disparos' | 'usuarios' | 'master'
 
 const ABAS: { id: Aba; label: string; icon: LucideIcon }[] = [
-  { id: 'integracoes', label: 'Integrações', icon: Plug },
   { id: 'disparos', label: 'Disparos', icon: Clock },
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'master', label: 'Master', icon: ShieldCheck },
@@ -782,22 +773,11 @@ export default function Settings() {
   const { data: role } = useUserRole()
   const isMaster = role === 'master'
   const canManageUsers = can(role, 'manageUsers')
-  const { activeClient } = useCompany()
-  const { data: blingLiberado = false } = useBlingLiberado(activeClient?.id, role === 'admin' && !BLING_ABERTO_PARA_LOJAS)
-  const mostraBling = isMaster || (role === 'admin' && (BLING_ABERTO_PARA_LOJAS || blingLiberado))
-  const { data: nuvemshopLiberado = false } = useNuvemshopLiberado(activeClient?.id, role === 'admin' && !NUVEMSHOP_ABERTO_PARA_LOJAS)
-  const mostraNuvemshop = isMaster || (role === 'admin' && (NUVEMSHOP_ABERTO_PARA_LOJAS || nuvemshopLiberado))
-  // Shopify: o master prepara o app de cada loja; o admin conecta quando estiver preparado
-  const mostraShopify = isMaster || role === 'admin'
-  // Mercado Livre: liberado loja a loja (risco nos termos aceito com essa proteção)
-  const { data: mercadoLivreLiberado = false } = useMercadoLivreLiberado(activeClient?.id, role === 'admin' && !MERCADOLIVRE_ABERTO_PARA_LOJAS)
-  const mostraMercadoLivre = isMaster || (role === 'admin' && (MERCADOLIVRE_ABERTO_PARA_LOJAS || mercadoLivreLiberado))
-
   const abas = ABAS.filter((a) => (a.id === 'usuarios' ? canManageUsers : a.id === 'master' ? isMaster : true))
-  // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Integrações.
+  // A aba fica na URL (?aba=) para dar link direto. Aba que o papel não vê cai em Disparos.
   const [params, setParams] = useSearchParams()
   const pedida = params.get('aba')
-  const ativa: Aba = abas.find((a) => a.id === pedida)?.id ?? 'integracoes'
+  const ativa: Aba = abas.find((a) => a.id === pedida)?.id ?? 'disparos'
   const escolher = (a: Aba) =>
     setParams(
       (p) => {
@@ -807,17 +787,16 @@ export default function Settings() {
       { replace: true },
     )
 
+  // Integrações virou página própria (23/10/2026): link antigo vai direto para lá
+  if (pedida === 'integracoes') return <Navigate to="/integracoes" replace />
+
   return (
     <div>
-      <PageHeader title="Configurações" subtitle="Integrações, disparos e quem acessa a loja" />
+      <PageHeader title="Configurações" subtitle="Disparos e quem acessa a loja" />
 
       <Abas abas={abas} ativa={ativa} onChange={escolher} />
 
       <div role="tabpanel" id={`painel-${ativa}`} aria-labelledby={`aba-${ativa}`} tabIndex={0} className="mt-6 focus-visible:ring-offset-4">
-        {ativa === 'integracoes' && (
-          <AbaIntegracoes isMaster={isMaster} mostraBling={mostraBling} mostraNuvemshop={mostraNuvemshop} mostraShopify={mostraShopify} mostraMercadoLivre={mostraMercadoLivre} />
-        )}
-
         {ativa === 'disparos' && (
           <div className="space-y-4">
             <CampaignDelaySection />

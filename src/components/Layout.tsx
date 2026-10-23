@@ -21,6 +21,7 @@ import {
   ChevronsRight,
   FileText,
   Sparkles,
+  Plug,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -65,7 +66,10 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
   },
   {
     titulo: 'Dados',
-    itens: [{ to: '/importar', label: 'Importar NF-e', icon: FileUp, permission: 'importNfe' }],
+    itens: [
+      { to: '/integracoes', label: 'Integrações', icon: Plug, permission: 'integracoes' },
+      { to: '/importar', label: 'Importar NF-e', icon: FileUp, permission: 'importNfe' },
+    ],
   },
   {
     titulo: 'Conta',

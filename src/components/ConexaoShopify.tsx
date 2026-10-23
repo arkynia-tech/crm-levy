@@ -227,6 +227,8 @@ export function LinhaShopify({ conexao }: { conexao: ConexaoErp }) {
 
   return (
     <LinhaConectada
+      conexaoId={conexao.id}
+      conta={conexao.account_name}
       marca="shopify"
       nome="Shopify"
       feminino
@@ -234,7 +236,7 @@ export function LinhaShopify({ conexao }: { conexao: ConexaoErp }) {
       resumo={
         reconectar
           ? 'A Shopify parou de aceitar o acesso do Contatta (o app pode ter sido desinstalado). Conecte de novo para as vendas voltarem a entrar.'
-          : resumoDaConexao(conexao.account_name, conexao.last_order_at)
+          : resumoDaConexao(conexao.last_order_at)
       }
       acao={
         reconectar ? (

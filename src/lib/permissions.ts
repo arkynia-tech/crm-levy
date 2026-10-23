@@ -20,6 +20,7 @@ export type Permission =
   | 'campaigns'
   | 'importNfe'
   | 'settings'
+  | 'integracoes' // contas de marketplace, loja virtual e ERP ligadas
   | 'novidades' // o que chegou e o que vem (todos os papéis)
   /** Capacidades dentro das telas */
   | 'customerData' // ver nome/telefone/CPF de cliente em qualquer lugar
@@ -33,12 +34,12 @@ export type Permission =
 const BY_ROLE: Record<Role, Permission[]> = {
   master: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
-    'importNfe', 'settings', 'customerData', 'manageUsers', 'credits', 'manageClients',
+    'importNfe', 'settings', 'integracoes', 'customerData', 'manageUsers', 'credits', 'manageClients',
     'waInstances', 'billing', 'salesPanel', 'novidades',
   ],
   admin: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
-    'importNfe', 'settings', 'customerData', 'manageUsers', 'waInstances', 'billing', 'novidades',
+    'importNfe', 'settings', 'integracoes', 'customerData', 'manageUsers', 'waInstances', 'billing', 'novidades',
   ],
   collaborator: ['campaigns', 'importNfe', 'novidades'],
 }

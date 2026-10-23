@@ -124,11 +124,11 @@ export default function NuvemshopRetorno() {
         {estado.tipo !== 'conectando' && (
           <div className="mt-6 flex flex-wrap gap-2">
             {session ? (
-              <Link to="/configuracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
+              <Link to="/integracoes" className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
                 {estado.tipo === 'ok' ? 'Voltar para o Contatta' : 'Ir para Configurações'}
               </Link>
             ) : (
-              <Link to="/login" state={{ from: '/configuracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
+              <Link to="/login" state={{ from: '/integracoes' }} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
                 Entrar no Contatta
               </Link>
             )}

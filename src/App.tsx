@@ -30,6 +30,7 @@ import NuvemshopRetorno from './pages/NuvemshopRetorno'
 import MercadoLivreRetorno from './pages/MercadoLivreRetorno'
 import ShopifyRetorno from './pages/ShopifyRetorno'
 import Novidades from './pages/Novidades'
+import Integracoes from './pages/Integracoes'
 
 function ProtectedRoutes() {
   const { session, loading } = useAuth()
@@ -195,7 +196,10 @@ function Rotas() {
           path="/novidades"
           element={<RequirePermission permission="novidades"><Novidades /></RequirePermission>}
         />
-        <Route path="/integracoes" element={<Navigate to="/configuracoes" replace />} />
+        <Route
+          path="/integracoes"
+          element={<RequirePermission permission="integracoes"><Integracoes /></RequirePermission>}
+        />
         <Route path="*" element={<FallbackRoute />} />
       </Route>
     </Routes>
