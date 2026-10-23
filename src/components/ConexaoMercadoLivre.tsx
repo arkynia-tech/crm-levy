@@ -18,7 +18,16 @@ export const MERCADOLIVRE_ABERTO_PARA_LOJAS = false
 const TEXTO_ACEITE =
   'Confirmo que sou o responsável (controlador) pelos dados dos meus clientes que chegam pelo Mercado Livre, e que vou usá-los conforme a LGPD e as regras do Mercado Livre.'
 
-function useConectarMercadoLivre() {
+/**
+ * Sair do Mercado Livre e seguir para um endereço do próprio Mercado Livre. O
+ * Mercado Livre autoriza na hora a conta que já está logada no navegador; para
+ * ligar OUTRA conta, o Contatta passa antes por aqui e a pessoa cai no login.
+ * O `go` só aceita endereço do Mercado Livre (testado em 23/10/2026: o link de
+ * autorização passa, um endereço de fora volta para a home).
+ */
+const SAIR_DO_ML = 'https://www.mercadolivre.com/jms/mlb/lgz/logout'
+
+function useConectarMercadoLivre(trocarConta = false) {
   const { activeClient } = useCompany()
   const [abrindo, setAbrindo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -28,7 +37,7 @@ function useConectarMercadoLivre() {
     setErro(null)
     const r = await chamarMercadoLivre<{ url: string }>({ action: 'autorizar', client_id: activeClient.id, aceite: true })
     if (r.ok) {
-      window.location.assign(r.url)
+      window.location.assign(trocarConta ? `${SAIR_DO_ML}?go=${encodeURIComponent(r.url)}` : r.url)
       return
     }
     setAbrindo(false)
@@ -37,9 +46,12 @@ function useConectarMercadoLivre() {
   return { conectar, abrindo, erro }
 }
 
-/** Caixa do aceite + botão de conectar: o botão só libera com a caixa marcada. */
-function ConectarComAceite({ rotulo, largura }: { rotulo: string; largura?: 'cheia' }) {
-  const { conectar, abrindo, erro } = useConectarMercadoLivre()
+/**
+ * Caixa do aceite + botão de conectar: o botão só libera com a caixa marcada.
+ * `trocarConta`: sai da conta logada no Mercado Livre antes (ligar outra conta).
+ */
+function ConectarComAceite({ rotulo, largura, trocarConta = false }: { rotulo: string; largura?: 'cheia'; trocarConta?: boolean }) {
+  const { conectar, abrindo, erro } = useConectarMercadoLivre(trocarConta)
   const [aceite, setAceite] = useState(false)
   const id = useId()
   return (
@@ -89,7 +101,7 @@ export function CartaoMercadoLivre({ ligadas, desconectadas }: { ligadas: number
           ? `${ultima.account_name ?? 'Uma conta'} foi desconectada em ${formatDate(ultima.disconnected_at)}. O que já entrou continua aqui; conectando a mesma conta de novo, a data de corte fica a mesma.`
           : 'Entre com a conta principal (administradora) do vendedor neste mesmo navegador antes de conectar. Para outra conta, saia da anterior no Mercado Livre antes.'
       }
-      botao={<ConectarComAceite rotulo={ligadas > 0 ? 'Conectar outra conta' : 'Conectar Mercado Livre'} largura="cheia" />}
+      botao={<ConectarComAceite rotulo={ligadas > 0 ? 'Conectar outra conta' : 'Conectar Mercado Livre'} largura="cheia" trocarConta={ligadas > 0} />}
     />
   )
 }
@@ -99,10 +111,10 @@ export function OutraContaMercadoLivre() {
   return (
     <div className="max-w-xl space-y-3">
       <p className="text-sm text-gray-600">
-        Cada conta vira uma loja aqui, com o CNPJ dela. Antes de conectar, saia da conta atual no Mercado Livre neste
-        navegador e entre com a conta principal (administradora) da outra.
+        Cada conta vira uma loja aqui, com o CNPJ dela. Ao continuar, o Contatta tira você da conta atual do Mercado
+        Livre neste navegador e o Mercado Livre pede o login: entre com a conta principal (administradora) da outra.
       </p>
-      <ConectarComAceite rotulo="Conectar outra conta" />
+      <ConectarComAceite rotulo="Conectar outra conta" trocarConta />
     </div>
   )
 }
