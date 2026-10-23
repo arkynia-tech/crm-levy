@@ -34,7 +34,7 @@ function useConectarNuvemshop() {
   return { conectar, abrindo, erro }
 }
 
-/** Nuvemshop ainda não ligada (ou desconectada): cartão com o botão de conectar. */
+/** Nuvemshop ainda não ligada (ou só com lojas desconectadas): cartão com o botão de conectar. */
 export function CartaoNuvemshop({ conexao }: { conexao: ConexaoErp | null }) {
   const { conectar, abrindo, erro } = useConectarNuvemshop()
   return (
@@ -42,10 +42,10 @@ export function CartaoNuvemshop({ conexao }: { conexao: ConexaoErp | null }) {
       marca="nuvemshop"
       nome="Nuvemshop"
       categoria="Loja virtual"
-      texto="Os pedidos pagos e os clientes da sua loja virtual entram na hora em que o pagamento é confirmado, com nome, telefone e CPF."
+      texto="Os pedidos pagos e os clientes da sua loja virtual entram na hora em que o pagamento é confirmado, com nome, telefone e CPF. Tem mais de uma loja? Dá para conectar todas."
       nota={
         conexao?.status === 'desconectado' && conexao.disconnected_at
-          ? `Desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
+          ? `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui; conectando a mesma loja de novo, a data de corte fica a mesma.`
           : 'Deixe o painel da sua loja aberto neste mesmo navegador antes de conectar.'
       }
       erro={erro}
@@ -59,7 +59,25 @@ export function CartaoNuvemshop({ conexao }: { conexao: ConexaoErp | null }) {
   )
 }
 
-/** Nuvemshop conectada (ou precisando reconectar): linha no painel "Conectadas". */
+/** "+ Conectar outra loja" no grupo da Nuvemshop: o passo a passo e o botão. */
+export function OutraLojaNuvemshop() {
+  const { conectar, abrindo, erro } = useConectarNuvemshop()
+  return (
+    <div className="max-w-xl space-y-3">
+      <p className="text-sm text-gray-600">
+        Cada loja vira uma loja aqui, com o CNPJ dela. A Nuvemshop conecta a loja que estiver aberta no painel: antes,
+        saia da loja atual e entre no painel da outra neste mesmo navegador.
+      </p>
+      <button type="button" className={`btn-primary ${press}`} onClick={() => void conectar()} disabled={abrindo}>
+        <Link2 className="h-4 w-4" aria-hidden />
+        {abrindo ? 'Abrindo a Nuvemshop…' : 'Conectar outra loja'}
+      </button>
+      {erro && <p className="text-sm text-red-700">{erro}</p>}
+    </div>
+  )
+}
+
+/** Uma loja da Nuvemshop conectada (ou precisando reconectar), dentro do grupo do canal. */
 export function LinhaNuvemshop({ conexao }: { conexao: ConexaoErp }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
@@ -74,7 +92,7 @@ export function LinhaNuvemshop({ conexao }: { conexao: ConexaoErp }) {
   const desconectar = async () => {
     setOcupado('desconectar')
     setMsg(null)
-    const r = await chamarNuvemshop({ action: 'desconectar', client_id: activeClient.id })
+    const r = await chamarNuvemshop({ action: 'desconectar', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     setConferido(null)
     if (!r.ok) setMsg(r.error)
@@ -84,7 +102,7 @@ export function LinhaNuvemshop({ conexao }: { conexao: ConexaoErp }) {
   const conferir = async () => {
     setOcupado('conferir')
     setMsg(null)
-    const r = await chamarNuvemshop<StatusNuvemshop>({ action: 'status', client_id: activeClient.id })
+    const r = await chamarNuvemshop<StatusNuvemshop>({ action: 'status', client_id: activeClient.id, connection_id: conexao.id })
     setOcupado(null)
     if (r.ok) setConferido(r as StatusNuvemshop)
     else setMsg(r.error)
@@ -156,8 +174,8 @@ export function LinhaNuvemshop({ conexao }: { conexao: ConexaoErp }) {
       )}
 
       <Desconectar
-        nome="a Nuvemshop"
-        aviso="As vendas param de entrar pela Nuvemshop. Nada do que já está no Contatta é apagado, e ao conectar de novo a data de corte continua a mesma."
+        nome={conexao.account_name ? `a loja ${conexao.account_name}` : 'esta loja'}
+        aviso="As vendas desta loja param de entrar. As outras lojas da Nuvemshop continuam ligadas, nada do que já está no Contatta é apagado, e ao conectar esta loja de novo a data de corte continua a mesma."
         onConfirmar={() => void desconectar()}
         ocupado={ocupado === 'desconectar'}
       />

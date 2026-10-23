@@ -7,6 +7,9 @@
 //   desconectar   admin ou master: apaga os webhooks na loja e o token. Os
 //                 dados ficam, e a data de corte também.
 //   status        admin ou master: confere o token e os webhooks (para a tela).
+//
+// Desde 23/10/2026 uma conta do Contatta liga várias lojas da Nuvemshop (uma
+// conexão por loja): desconectar e status pedem o connection_id.
 
 import { type Json } from '../_shared/asaas.ts'
 import {
@@ -47,9 +50,9 @@ Deno.serve(async (req) => {
       case 'autorizar':
         return await autorizar(b.client_id, userId)
       case 'desconectar':
-        return await desconectar(b.client_id)
+        return await desconectar(b.client_id, b.connection_id)
       case 'status':
-        return await status(b.client_id)
+        return await status(b.client_id, b.connection_id)
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -66,10 +69,13 @@ async function liberadoParaAdmin(clientId: string): Promise<boolean> {
   return data?.nuvemshop_liberado === true
 }
 
-async function conexaoDaLoja(clientId: string): Promise<Json | null> {
+/** A conexão pedida, sempre dentro da conta do Contatta de quem chamou. */
+async function conexaoDaLoja(clientId: string, connectionId: unknown): Promise<Json | null> {
+  if (typeof connectionId !== 'string' || !connectionId) return null
   const { data, error } = await banco
     .from('erp_connections')
     .select('id, client_id, status, cutoff_at, account_id, account_name')
+    .eq('id', connectionId)
     .eq('client_id', clientId)
     .eq('provider', PROVEDOR)
     .maybeSingle()
@@ -125,21 +131,20 @@ async function retorno(b: Json, userId: string) {
   }
 
   const loja = await lerLoja(t.token, t.storeId)
+  // Loja da Nuvemshop nova vira conexão nova; a mesma loja de novo reaproveita a dela (e a data de corte)
   const r = await rpc('crm_erp_conectar', {
     p_client_id: s.client_id, p_provider: PROVEDOR, p_user_id: userId,
     p_access: t.token, p_refresh: '', p_access_expires: SEM_VENCIMENTO, p_refresh_expires: SEM_VENCIMENTO,
     p_account_id: t.storeId, p_account_name: loja.nome,
   })
-  // reconectou com OUTRA loja da Nuvemshop: a conta guardada tem que ser a nova
-  if (r.connection_id) {
-    await banco.from('erp_connections')
-      .update({ account_id: t.storeId, account_name: loja.nome, last_error: null })
-      .eq('id', r.connection_id)
-  }
 
   const lojaContatta = r.connection_id
     ? await garantirLoja({ connection_id: r.connection_id, client_id: s.client_id, account_id: t.storeId, account_name: loja.nome })
     : null
+  // CNPJ da loja, quando a Nuvemshop informa; não sobrescreve o que o lojista já preencheu
+  if (lojaContatta && loja.cnpj) {
+    await banco.from('stores').update({ cnpj: loja.cnpj }).eq('id', lojaContatta).is('cnpj', null)
+  }
   const wh = await garantirWebhooks(t.token, t.storeId)
   if (wh.erro) {
     console.error('webhooks da Nuvemshop', t.storeId, wh.erro)
@@ -153,9 +158,9 @@ async function retorno(b: Json, userId: string) {
   })
 }
 
-async function desconectar(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
-  if (!c) return ok({ ok: true })
+async function desconectar(clientId: string, connectionId: unknown) {
+  const c = await conexaoDaLoja(clientId, connectionId)
+  if (!c) return falha(404, 'Essa loja da Nuvemshop não está ligada a esta conta. Atualize a página.')
   const t = await tokenDaConexao(c.id)
   if (t.ok && c.account_id) await removerWebhooks(t.token, String(c.account_id)).catch(() => undefined)
   await banco.from('erp_connection_tokens').delete().eq('connection_id', c.id)
@@ -168,8 +173,8 @@ async function desconectar(clientId: string) {
 }
 
 /** Confere se o token ainda vale e se os webhooks estão na loja; recadastra o que faltar. */
-async function status(clientId: string) {
-  const c = await conexaoDaLoja(clientId)
+async function status(clientId: string, connectionId: unknown) {
+  const c = await conexaoDaLoja(clientId, connectionId)
   if (!c || c.status !== 'conectado') return falha(409, 'Esta loja não está com a Nuvemshop conectada.')
   const t = await tokenDaConexao(c.id)
   if (!t.ok) return falha(409, 'A conexão com a Nuvemshop expirou. Conecte de novo.')

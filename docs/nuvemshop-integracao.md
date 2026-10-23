@@ -131,6 +131,25 @@ deno run -A --node-modules-dir=none --no-lock supabase/functions/_testes/nuvemsh
 Confere as regras puras: chave do pedido, CPF, dia do pagamento em São Paulo,
 endereço, UF por nome, itens, cancelado, o que entra e o que não entra.
 
+## Várias lojas na mesma conta (23/10/2026)
+
+Uma conta do Contatta liga quantas lojas da Nuvemshop quiser: cada loja é uma
+conexão (`erp_connections`, uma por `account_id` = `store_id`) e uma loja do
+Contatta (`nuvemshop:<store_id>`). O webhook e a fila já eram por loja; o que
+mudou:
+
+- `supabase/multicontas-nuvemshop.sql`: a Nuvemshop entra na lista de canais
+  com "uma conexão por conta" (as duas travas únicas e a `crm_erp_conectar`).
+- `nuvemshop-conexao`: `desconectar` e `status` pedem `connection_id`;
+  reconectar a mesma loja reaproveita a conexão e a data de corte; loja nova
+  vira conexão nova. Ao conectar, o CNPJ (`business_id` de `/store`, quando tem
+  14 dígitos) vai para `stores.cnpj` se ainda estiver vazio.
+- Tela Integrações: grupo da Nuvemshop com "Conectar outra loja". A Nuvemshop
+  autoriza a loja aberta no painel, então para ligar outra é preciso sair da
+  atual no navegador.
+
+Ordem para ligar: SQL → publicar `nuvemshop-conexao` → juntar a PR do site.
+
 ## Fora desta versão
 
 - Histórico (pedidos pagos antes da conexão): como no Bling, não entra pela
