@@ -82,8 +82,9 @@ export function SecaoPrimeiraMensagem() {
         <h2 className="font-display text-sm font-semibold text-gray-900">Primeira mensagem ao cliente novo</h2>
       </div>
       <p className="mt-1 max-w-2xl text-sm text-gray-500">
-        A loja avisa que recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele. Quem responde "Não
-        quero receber" sai das campanhas. Sai pelo número da API oficial, uma vez por cliente.
+        A loja avisa que recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele. "Sim, está certo"
+        marca o WhatsApp como confirmado; "Número errado" e "Não quero receber" tiram o número das campanhas. Sai pelo
+        número da API oficial, uma vez por cliente.
       </p>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
@@ -162,7 +163,14 @@ export function SecaoPrimeiraMensagem() {
   )
 }
 
-type Registro = { status?: string; em?: string; erro?: string }
+type Registro = { status?: string; em?: string; erro?: string; resposta?: { botao?: string; em?: string } }
+
+/** O que o cliente respondeu (primeira-mensagem-respostas.sql). */
+const RESPOSTA: Record<string, { texto: string; tom: string }> = {
+  confirma: { texto: 'Respondeu "Sim, está certo": WhatsApp confirmado', tom: 'text-emerald-700' },
+  errado: { texto: 'Respondeu "Número errado": o número saiu das campanhas', tom: 'text-amber-800' },
+  parar: { texto: 'Respondeu "Não quero receber": o número saiu das campanhas', tom: 'text-amber-800' },
+}
 
 /** Na tela do cliente: o que já foi enviado e o botão de mandar agora (admin e master). */
 export function BotaoPrimeiraMensagem({
@@ -193,6 +201,14 @@ export function BotaoPrimeiraMensagem({
           <CheckCircle2 className="h-4 w-4" aria-hidden />
           Primeira mensagem enviada{registro?.em ? ` em ${formatDateTime(registro.em)}` : ''}
         </span>
+      ) : null}
+      {enviada && registro?.resposta?.botao && RESPOSTA[registro.resposta.botao] ? (
+        <span className={RESPOSTA[registro.resposta.botao].tom}>
+          {RESPOSTA[registro.resposta.botao].texto}
+          {registro.resposta.em ? ` (${formatDateTime(registro.resposta.em)})` : ''}
+        </span>
+      ) : enviada ? (
+        <span className="text-gray-500">Sem resposta ainda</span>
       ) : (
         <>
           <button

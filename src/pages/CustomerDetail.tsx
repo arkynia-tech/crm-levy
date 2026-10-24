@@ -91,7 +91,7 @@ export default function CustomerDetail() {
           <BotaoPrimeiraMensagem
             customerId={customer.id}
             temTelefone={Boolean(customer.phone)}
-            registro={(customer.extra?.primeira_mensagem ?? null) as { status?: string; em?: string; erro?: string } | null}
+            registro={(customer.extra?.primeira_mensagem ?? null) as { status?: string; em?: string; erro?: string; resposta?: { botao?: string; em?: string } } | null}
           />
         )}
       </div>
