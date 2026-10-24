@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Unplug } from 'lucide-react'
 import { MarcaLogo, temLogo } from './MarcaLogo'
 import { CnpjDaConexao, LojasDaConexao } from './lojas-da-conexao'
 
@@ -194,13 +194,20 @@ export function Desconectar({
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className={`text-sm font-medium text-gray-500 underline-offset-4 hover:text-red-700 hover:underline ${press}`}
-          onClick={() => setConfirmando(true)}
-        >
-          Desconectar {nome}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-xl">
+            <p className="text-sm font-medium text-gray-900">Desconectar {nome}</p>
+            <p className="text-sm text-gray-500">As vendas param de entrar no Contatta. Dá para conectar de novo quando quiser.</p>
+          </div>
+          <button
+            type="button"
+            className={`btn-secondary border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 ${press}`}
+            onClick={() => setConfirmando(true)}
+          >
+            <Unplug className="h-4 w-4" aria-hidden />
+            Desconectar
+          </button>
+        </div>
       )}
     </Faixa>
   )
