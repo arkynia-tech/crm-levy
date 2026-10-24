@@ -1,0 +1,8 @@
+# A landing é estática e não precisa de reescrita de rota.
+#
+# A única regra aqui manda quem digitar contatta.pro/app para o subdomínio.
+# Sem isso a pasta seria servida por esse caminho com os caminhos de asset
+# errados — o index.html pede /assets/..., que na raiz é a landing, e a tela
+# fica em branco. Não afeta app.contatta.pro: o docroot dele é public_html/app,
+# e o Apache só lê .htaccess do docroot para baixo.
+RedirectMatch 301 ^/app(/.*)?$ https://app.contatta.pro$1
