@@ -3,10 +3,13 @@ import { ArrowLeft, Mail, MapPin, Phone } from 'lucide-react'
 import { useCustomerDetail } from '../hooks/queries'
 import { formatCurrency, formatDate, formatDateTime, maskCpf } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, OrderStatusBadge } from '../components/ui'
+import { BotaoPrimeiraMensagem } from '../components/PrimeiraMensagem'
+import { useUserRole } from '../hooks/settings'
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>()
   const { data, isLoading, error } = useCustomerDetail(id)
+  const { data: papel } = useUserRole()
 
   if (error) return <ErrorState message={(error as Error).message} />
 
@@ -83,6 +86,14 @@ export default function CustomerDetail() {
             </span>
           </div>
         </dl>
+
+        {(papel === 'admin' || papel === 'master') && (
+          <BotaoPrimeiraMensagem
+            customerId={customer.id}
+            temTelefone={Boolean(customer.phone)}
+            registro={(customer.extra?.primeira_mensagem ?? null) as { status?: string; em?: string; erro?: string } | null}
+          />
+        )}
       </div>
 
       <h2 className="mb-3 mt-6 font-display text-base font-semibold text-gray-900">

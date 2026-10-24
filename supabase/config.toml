@@ -102,3 +102,8 @@ verify_jwt = false
 # Enriquecimento automático: chamado só pelo pg_cron, com o token do cron.
 [functions.enriquecimento-auto]
 verify_jwt = false
+
+# Primeira mensagem: confere o login por dentro (preparar, enviar) ou o token
+# do cron (rodada).
+[functions.primeira-mensagem]
+verify_jwt = false
