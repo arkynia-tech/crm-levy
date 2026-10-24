@@ -8,11 +8,12 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Fechado até a revisão de segurança e privacidade do TikTok ser aprovada: só o
- * master vê, e o admin de loja liberada em clients.tiktok_liberado. Para abrir
- * para todas: true aqui e o secret TIKTOK_ABERTO_PARA_LOJAS=1 da tiktok-conexao.
+ * Aberto para todas as lojas desde 23/10/2026 (DSPR aprovada e app ativado no
+ * Partner Center). Anda junto com o secret TIKTOK_ABERTO_PARA_LOJAS=1 da
+ * tiktok-conexao. Para fechar de novo: false aqui, tirar o secret, e liberar
+ * loja a loja em clients.tiktok_liberado.
  */
-export const TIKTOK_ABERTO_PARA_LOJAS = false
+export const TIKTOK_ABERTO_PARA_LOJAS = true
 
 /** Dias entre desconectar e apagar os pedidos do TikTok (crm_tiktok_apagar_desconectados). */
 const DIAS_PARA_APAGAR = 30

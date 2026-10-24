@@ -6,8 +6,10 @@ escrita na loja é cadastrar os webhooks do próprio Contatta. Segue o molde da
 Nuvemshop (`docs/nuvemshop-integracao.md`): mesmas tabelas `erp_*`, mesma fila,
 mesma função que grava, mesma trava de crédito.
 
-**Fechada até a revisão de segurança e privacidade (DSPR) do TikTok ser aprovada.**
-Sem ela a API não devolve pedido nem CPF. Enquanto isso só o master vê o cartão.
+**Aberta para todas as lojas desde 23/10/2026**: DSPR aprovada, app ativado no
+Partner Center, `TIKTOK_ABERTO_PARA_LOJAS = true` no app e o secret
+`TIKTOK_ABERTO_PARA_LOJAS=1` na `tiktok-conexao`. Testada de ponta a ponta na loja
+de desenvolvimento (pedido pago com CPF, cancelamento, desconexão, trava de crédito).
 
 ## O que foi declarado ao TikTok (21/10/2026) e onde está no código
 
