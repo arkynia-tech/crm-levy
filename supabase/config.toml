@@ -85,6 +85,15 @@ verify_jwt = false
 [functions.tiktok-pedidos]
 verify_jwt = false
 
+# Amazon, também sem a checagem de JWT do gateway:
+# - amazon-conexao confere o login por dentro (auth.getUser);
+# - amazon-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.amazon-conexao]
+verify_jwt = false
+
+[functions.amazon-pedidos]
+verify_jwt = false
+
 # Mercado Livre, também sem a checagem de JWT do gateway:
 # - mercadolivre-conexao confere o login por dentro (auth.getUser);
 # - mercadolivre-webhook é chamado pelo Mercado Livre (sem assinatura: confere o
