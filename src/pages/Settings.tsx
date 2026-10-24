@@ -37,6 +37,7 @@ import { useEnrichStats } from '../hooks/queries'
 import { can, ROLE_LABEL } from '../lib/permissions'
 import { formatDate } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
+import { SecaoPrimeiraMensagem } from '../components/PrimeiraMensagem'
 
 function AdminUsersSection({ isMaster }: { isMaster: boolean }) {
   const { clients, activeClient } = useCompany()
@@ -800,6 +801,7 @@ export default function Settings() {
         {ativa === 'disparos' && (
           <div className="space-y-4">
             <CampaignDelaySection />
+            {(isMaster || role === 'admin') && <SecaoPrimeiraMensagem />}
             {can(role, 'waInstances') && (
               <p className="text-sm text-gray-500">
                 O número que faz os envios é conectado na tela{' '}
