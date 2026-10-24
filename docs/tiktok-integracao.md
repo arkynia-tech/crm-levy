@@ -15,13 +15,16 @@ Sem ela a API não devolve pedido nem CPF. Enquanto isso só o master vê o cart
 |---|---|
 | Só pedidos pagos e o CPF e o nome da nota (`cpf`, `cpf_name`) | `montarPedido` em `_shared/tiktok.ts`: e-mail, telefone, nome do destinatário e endereço nunca são gravados |
 | Escopo só de leitura de pedidos e da loja autorizada | o app no Partner Center (Manage API) |
-| Cliente que veio só do TikTok não passa pelo enriquecimento | `tiktok.sql`: `crm_cliente_so_tiktok`, `crm_enrich_pendentes`, `crm_enrich_pendentes_total` e o gatilho de reaproveitamento entre lojas, que pula a transação marcada por `crm_tiktok_gravar_pedido` |
+| Enriquecimento só para o lojista recomprar, sem compartilhar com outras lojas (desde 23/10/2026) | `tiktok-enriquecimento.sql`: `crm_tiktok_enriquecimento_liberado()` = true e o gatilho de reaproveitamento entre lojas nunca usa como fonte um cliente só do TikTok (`crm_cliente_so_tiktok`) |
 | Token apagado na hora ao desconectar ou desautorizar | `tiktok-conexao` (desconectar) e `tiktok-webhook` (type 6) |
 | Pedidos do TikTok e clientes que só existiam por eles apagados 30 dias depois | `crm_tiktok_apagar_desconectados` + cron diário `contatta-tiktok-exclusao`; registra em `erp_connections.dados_apagados_em` e `last_error` |
 
-Se um dia o enriquecimento for liberado pelo TikTok (pedido em
-`Mohamad-OS/03-Comercial/Contatta/plataformas/tiktok-shop/pedido-enriquecimento.md`),
-mudar só depois do sim por escrito, e atualizar a Política de Privacidade junto.
+Enriquecimento: até 23/10/2026 a DSPR declarava que dado do TikTok não ia para
+enriquecimento, e `tiktok.sql` fechava a fila para cliente só do TikTok. Nesse dia
+a DSPR passou a declarar "will be sent to data enrichment providers, to use this
+customer to rebuy and not used for our own purposes" (aprovada no Partner Center)
+e `tiktok-enriquecimento.sql` liberou, com a Política de Privacidade atualizada.
+Para fechar de novo: `crm_tiktok_enriquecimento_liberado()` devolvendo false.
 
 ## O que muda em relação à Nuvemshop
 
@@ -78,7 +81,7 @@ mudar só depois do sim por escrito, e atualizar a Política de Privacidade junt
 2. Criar um pedido na loja de teste e marcar como pago (o guia "Development Shop
    Manual Order Status Update" do Partner Center explica como mudar o status).
    Ele entra em Vendas como pago, com o cliente pelo CPF, e gasta 1 crédito.
-3. Conferir que o cliente não aparece na fila do enriquecimento.
+3. Conferir que o cliente aparece na fila do enriquecimento só da própria loja.
 4. Cancelar o pedido: vira cancelado no Contatta.
 5. Desconectar e conferir a data da exclusão no cartão. Para testar a exclusão sem
    esperar 30 dias: `select public.crm_tiktok_apagar_desconectados(0);`
@@ -113,8 +116,6 @@ só dá para conferir com a DSPR aprovada, na loja de desenvolvimento.
 - Histórico (pedidos pagos antes da conexão).
 - Pedido também importado por XML de nota do TikTok: a loja do XML e a da API são
   lojas diferentes no Contatta, então o mesmo pedido pode aparecer nas duas.
-- Mostrar na aba "Na fila" do enriquecimento (view `customers_classificados`) a
-  mesma regra do TikTok; hoje só o número e a fila real seguem a regra nova.
 
 ## Várias lojas na mesma conta (23/10/2026)
 
