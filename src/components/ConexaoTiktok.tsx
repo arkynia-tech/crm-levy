@@ -36,6 +36,17 @@ function useConectarTiktok() {
   return { conectar, abrindo, erro }
 }
 
+/** Login do Seller Center Brasil: sem sessão aberta, a autorização do TikTok cai no cadastro. */
+const LOGIN_SELLER_CENTER = 'https://seller-br.tiktok.com/account/login'
+
+function EntrarNoSellerCenter({ texto }: { texto: string }) {
+  return (
+    <a className="font-medium underline underline-offset-2" href={LOGIN_SELLER_CENTER} target="_blank" rel="noreferrer">
+      {texto}
+    </a>
+  )
+}
+
 function quandoApaga(desconectou: string): string {
   return formatDate(new Date(new Date(desconectou).getTime() + DIAS_PARA_APAGAR * 86400_000).toISOString())
 }
@@ -51,11 +62,14 @@ export function CartaoTiktok({ conexao }: { conexao: ConexaoErp | null }) {
       categoria="Marketplace"
       texto="Os pedidos pagos da sua loja no TikTok Shop entram sozinhos, com o CPF e o nome da nota. O TikTok não repassa telefone nem e-mail do comprador. Dá para conectar mais de uma loja (um CNPJ em cada)."
       nota={
-        desconectado
-          ? conexao.last_error?.startsWith('dados do TikTok apagados')
-            ? `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela já foram apagados do Contatta.`
-            : `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela são apagados do Contatta em ${quandoApaga(conexao.disconnected_at!)}; conectando antes, nada se perde.`
-          : 'Entre com a conta principal da loja no TikTok Shop, neste mesmo navegador, antes de conectar.'
+        <>
+          {desconectado &&
+            (conexao.last_error?.startsWith('dados do TikTok apagados')
+              ? `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela já foram apagados do Contatta. `
+              : `${conexao.account_name ?? 'Uma loja'} foi desconectada em ${formatDate(conexao.disconnected_at)}. Os pedidos dela são apagados do Contatta em ${quandoApaga(conexao.disconnected_at!)}; conectando antes, nada se perde. `)}
+          Antes de conectar, <EntrarNoSellerCenter texto="entre no Seller Center" /> com a conta principal da loja, neste
+          mesmo navegador. Sem isso, o TikTok abre a tela de cadastro.
+        </>
       }
       erro={erro}
       botao={
@@ -75,7 +89,7 @@ export function OutraLojaTiktok() {
     <div className="max-w-xl space-y-3">
       <p className="text-sm text-gray-600">
         Cada loja vira uma loja aqui, com o CNPJ dela. O TikTok conecta a conta que estiver aberta: antes, saia da conta
-        atual no Seller Center neste navegador e entre com a conta principal da outra loja.
+        atual no Seller Center neste navegador e <EntrarNoSellerCenter texto="entre com a conta principal da outra loja" />.
       </p>
       <button type="button" className={`btn-primary ${press}`} onClick={() => void conectar()} disabled={abrindo}>
         <Link2 className="h-4 w-4" aria-hidden />
