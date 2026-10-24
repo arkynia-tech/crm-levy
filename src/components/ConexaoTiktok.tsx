@@ -150,7 +150,7 @@ export function LinhaTiktok({ conexao }: { conexao: ConexaoErp }) {
       />
       <p className="px-4 pb-4 text-sm text-gray-500 sm:px-5">
         Entram os pedidos pagos depois da data de corte, com o CPF e o nome da nota. Pedido cancelado no TikTok aparece como
-        cancelado aqui. Esses clientes não passam pelo enriquecimento de contato.
+        cancelado aqui. O contato desses clientes pode ser completado pelo enriquecimento, e o resultado fica só nesta loja.
       </p>
       {conexao.last_error && !reconectar && (
         <p className="px-4 pb-4 text-sm text-amber-800 sm:px-5">Último aviso do TikTok: {conexao.last_error}</p>
