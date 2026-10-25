@@ -403,7 +403,7 @@ export const CUSTOMERS_PAGE_SIZE = 25
  *   alcancavel   número válido — dá para mandar WhatsApp hoje
  *   na_fila      sem número e vale consultar (novo, ou consultado há +180 dias)
  *   sem_retorno  sem número, consultado, a NovaVida não achou
- *   nao_recebe   tem número, mas está em wa_optouts (respondeu 2 ou 3, ou pediu para sair)
+ *   nao_recebe   tem número, mas não recebe desta loja (respondeu 2 ou 3, ou pediu para sair)
  */
 export type EnrichFilter = 'all' | 'alcancavel' | 'na_fila' | 'sem_retorno' | 'nao_recebe'
 /** Filtro por telefone na tela Clientes */
