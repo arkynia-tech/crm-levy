@@ -19,7 +19,7 @@ import {
   type WaCampaign,
 } from '../hooks/campaigns'
 import { ehOficial, useWaInstances } from '../hooks/waInstances'
-import { TEMPLATE_CATEGORIA, useWaTemplates, type WaTemplate } from '../hooks/waOficial'
+import { TEMPLATE_CATEGORIA, TEMPLATE_STATUS, useWaTemplates, type WaTemplate } from '../hooks/waOficial'
 import { useCustomerSearch, type CustomerLite } from '../hooks/queries'
 import { SEGMENTS, segmentLabel } from '../lib/segments'
 import { formatDateTime, formatPhone, maskCpf } from '../lib/format'
@@ -221,20 +221,27 @@ function BirthdayCard() {
   const save = useSaveBirthdaySettings()
   const [enabled, setEnabled] = useState(false)
   const [message, setMessage] = useState('')
+  const [oficial, setOficial] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const { data: instancias } = useWaInstances()
+  const temOficial = (instancias ?? []).some((i) => ehOficial(i) && i.status === 'connected')
+  const { data: modelos } = useWaTemplates(temOficial)
+  const modelo = (modelos ?? []).find((t) => t.name === 'contatta_aniversario')
+  const statusModelo = modelo ? TEMPLATE_STATUS[modelo.status] ?? { label: modelo.status, tone: 'neutral' as const } : null
 
   useEffect(() => {
     if (data) {
       setEnabled(data.enabled)
       setMessage(data.message)
+      setOficial(Boolean(data.oficial))
     }
   }, [data])
 
-  const persist = async (next: { enabled: boolean; message: string }): Promise<boolean> => {
+  const persist = async (next: { enabled: boolean; message: string; oficial?: boolean }): Promise<boolean> => {
     setBusy(true)
     setMsg(null)
-    const res = await save(next)
+    const res = await save({ oficial, ...next })
     setBusy(false)
     if (!res.ok) {
       setMsg({ tone: 'err', text: res.error ?? 'Falha ao salvar.' })
@@ -263,6 +270,21 @@ function BirthdayCard() {
     if (await persist({ enabled, message })) setMsg({ tone: 'ok', text: 'Mensagem salva.' })
   }
 
+  const trocarOficial = async () => {
+    const next = !oficial
+    if (
+      next &&
+      !window.confirm(
+        'Usar o número oficial no parabéns?\n\n' +
+          'Só vale quando não houver número conectado por QR Code. Sai o modelo do Contatta (texto fixo) e a Meta ' +
+          'cobra cada envio como mensagem de marketing, na conta da loja.',
+      )
+    )
+      return
+    setOficial(next)
+    if (!(await persist({ enabled, message, oficial: next }))) setOficial(!next)
+  }
+
   return (
     <div className="card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -272,7 +294,7 @@ function BirthdayCard() {
           </h2>
           <p className="mt-0.5 text-xs text-gray-500">
             Quando ligado, envia a mensagem abaixo para quem faz aniversário no dia, entre 9h e 21h, pelo número
-            conectado por QR Code. Cada cliente recebe uma vez por ano.
+            conectado por QR Code (ou pelo oficial, se você escolher abaixo). Cada cliente recebe uma vez por ano.
           </p>
         </div>
         <button
@@ -308,6 +330,30 @@ function BirthdayCard() {
           primeiro nome.
         </span>
       </label>
+      {temOficial && (
+        <label className="mt-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={oficial}
+            onChange={() => void trocarOficial()}
+            disabled={busy}
+          />
+          <span className="text-sm text-gray-700">
+            <span className="font-medium">Sem número por QR Code, mandar pelo número oficial</span>
+            <span className="mt-0.5 block text-xs text-gray-500">
+              A Meta não aceita texto livre: sai o modelo do Contatta, “Oi, Ana! Hoje é o seu dia, e toda a equipe da
+              sua loja deseja um feliz aniversário! 🎉”, com o botão “Não quero receber”. Cada envio é cobrado pela
+              Meta como marketing, na conta da loja.
+            </span>
+            <span className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+              Modelo na Meta:{' '}
+              {statusModelo ? <StatusBadge status={statusModelo.label} tone={statusModelo.tone} /> : 'sendo criado'}
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="mt-2 flex items-center gap-2">
         <button type="button" className="btn-primary !py-1.5" onClick={() => void saveMessage()} disabled={busy}>
           {busy ? 'Salvando…' : 'Salvar mensagem'}
