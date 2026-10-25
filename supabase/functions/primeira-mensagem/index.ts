@@ -1,4 +1,6 @@
-// Primeira mensagem ao cliente novo, pela API oficial (ver primeira-mensagem.sql).
+// Primeira mensagem ao cliente novo (ver primeira-mensagem.sql e mensy.sql).
+// Sai pela API oficial (modelo com 3 botões) quando a loja tem número oficial
+// conectado; sem ele, pelo número não oficial do Mensy (texto com 1, 2 e 3).
 // Ações:
 //   rodada    só o pg_cron (x-cron-token): manda para quem está em
 //             crm_primeira_msg_pendentes, até 50 por vez.
@@ -8,6 +10,8 @@
 //             crm_wa_meta_evento.
 //   enviar    admin ou master, no cliente: manda agora (com a chave ligada ou
 //             não). Já enviada, não manda de novo; a que falhou pode ir de novo.
+//   preparar_auto  só o banco (x-cron-token), quando um número oficial conecta:
+//             o mesmo preparar, sem ninguém clicar.
 //
 // Fala direto com a Graph API com o token do número (wa_instance_tokens), sem
 // passar pelo n8n: o fluxo "WA Oficial" cria modelo só com o botão de sair.
@@ -15,14 +19,18 @@
 import type { Json } from '../_shared/asaas.ts'
 import { banco, cors, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
 import {
-  entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, variaveis,
+  entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, textoNaoOficial, variaveis,
 } from '../_shared/primeira-mensagem.ts'
+import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
 const falha = (status: number, error: string) => responder(status, { ok: false, error }, CORS)
 const POR_RODADA = 50
 const PRAZO_MS = 100_000
+// Não oficial: poucas por rodada e com pausa, para o número não ser marcado como disparo
+const NAO_OFICIAL_POR_RODADA = 8
+const pausa = () => new Promise((r) => setTimeout(r, 6000 + Math.random() * 6000))
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -30,9 +38,13 @@ Deno.serve(async (req) => {
   const b = (await req.json().catch(() => ({}))) as Json
 
   try {
-    if (b.action === 'rodada') {
+    if (b.action === 'rodada' || b.action === 'preparar_auto') {
       const { token: cron } = await rpc('crm_billing_cron_token')
       if (!cron || req.headers.get('x-cron-token') !== cron) return responder(401, { ok: false })
+      if (b.action === 'preparar_auto') {
+        if (typeof b.client_id !== 'string') return falha(400, 'Loja não informada.')
+        return await preparar(b.client_id, null)
+      }
       return ok(await rodada(Date.now() + PRAZO_MS))
     }
 
@@ -55,6 +67,15 @@ Deno.serve(async (req) => {
     return falha(500, 'Não deu certo agora. Tente de novo em instantes.')
   }
 })
+
+/** Número não oficial (Mensy) conectado da loja. */
+async function numeroNaoOficial(clientId: string): Promise<Json | null> {
+  const { data } = await banco
+    .from('wa_instances').select('id, instance_name, label, profile_name')
+    .eq('client_id', clientId).eq('provider', 'mensy').eq('status', 'connected')
+    .order('last_status_at', { ascending: false, nullsFirst: false }).limit(1)
+  return data?.[0] ?? null
+}
 
 /** Número oficial conectado da loja, com o token e o nome que o cliente vê no WhatsApp. */
 async function numeroDaLoja(clientId: string): Promise<Json | null> {
@@ -83,7 +104,7 @@ async function graph(token: string, metodo: string, caminho: string, corpo?: Jso
 
 // ---------------------------------------------------------------------------
 
-async function preparar(clientId: string, userId: string) {
+async function preparar(clientId: string, userId: string | null) {
   const w = await numeroDaLoja(clientId)
   if (!w) return falha(409, 'Conecte um número pela API oficial na tela WhatsApp antes.')
 
@@ -122,11 +143,14 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
   const { data: sair } = await banco.from('wa_optouts').select('wa_number').eq('wa_number', numero).maybeSingle()
   if (sair) return { ok: false, status: 409, error: 'Este número pediu para não receber mensagens.' }
 
-  const numeroOficial = w ?? (await numeroDaLoja(clientId))
-  if (!numeroOficial) return { ok: false, status: 409, error: 'A loja não tem número oficial conectado.' }
-  if (!(await escalar<boolean>('crm_primeira_msg_pronta', { p_client_id: clientId }))) {
-    return { ok: false, status: 409, error: 'O modelo da mensagem ainda não foi aprovado pela Meta.' }
+  const canal = await escalar<string>('crm_primeira_msg_canal', { p_client_id: clientId })
+  if (!canal) {
+    return { ok: false, status: 409, error: 'Conecte um número de WhatsApp (e, na API oficial, espere a Meta aprovar o modelo).' }
   }
+  const numeroOficial = canal === 'oficial' ? w ?? (await numeroDaLoja(clientId)) : null
+  if (canal === 'oficial' && !numeroOficial) return { ok: false, status: 409, error: 'A loja não tem número oficial conectado.' }
+  const naoOficial = canal === 'nao_oficial' ? await numeroNaoOficial(clientId) : null
+  if (canal === 'nao_oficial' && !naoOficial) return { ok: false, status: 409, error: 'O número da loja está desconectado.' }
 
   if (!(await escalar<boolean>('crm_primeira_msg_reservar', { p_customer_id: customerId, p_de_novo: manual }))) {
     return { ok: false, status: 409, error: 'A primeira mensagem já foi enviada para este cliente.' }
@@ -140,23 +164,41 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
 
   const vars = variaveis({
     nome: c.name,
-    loja: numeroOficial.verified_name ?? loja?.name ?? numeroOficial.label,
+    loja: numeroOficial?.verified_name ?? loja?.name ?? numeroOficial?.label ?? naoOficial?.label,
     pedido: numeroDoPedido(pedido?.external_order_id, pedido?.ordered_at ?? pedido?.created_at),
     entrega: entrega(pedido?.ship_address, c.city, c.state),
   })
-  const r = await graph(numeroOficial.token, 'POST', `/${numeroOficial.phone_number_id}/messages`, envio(numero, vars, customerId))
+
+  if (naoOficial) {
+    const texto = textoNaoOficial(vars)
+    const m = await mandarPeloMensy(naoOficial.instance_name, numero, texto, { digitandoMs: 3000 })
+    if ('id' in m) {
+      await rpc('crm_primeira_msg_concluir', {
+        p_customer_id: customerId,
+        p_info: { status: 'enviada', canal: 'nao_oficial', fone: numero, wamid: `mensy:${m.id}`, pedido_id: pedido?.id ?? null, texto, por: userId },
+      })
+      return { ok: true, enviada: true }
+    }
+    await rpc('crm_primeira_msg_concluir', {
+      p_customer_id: customerId,
+      p_info: { status: 'falhou', canal: 'nao_oficial', fone: numero, erro: m.erro, pedido_id: pedido?.id ?? null, por: userId },
+    })
+    return { ok: false, status: 422, error: `O WhatsApp não entregou: ${m.erro}` }
+  }
+
+  const r = await graph(numeroOficial!.token, 'POST', `/${numeroOficial!.phone_number_id}/messages`, envio(numero, vars, customerId))
   const wamid = r.json?.messages?.[0]?.id
   if (r.status >= 200 && r.status < 300 && wamid) {
     await rpc('crm_primeira_msg_concluir', {
       p_customer_id: customerId,
-      p_info: { status: 'enviada', fone: numero, wamid, pedido_id: pedido?.id ?? null, texto: textoFinal(vars), por: userId },
+      p_info: { status: 'enviada', canal: 'oficial', fone: numero, wamid, pedido_id: pedido?.id ?? null, texto: textoFinal(vars), por: userId },
     })
     return { ok: true, enviada: true }
   }
   const erro = erroDaMeta(r.json, r.status)
   await rpc('crm_primeira_msg_concluir', {
     p_customer_id: customerId,
-    p_info: { status: 'falhou', fone: numero, erro, pedido_id: pedido?.id ?? null, por: userId },
+    p_info: { status: 'falhou', canal: 'oficial', fone: numero, erro, pedido_id: pedido?.id ?? null, por: userId },
   })
   return { ok: false, status: 422, error: `A Meta não entregou: ${erro}` }
 }
@@ -164,11 +206,22 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
 async function rodada(ate: number): Promise<Json> {
   const fila = await rpcLinhas('crm_primeira_msg_pendentes', { p_limite: POR_RODADA })
   const numeros = new Map<string, Json | null>()
+  const canais = new Map<string, string | null>()
+  const naoOficiais = new Map<string, number>()
   let enviadas = 0, falhas = 0
   for (const f of fila) {
     if (Date.now() > ate) break
     const cid = String(f.client_id)
-    if (!numeros.has(cid)) numeros.set(cid, await numeroDaLoja(cid))
+    if (!canais.has(cid)) canais.set(cid, await escalar<string>('crm_primeira_msg_canal', { p_client_id: cid }))
+    if (canais.get(cid) === 'nao_oficial') {
+      // o resto fica para a próxima rodada (5 min)
+      const n = naoOficiais.get(cid) ?? 0
+      if (n >= NAO_OFICIAL_POR_RODADA) continue
+      if (n > 0) await pausa()
+      naoOficiais.set(cid, n + 1)
+    } else if (!numeros.has(cid)) {
+      numeros.set(cid, await numeroDaLoja(cid))
+    }
     const r = await mandar(cid, String(f.customer_id), null, false, numeros.get(cid))
     if (r.ok) enviadas++
     else {

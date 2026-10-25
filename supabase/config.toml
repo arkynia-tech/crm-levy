@@ -107,3 +107,16 @@ verify_jwt = false
 # do cron (rodada).
 [functions.primeira-mensagem]
 verify_jwt = false
+
+# Número não oficial pelo Mensy:
+# - wa-mensy confere o login por dentro (tela WhatsApp);
+# - wa-envio só aceita a chave de serviço (fluxo WA Campanhas);
+# - wa-mensy-avisos é chamado pelo Mensy e confere a chave no endereço.
+[functions.wa-mensy]
+verify_jwt = false
+
+[functions.wa-envio]
+verify_jwt = false
+
+[functions.wa-mensy-avisos]
+verify_jwt = false

@@ -13,7 +13,11 @@ const FUNCAO = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/primeira-mensagem` :
 export interface EstadoPrimeiraMsg {
   ligado: boolean
   desde?: string | null
+  /** por onde sai agora: 'oficial', 'nao_oficial' (Mensy) ou null (ainda não dá) */
+  canal?: 'oficial' | 'nao_oficial' | null
   numero: { id: string; label: string | null; phone: string | null; verified_name: string | null } | null
+  /** número não oficial (Mensy) conectado, usado quando não há oficial */
+  nao_oficial?: { id: string; label: string | null; phone: string | null; profile_name: string | null } | null
   modelo: { status: string; rejected_reason: string | null; updated_at: string } | null
 }
 
