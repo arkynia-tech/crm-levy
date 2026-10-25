@@ -249,7 +249,7 @@ function BirthdayCard() {
       next &&
       !window.confirm(
         'Ligar o parabéns automático?\n\n' +
-          'Todo dia, quem faz aniversário recebe a mensagem abaixo pelo WhatsApp conectado, sem você precisar disparar.',
+          'Todo dia, a partir das 9h, quem faz aniversário recebe a mensagem abaixo pelo número conectado por QR Code, sem você precisar disparar.',
       )
     )
       return
@@ -271,7 +271,8 @@ function BirthdayCard() {
             <Cake className="h-4 w-4 text-brand-600" aria-hidden /> Aniversariantes
           </h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            Quando ligado, envia a mensagem abaixo automaticamente para quem faz aniversário no dia.
+            Quando ligado, envia a mensagem abaixo para quem faz aniversário no dia, entre 9h e 21h, pelo número
+            conectado por QR Code. Cada cliente recebe uma vez por ano.
           </p>
         </div>
         <button
