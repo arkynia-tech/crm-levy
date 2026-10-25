@@ -396,15 +396,16 @@ export const CUSTOMERS_PAGE_SIZE = 25
 /**
  * Situação do cliente — as abas da tela Clientes.
  *
- * As três não se sobrepõem e cobrem a base inteira. Quem classifica é o banco
+ * As quatro não se sobrepõem e cobrem a base inteira. Quem classifica é o banco
  * (view customers_classificados), porque as abas antigas misturavam "foi
  * consultado?" com "tem telefone?" e por isso somavam mais que a base.
  *
  *   alcancavel   número válido — dá para mandar WhatsApp hoje
  *   na_fila      sem número e vale consultar (novo, ou consultado há +180 dias)
  *   sem_retorno  sem número, consultado, a NovaVida não achou
+ *   nao_recebe   tem número, mas está em wa_optouts (respondeu 2 ou 3, ou pediu para sair)
  */
-export type EnrichFilter = 'all' | 'alcancavel' | 'na_fila' | 'sem_retorno'
+export type EnrichFilter = 'all' | 'alcancavel' | 'na_fila' | 'sem_retorno' | 'nao_recebe'
 /** Filtro por telefone na tela Clientes */
 export type ContactFilter = 'all' | 'with_phone' | 'without_phone'
 
@@ -412,6 +413,7 @@ export interface CustomerSituacoes {
   alcancavel: number
   na_fila: number
   sem_retorno: number
+  nao_recebe: number
   total: number
 }
 
@@ -431,6 +433,7 @@ export function useCustomerSituacoes() {
         alcancavel: Number(r.alcancavel) || 0,
         na_fila: Number(r.na_fila) || 0,
         sem_retorno: Number(r.sem_retorno) || 0,
+        nao_recebe: Number(r.nao_recebe) || 0,
         total: Number(r.total) || 0,
       }
     },
