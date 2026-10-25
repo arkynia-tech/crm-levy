@@ -24,6 +24,8 @@ import { useCustomerSearch, type CustomerLite } from '../hooks/queries'
 import { SEGMENTS, segmentLabel } from '../lib/segments'
 import { formatDateTime, formatPhone, maskCpf } from '../lib/format'
 import { MetaLogo } from '../components/MetaLogo'
+import { MontadorPublico } from '../components/MontadorPublico'
+import { filtrosLimpos, resumoFiltros, type Filtros } from '../hooks/publicos'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
 import { useCompany } from '../context/CompanyContext'
 
@@ -88,6 +90,7 @@ const AUDIENCE_LABEL: Record<string, string> = {
 function audienceDescription(a: WaCampaign['audience']): string {
   if (a?.type === 'segment') return `Segmento: ${segmentLabel(a.segment ?? '')}`
   if (a?.type === 'manual') return `Clientes selecionados (${(a.customer_ids ?? []).length})`
+  if (a?.type === 'filtros') return `Público personalizado: ${resumoFiltros(a.filtros)}`
   return AUDIENCE_LABEL[a?.type ?? ''] ?? 'Público personalizado'
 }
 
@@ -98,7 +101,7 @@ interface CampaignPreset {
 }
 
 /** valores possíveis do seletor de público (inclui os segmentos) */
-type AudienceChoice = 'test' | 'all' | 'recent' | 'manual' | AudienceInput['segment']
+type AudienceChoice = 'test' | 'all' | 'recent' | 'manual' | 'filtros' | AudienceInput['segment']
 
 function CustomerPicker({
   selected,
@@ -448,6 +451,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
   const [choice, setChoice] = useState<AudienceChoice>('test')
   const [days, setDays] = useState(90)
   const [minSpent, setMinSpent] = useState(300)
+  const [filtros, setFiltros] = useState<Filtros>({})
   const [testNumbers, setTestNumbers] = useState('')
   const [selected, setSelected] = useState<CustomerLite[]>([])
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
@@ -507,6 +511,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
     else if (a?.type) setChoice(a.type as AudienceChoice)
     if (a?.days) setDays(a.days)
     if (a?.min_spent) setMinSpent(a.min_spent)
+    if (a?.type === 'filtros' && a.filtros) setFiltros(a.filtros)
   }, [preset])
 
   const isSegment = (SEGMENT_KEYS as string[]).includes(choice as string)
@@ -516,6 +521,7 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
     if (choice === 'recent') return { type: 'recent', days }
     if (choice === 'all') return { type: 'all' }
     if (choice === 'manual') return { type: 'manual', customer_ids: selected.map((s) => s.id) }
+    if (choice === 'filtros') return { type: 'filtros', filtros: filtrosLimpos(filtros) }
     // segmentos
     return { type: 'segment', segment: choice, days, min_spent: minSpent }
   }
@@ -654,6 +660,9 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
                 </option>
               ))}
             </optgroup>
+            <optgroup label="Personalizado">
+              <option value="filtros">Montar o meu público (estado, valor, produto…)</option>
+            </optgroup>
           </select>
         </label>
       </div>
@@ -703,6 +712,15 @@ function NewCampaignForm({ onCreated, preset }: { onCreated: () => void; preset?
         </p>
       )}
       {choice === 'manual' && canSeeCustomers && <CustomerPicker selected={selected} onChange={setSelected} />}
+      {choice === 'filtros' && (
+        <MontadorPublico
+          filtros={filtros}
+          onChange={(f) => {
+            setFiltros(f)
+            setPreview(null)
+          }}
+        />
+      )}
 
       {oficialConectado && (
         <fieldset className="mt-3">
