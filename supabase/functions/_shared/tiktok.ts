@@ -8,10 +8,13 @@
 // - A venda que entra é o PEDIDO PAGO: paid_time preenchido e status diferente
 //   de UNPAID. CANCELLED marca o pedido como cancelado; reembolso não devolve
 //   crédito (como na Nuvemshop).
-// - Dado do comprador: só o CPF e o nome da nota (cpf, cpf_name), que é o que
+// - Dado do comprador: o CPF e o nome da nota (cpf, cpf_name), que é o que
 //   foi declarado ao TikTok na revisão de segurança e privacidade (21/10/2026).
 //   Telefone e nome do destinatário vêm mascarados e o e-mail é de repasse: não
-//   gravamos nenhum deles, nem o endereço.
+//   gravamos nenhum deles. Do endereço, só bairro, cidade e UF, para a primeira
+//   mensagem dizer onde é a entrega (decisão de 25/10/2026): rua, número e CEP
+//   não entram, e o banco apaga depois da mensagem ou em 48 h (tiktok-bairro.sql).
+//   Fica fora do cadastro do cliente (cidade/uf nulos).
 // - Toda chamada é assinada (HMAC-SHA256 com o app secret) e leva o token no
 //   cabeçalho x-tts-access-token. As chamadas à loja levam o shop_cipher, que
 //   fica em erp_connections.account_cipher.
@@ -22,6 +25,7 @@
 
 import { banco, rpc } from './comum.ts'
 import type { Json } from './asaas.ts'
+import { uf } from './nuvemshop.ts'
 
 // As URLs vêm de variável só para o teste local apontar para um TikTok falso.
 const API = (Deno.env.get('TIKTOK_API_URL') ?? 'https://open-api.tiktokglobalshop.com').replace(/\/+$/, '')
@@ -358,6 +362,28 @@ const isoDe = (unix: unknown) => {
 }
 
 const CANCELADO = 'CANCELLED'
+
+/** Parte do endereço só se veio por inteiro: o TikTok mascara com asteriscos. */
+const semMascara = (v: unknown) => {
+  const s = texto(v)
+  return s && !s.includes('*') ? s : null
+}
+
+/**
+ * Bairro, cidade e UF da entrega, de recipient_address.district_info (L1 estado,
+ * L2 cidade, L3 bairro; o nome do nível também vale). Nada além disso.
+ */
+export function ondeEntrega(o: Json): { bairro: string; cidade: string; uf: string } | null {
+  const end = (o.recipient_address && typeof o.recipient_address === 'object' ? o.recipient_address : {}) as Json
+  const niveis = Array.isArray(end.district_info) ? end.district_info : []
+  const achar = (nivel: string, nome: RegExp) =>
+    semMascara(niveis.find((d: Json) => d?.address_level === nivel || nome.test(String(d?.address_level_name ?? '')))?.address_name)
+  const cidade = achar('L2', /^(city|cidade|munic)/i)
+  const estado = uf(achar('L1', /^(state|estado|province)/i))
+  const bairro = achar('L3', /^(district|neighbo|bairro)/i)
+  if (!cidade && !bairro) return null
+  return { bairro: bairro ?? '', cidade: cidade ?? '', uf: estado ?? '' }
+}
 const NAO_PAGO = 'UNPAID'
 
 /** Por que este pedido não é venda que entra (null = é). Cancelado passa: o banco marca o pedido. */
@@ -417,7 +443,8 @@ export function montarPedido(o: Json, shopId: string): Json {
     nascimento: null,
     cidade: null,
     uf: null,
-    endereco: null,
+    // só bairro, cidade e UF, e por pouco tempo (ver o topo do arquivo)
+    endereco: ondeEntrega(o),
     itens: [...porSku.values()],
   }
 }
