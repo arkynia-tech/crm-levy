@@ -6,7 +6,7 @@
 Deno.env.set('SUPABASE_URL', 'http://localhost:1')
 Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'x')
 
-const { diaSP, hmacHex, montarPedido, pedidoQueNaoEntra, textoParaAssinar, webhookConfere } = await import('../_shared/tiktok.ts')
+const { diaSP, hmacHex, montarPedido, ondeEntrega, pedidoQueNaoEntra, textoParaAssinar, webhookConfere } = await import('../_shared/tiktok.ts')
 
 let falhas = 0
 function igual(nome: string, a: unknown, b: unknown) {
@@ -40,7 +40,15 @@ const pedido: any = {
   cpf: '123.456.789-09', cpf_name: 'Ana Souza', buyer_email: 'v2b2V5@chat.seller.tiktok.com', user_id: '7021436810468230477',
   is_sample_order: false,
   payment: { currency: 'BRL', total_amount: '199.90', sub_total: '179.90', shipping_fee: '20.00' },
-  recipient_address: { name: 'A** S****', phone_number: '(+55)119*****000', full_address: 'Rua ***' },
+  recipient_address: {
+    name: 'A** S****', phone_number: '(+55)119*****000', full_address: 'Rua ***', postal_code: '13010-***',
+    district_info: [
+      { address_level: 'L0', address_level_name: 'Country', address_name: 'Brazil' },
+      { address_level: 'L1', address_level_name: 'State', address_name: 'São Paulo' },
+      { address_level: 'L2', address_level_name: 'City', address_name: 'Campinas' },
+      { address_level: 'L3', address_level_name: 'District', address_name: 'Centro' },
+    ],
+  },
   line_items: [
     { id: 'L1', sku_id: 'SKU-A', product_name: 'Camiseta', sku_name: 'Azul, M', seller_sku: 'CAM-AZ-M', sale_price: '89.95' },
     { id: 'L2', sku_id: 'SKU-A', product_name: 'Camiseta', sku_name: 'Azul, M', seller_sku: 'CAM-AZ-M', sale_price: '89.95' },
@@ -55,7 +63,11 @@ igual('CPF só dígitos', p.cpf, '12345678909')
 igual('nome é o da nota (cpf_name)', p.nome, 'Ana Souza')
 igual('e-mail de repasse não entra', p.email, null)
 igual('telefone mascarado não entra', p.telefone, null)
-igual('endereço não entra', p.endereco, null)
+igual('do endereço, só bairro, cidade e UF', p.endereco, { bairro: 'Centro', cidade: 'Campinas', uf: 'SP' })
+igual('cadastro do cliente fica sem cidade', [p.cidade, p.uf], [null, null])
+igual('bairro mascarado não entra', ondeEntrega({ recipient_address: { district_info: [
+  { address_level: 'L2', address_name: 'Campinas' }, { address_level: 'L3', address_name: 'C****' }] } }), { bairro: '', cidade: 'Campinas', uf: '' })
+igual('sem district_info, sem endereço', ondeEntrega({ recipient_address: { full_address: 'Rua ***' } }), null)
 igual('status pago', p.status, 'paid')
 igual('não cancelado', p.cancelado, false)
 igual('data = dia do pagamento em São Paulo (22/10 13h UTC)', p.data, '2026-10-22')
