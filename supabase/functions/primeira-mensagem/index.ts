@@ -7,7 +7,8 @@
 //             manda para esse cliente.
 //   rodada    só o pg_cron (x-cron-token), a cada 5 min: reserva do que
 //             escapou, manda para quem está em crm_primeira_msg_pendentes.
-//   preparar  admin ou master: cria o modelo contatta_confirmacao_pedido na
+//   preparar  admin ou master: cria o modelo contatta_confirmacao_pedido (e o
+//             do parabéns, contatta_aniversario: aniversario-oficial.sql) na
 //             conta da Meta da loja (se ainda não existe) e espelha em
 //             wa_templates. A Meta analisa; o aviso de aprovação chega por
 //             crm_wa_meta_evento.
@@ -25,6 +26,7 @@ import {
   entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, textoNaoOficial, variaveis,
 } from '../_shared/primeira-mensagem.ts'
 import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
+import { MODELO_ANIVERSARIO, modeloAniversarioParaCriar } from '../_shared/aniversario.ts'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
@@ -117,23 +119,33 @@ async function preparar(clientId: string, userId: string | null) {
   const w = await numeroDaLoja(clientId)
   if (!w) return falha(409, 'Conecte um número pela API oficial na tela WhatsApp antes.')
 
-  const { data: existente } = await banco
-    .from('wa_templates').select('status, rejected_reason')
-    .eq('waba_id', w.waba_id).eq('name', MODELO).maybeSingle()
-  if (existente && existente.status !== 'REJECTED') return ok({ ok: true, status: existente.status })
+  const primeira = await garantirModelo(w, MODELO, modeloParaCriar(), userId)
+  // o do parabéns vai junto: a loja liga pelo oficial no cartão de Aniversariantes quando quiser
+  const parabens = await garantirModelo(w, MODELO_ANIVERSARIO, modeloAniversarioParaCriar(), userId)
+  if ('erro' in parabens) console.error('modelo do parabéns', clientId, parabens.erro)
+  if ('erro' in primeira) return falha(422, `A Meta não aceitou o modelo: ${primeira.erro}`)
+  return ok({ ok: true, status: primeira.status, aniversario: 'erro' in parabens ? null : parabens.status })
+}
 
-  const r = await graph(w.token, 'POST', `/${w.waba_id}/message_templates`, modeloParaCriar())
+/** Cria o modelo na conta da Meta da loja, se ainda não existe (ou foi recusado), e espelha em wa_templates. */
+async function garantirModelo(w: Json, nome: string, modelo: Json, userId: string | null): Promise<{ status: string } | { erro: string }> {
+  const { data: existente } = await banco
+    .from('wa_templates').select('status')
+    .eq('waba_id', w.waba_id).eq('name', nome).maybeSingle()
+  if (existente && existente.status !== 'REJECTED') return { status: existente.status }
+
+  const r = await graph(w.token, 'POST', `/${w.waba_id}/message_templates`, modelo)
   if (r.status < 200 || r.status >= 300 || !r.json?.id) {
-    console.error('modelo recusado', r.status, JSON.stringify(r.json))
-    return falha(422, `A Meta não aceitou o modelo: ${erroDaMeta(r.json, r.status)}`)
+    console.error('modelo recusado', nome, r.status, JSON.stringify(r.json))
+    return { erro: erroDaMeta(r.json, r.status) }
   }
   await rpc('crm_wa_modelos_sincronizar', {
     p_instance_id: w.instance_id,
-    p_lista: [{ ...modeloParaCriar(), id: r.json.id, status: r.json.status ?? 'PENDING', category: r.json.category ?? 'UTILITY' }],
+    p_lista: [{ ...modelo, id: r.json.id, status: r.json.status ?? 'PENDING', category: r.json.category ?? modelo.category }],
     p_completa: false,
     p_user_id: userId,
   })
-  return ok({ ok: true, status: r.json.status ?? 'PENDING' })
+  return { status: r.json.status ?? 'PENDING' }
 }
 
 // ---------------------------------------------------------------------------
