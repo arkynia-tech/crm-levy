@@ -103,6 +103,9 @@ verify_jwt = false
 [functions.enriquecimento-auto]
 verify_jwt = false
 
+[functions.enriquecer]
+verify_jwt = false
+
 # Primeira mensagem: confere o login por dentro (preparar, enviar) ou o token
 # do cron (rodada).
 [functions.primeira-mensagem]

@@ -136,3 +136,50 @@ export function razao(status: number | null, corpo: unknown): string {
   } catch { /* texto puro */ }
   return (msg.trim() || `HTTP ${status}`).slice(0, 120)
 }
+
+// ---------------------------------------------------------------------------
+// O laço de consulta, igual para o automático (enriquecimento-auto) e o botão
+// "Completar contatos" (enriquecer).
+
+export type Placar = { solicitados: number; enriquecidos: number; falhas: number; motivos: Record<string, number> }
+export type ParaConsultar = ClienteAtual & { client_id: string; cpf: string }
+
+/**
+ * Consulta e grava, `aoMesmoTempo` por vez, até a lista acabar, o prazo vencer
+ * ou a NovaVida recusar (aí para tudo: insistir não traz telefone). Tira da
+ * lista quem já foi feito; o que sobrar fica nela.
+ */
+export async function consultarLote(
+  token: string,
+  lista: ParaConsultar[],
+  opcoes: { origem: string; ate: number; aoMesmoTempo: number; placar: (clientId: string) => Placar },
+): Promise<{ parou: string | null }> {
+  let parar: string | null = null
+  const trabalhar = async () => {
+    while (lista.length && !parar && Date.now() < opcoes.ate) {
+      const c = lista.shift()!
+      // ganhou telefone ou resposta entre a fila e agora (outra loja, o botão): não consulta
+      const nv = (c.extra ?? {}).novavida
+      if ((c.phone ?? '').trim() || (nv && (nv.fonte || nv.CONSULTA))) continue
+      const p = opcoes.placar(c.client_id)
+      const r = await consultar(token, c.cpf)
+      p.solicitados++
+      if (r.status !== 200 && r.status !== 204) {
+        const m = razao(r.status, r.corpo)
+        p.falhas++
+        p.motivos[m] = (p.motivos[m] ?? 0) + 1
+        parar = m
+        continue
+      }
+      const patch = montarPatch(c, r.status, abrir(r.corpo), opcoes.origem, new Date().toISOString())
+      const { error: e } = await banco.from('customers').update(patch).eq('id', c.id)
+      if (e) {
+        console.error('customers update', c.id, e.message)
+        continue
+      }
+      if (patch.phone) p.enriquecidos++
+    }
+  }
+  await Promise.all(Array.from({ length: opcoes.aoMesmoTempo }, trabalhar))
+  return { parou: parar }
+}
