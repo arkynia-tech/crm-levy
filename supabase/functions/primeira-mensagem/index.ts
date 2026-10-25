@@ -149,8 +149,9 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
   const numero = await escalar<string>('crm_wa_numero', { p_fone: c.phone })
   if (!numero) return { ok: false, status: 409, error: 'O cliente não tem um WhatsApp válido.' }
 
-  const { data: sair } = await banco.from('wa_optouts').select('wa_number').eq('wa_number', numero).maybeSingle()
-  if (sair) return { ok: false, status: 409, error: 'Este número pediu para não receber mensagens.' }
+  // a lista de quem não recebe é por loja (optout-por-loja.sql)
+  const sair = await escalar<boolean>('crm_wa_nao_recebe', { p_client_id: clientId, p_fone: numero })
+  if (sair) return { ok: false, status: 409, error: 'Este número pediu para não receber mensagens desta loja.' }
 
   const canal = await escalar<string>('crm_primeira_msg_canal', { p_client_id: clientId })
   if (!canal) {
