@@ -14,11 +14,34 @@ import { mandar } from '../_shared/mensy.ts'
 
 const UAZAPI = 'https://arkyniatech.uazapi.com'
 
+// Chaves já conferidas neste processo (a função fica de pé entre um envio e outro)
+const conferidas = new Set<string>()
+
+/**
+ * É a chave de serviço do projeto? A do ambiente da função pode não ser a mesma
+ * string que o n8n guarda (formatos de chave diferentes), então pergunta ao
+ * banco: crm_billing_cron_token só responde para service_role.
+ */
+async function chaveDeServico(chave: string): Promise<boolean> {
+  if (!chave) return false
+  if (chave === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || conferidas.has(chave)) return true
+  const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/crm_billing_cron_token`, {
+    method: 'POST',
+    headers: { apikey: chave, Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+    body: '{}',
+  }).catch(() => null)
+  if (r?.ok) {
+    conferidas.add(chave)
+    return true
+  }
+  return false
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { error: { message: 'Use POST.' } })
   // só quem tem a chave de serviço (o n8n, pela credencial do Supabase)
   const chave = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-  if (!chave || chave !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+  if (!(await chaveDeServico(chave))) {
     return responder(401, { error: { message: 'Não autorizado.' } })
   }
 
