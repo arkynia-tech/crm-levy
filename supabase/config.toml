@@ -103,6 +103,9 @@ verify_jwt = false
 [functions.enriquecimento-auto]
 verify_jwt = false
 
+[functions.aniversario]
+verify_jwt = false
+
 [functions.enriquecer]
 verify_jwt = false
 
