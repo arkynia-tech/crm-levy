@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Filtros } from './publicos'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 import { useUserRole } from './settings'
@@ -19,6 +20,7 @@ export interface WaCampaign {
     min_spent?: number
     numbers?: string[]
     customer_ids?: string[]
+    filtros?: Filtros
   }
   status: string
   /** Campanha pela API oficial: modelo aprovado e o que vai em cada variável */
@@ -119,8 +121,10 @@ export function useWaCampaigns() {
 }
 
 export interface AudienceInput {
-  type: 'test' | 'all' | 'recent' | 'segment' | 'manual'
+  type: 'test' | 'all' | 'recent' | 'segment' | 'manual' | 'filtros'
   segment?: 'one_time' | 'recorrente' | 'vip' | 'inactive' | 'birthday'
+  /** público personalizado (publicos-personalizados.sql) */
+  filtros?: Filtros
   days?: number
   min_spent?: number
   numbers?: string[]
