@@ -4,6 +4,7 @@ import { CheckCircle2, Clock3, MessageSquareText, Send, XCircle } from 'lucide-r
 import {
   useDefinirPrimeiraMsg, useEnviarPrimeiraMsg, useEstadoPrimeiraMsg, usePrepararPrimeiraMsg,
 } from '../hooks/primeiraMensagem'
+import { useCompany } from '../context/CompanyContext'
 import { formatDateTime } from '../lib/format'
 
 /**
@@ -25,7 +26,7 @@ function Previa({ loja, numerada }: { loja: string; numerada: boolean }) {
           Oi, <span className="font-medium">Ana</span>! Aqui é da <span className="font-medium">{loja}</span>. Recebemos
           o seu pedido <span className="font-medium">nº 1048</span>, com entrega em{' '}
           <span className="font-medium">Centro, Campinas/SP</span>.{'\n\n'}Para garantir que tudo chegue certinho,
-          confirme se este WhatsApp é seu.
+          confirme se este WhatsApp é seu e se os seus dados estão corretos.
           {numerada && (
             <>
               {' '}Responda só com o número:
@@ -66,13 +67,15 @@ export function SecaoPrimeiraMensagem() {
   const { data: estado, isLoading } = useEstadoPrimeiraMsg()
   const preparar = usePrepararPrimeiraMsg()
   const definir = useDefinirPrimeiraMsg()
+  const { activeClient } = useCompany()
   if (isLoading || estado === null || estado === undefined) return null
 
   const { numero, modelo, ligado, nao_oficial: naoOficial } = estado
   const aprovado = modelo?.status === 'APPROVED'
   // sem número oficial, sai pelo não oficial (texto com 1, 2 e 3)
   const pelaNaoOficial = !numero && Boolean(naoOficial)
-  const loja = numero?.verified_name || naoOficial?.profile_name || naoOficial?.label || 'sua loja'
+  // a mesma ordem da função primeira-mensagem: o nome que o cliente vê no WhatsApp, senão o da loja
+  const loja = numero?.verified_name || naoOficial?.profile_name || activeClient?.name || naoOficial?.label || 'sua loja'
 
   const ligar = () => {
     if (

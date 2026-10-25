@@ -21,7 +21,7 @@ export const GRAPH = 'https://graph.facebook.com/v25.0'
 
 export const CORPO =
   'Oi, {{1}}! Aqui é da {{2}}. Recebemos o seu pedido {{3}}, com entrega em {{4}}.\n\n' +
-  'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu.'
+  'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
 
 export const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber'] as const
 const PAYLOAD = ['confirma', 'errado', 'parar'] as const
@@ -89,7 +89,7 @@ export function textoNaoOficial(vars: string[]): string {
   const [nome, loja, pedido, onde] = vars
   return (
     `Oi, ${nome}! Aqui é da ${loja}. Recebemos o seu pedido ${pedido}, com entrega em ${onde}.\n\n` +
-    'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu. Responda só com o número:\n' +
+    'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos. Responda só com o número:\n' +
     '1. Sim, está certo\n2. Número errado\n3. Não quero receber'
   )
 }

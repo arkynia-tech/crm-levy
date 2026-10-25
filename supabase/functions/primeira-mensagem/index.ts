@@ -178,7 +178,7 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
 
   const vars = variaveis({
     nome: c.name,
-    loja: numeroOficial?.verified_name ?? loja?.name ?? numeroOficial?.label ?? naoOficial?.label,
+    loja: numeroOficial?.verified_name || naoOficial?.profile_name || loja?.name || numeroOficial?.label || naoOficial?.label,
     pedido: numeroDoPedido(pedido?.external_order_id, pedido?.ordered_at ?? pedido?.created_at),
     entrega: entrega(pedido?.ship_address, c.city, c.state),
   })
