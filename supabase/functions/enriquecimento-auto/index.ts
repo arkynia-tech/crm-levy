@@ -18,13 +18,11 @@
 
 import type { Json } from '../_shared/asaas.ts'
 import { banco, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
-import { abrir, type ClienteAtual, consultar, gerarToken, montarPatch, razao } from '../_shared/novavida.ts'
+import { consultarLote, gerarToken, type ParaConsultar, type Placar } from '../_shared/novavida.ts'
 
 const POR_RODADA = 150
 const AO_MESMO_TEMPO = 4
 const PRAZO_MS = 110_000
-
-type Placar = { solicitados: number; enriquecidos: number; falhas: number; motivos: Record<string, number> }
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { ok: false })
@@ -62,35 +60,10 @@ async function rodada(ate: number): Promise<Json> {
     return p
   }
 
-  let parar: string | null = null
-  const pendentes = [...(atuais ?? [])] as (ClienteAtual & { client_id: string; cpf: string })[]
-
-  const trabalhar = async () => {
-    while (pendentes.length && !parar && Date.now() < ate) {
-      const c = pendentes.shift()!
-      // ganhou telefone ou resposta entre a fila e agora (outra loja, o botão): não consulta
-      const nv = (c.extra ?? {}).novavida
-      if ((c.phone ?? '').trim() || (nv && (nv.fonte || nv.CONSULTA))) continue
-      const p = de(c.client_id)
-      const r = await consultar(acesso.token, c.cpf)
-      p.solicitados++
-      if (r.status !== 200 && r.status !== 204) {
-        const m = razao(r.status, r.corpo)
-        p.falhas++
-        p.motivos[m] = (p.motivos[m] ?? 0) + 1
-        parar = m
-        continue
-      }
-      const patch = montarPatch(c, r.status, abrir(r.corpo), 'automatico', new Date().toISOString())
-      const { error: e } = await banco.from('customers').update(patch).eq('id', c.id)
-      if (e) {
-        console.error('customers update', c.id, e.message)
-        continue
-      }
-      if (patch.phone) p.enriquecidos++
-    }
-  }
-  await Promise.all(Array.from({ length: AO_MESMO_TEMPO }, trabalhar))
+  const pendentes = [...(atuais ?? [])] as ParaConsultar[]
+  const { parou: parar } = await consultarLote(acesso.token, pendentes, {
+    origem: 'automatico', ate, aoMesmoTempo: AO_MESMO_TEMPO, placar: de,
+  })
 
   // Uma linha no histórico por loja, como o botão faz ("Automático" em Quem)
   const corridas = [...placar.entries()].map(([client_id, p]) => ({

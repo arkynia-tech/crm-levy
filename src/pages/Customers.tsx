@@ -76,13 +76,17 @@ function EnrichControl() {
     }
 
     const total = res.total ?? pedidos
+    if (total === 0) {
+      setMsg({ tone: 'ok', text: 'Ninguém na fila para consultar: todos já têm telefone ou já foram consultados.' })
+      return
+    }
     setMsg({
       tone: 'ok',
       text: `Buscando contato de ${total} cliente(s) em segundo plano. Pode fechar esta tela:`
         + ` os números abaixo vão subindo conforme as respostas chegam.`,
     })
 
-    // Quem registra o histórico agora é o fluxo: ele é o único que sabe o
+    // Quem registra o histórico é a função enriquecer: ela é a única que sabe o
     // resultado final. A tela só acompanha os contadores, que recarregam a
     // cada 10s enquanto a rodada acontece.
     const atualizar = () => {

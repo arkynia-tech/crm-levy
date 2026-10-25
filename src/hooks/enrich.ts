@@ -2,14 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 
-const ENRICH_URL = import.meta.env.VITE_N8N_ENRICH_URL as string | undefined
+// função enriquecer do Supabase (o fluxo do n8n saiu em 25/10/2026)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const ENRICH_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/enriquecer` : undefined
 
 /**
  * Dispara o enriquecimento e volta assim que o fluxo confirma que começou.
  *
- * Ele NÃO espera terminar: mil consultas levam uns 17 minutos, e segurar uma
- * requisição HTTP por esse tempo derruba a conexão — o usuário veria erro com
- * tudo dando certo no servidor. O fluxo responde após sondar o saldo e segue
+ * Ele NÃO espera terminar: mil consultas levam alguns minutos, e segurar uma
+ * requisição HTTP por esse tempo derruba a conexão (o usuário veria erro com
+ * tudo dando certo no servidor). A função responde com o total e segue
  * trabalhando; a tela acompanha pelos contadores.
  */
 export async function enrichCustomers(
