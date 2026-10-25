@@ -115,6 +115,8 @@ export function useEnrichmentCredits() {
 export interface BirthdaySettings {
   enabled: boolean
   message: string
+  /** sem número por QR Code, manda pelo oficial com o modelo do Contatta (aniversario-oficial.sql) */
+  oficial?: boolean
 }
 
 const DEFAULT_BIRTHDAY: BirthdaySettings = {
@@ -140,6 +142,7 @@ export function useBirthdaySettings() {
       return {
         enabled: Boolean(v.enabled),
         message: typeof v.message === 'string' && v.message.trim() ? v.message : DEFAULT_BIRTHDAY.message,
+        oficial: Boolean(v.oficial),
       }
     },
   })
