@@ -77,4 +77,6 @@ export interface CustomerWithStats extends Customer {
   enriched: boolean
   /** situação da abordagem por WhatsApp (campanhas + conversas) */
   waStatus: WaOutreach
+  /** aba da tela Clientes (view customers_classificados) */
+  situacao?: 'alcancavel' | 'na_fila' | 'sem_retorno' | 'nao_recebe'
 }

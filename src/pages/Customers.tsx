@@ -14,13 +14,14 @@ import {
 import { enrichCustomers, registrarEnriquecimento, useDefinirEnrichAuto, useEnrichAuto } from '../hooks/enrich'
 import { useUserRole } from '../hooks/settings'
 import { useCompany } from '../context/CompanyContext'
+import type { CustomerWithStats } from '../types'
 
 import { formatCurrency, formatDate, formatDateTime, formatPhone, maskCpf, toE164 } from '../lib/format'
 import { EmptyState, ErrorState, LoadingBlock, LoadingRows, PageHeader, Pagination, StatusBadge } from '../components/ui'
 
 type CustTab = EnrichFilter
 
-// Três situações que não se sobrepõem e cobrem a base inteira. As abas antigas
+// Situações que não se sobrepõem e cobrem a base inteira. As abas antigas
 // (Pendentes / Enriquecidos / Sem telefone) respondiam duas perguntas ao mesmo
 // tempo — "foi consultado?" e "tem telefone?" — então somavam mais que a base e
 // havia gente sem telefone dentro de "Enriquecidos".
@@ -28,6 +29,7 @@ const TABS: { key: CustTab; label: string; title: string }[] = [
   { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido, dá para mandar WhatsApp hoje' },
   { key: 'na_fila', label: 'Na fila', title: 'Sem número e ainda não consultados' },
   { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, sem telefone encontrado. Cada CPF é consultado uma vez só' },
+  { key: 'nao_recebe', label: 'Não recebem', title: 'Responderam "Número errado" ou "Não quero receber", ou pediram para sair. Nada é enviado para eles' },
 ]
 
 /**
@@ -377,6 +379,21 @@ function NewCustomerModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** O que respondeu na primeira mensagem; sem resposta, se o número saiu das mensagens por outro motivo. */
+const RESPOSTAS: Record<string, { texto: string; tom: 'ok' | 'bad' }> = {
+  confirma: { texto: 'Confirmado', tom: 'ok' },
+  errado: { texto: 'Número errado', tom: 'bad' },
+  parar: { texto: 'Não quer receber', tom: 'bad' },
+}
+
+function RespostaBadge({ c }: { c: CustomerWithStats }) {
+  const pm = (c.extra?.primeira_mensagem ?? null) as { resposta?: { botao?: string } } | null
+  const r = RESPOSTAS[pm?.resposta?.botao ?? '']
+  if (r) return <StatusBadge status={r.texto} tone={r.tom} />
+  if (c.situacao === 'nao_recebe') return <StatusBadge status="Não recebe" tone="bad" />
+  return null
+}
+
 function WaBadge({ status }: { status: 'respondeu' | 'enviada' | 'nenhuma' }) {
   if (status === 'respondeu') return <StatusBadge status="Respondeu" tone="ok" />
   if (status === 'enviada') return <StatusBadge status="Msg enviada" tone="neutral" />
@@ -400,6 +417,7 @@ export default function Customers() {
     alcancavel: situacoes?.alcancavel ?? null,
     na_fila: situacoes?.na_fila ?? null,
     sem_retorno: situacoes?.sem_retorno ?? null,
+    nao_recebe: situacoes?.nao_recebe ?? null,
   }
 
   // debounce da busca
@@ -529,9 +547,10 @@ export default function Customers() {
                       <div className="flex flex-wrap items-center gap-1">
                         {c.enriched ? (
                           <StatusBadge status="Enriquecido" tone="ok" />
-                        ) : (
+                        ) : c.situacao === 'na_fila' ? (
                           <StatusBadge status="Pendente" tone="warn" />
-                        )}
+                        ) : null}
+                        <RespostaBadge c={c} />
                         <WaBadge status={c.waStatus} />
                       </div>
                     </td>
@@ -566,14 +585,18 @@ export default function Customers() {
                   ? 'Ninguém com telefone ainda'
                   : tab === 'na_fila'
                     ? 'Nenhum cliente na fila de consulta'
-                    : 'Nenhum cliente nessa situação'
+                    : tab === 'nao_recebe'
+                      ? 'Ninguém pediu para não receber'
+                      : 'Nenhum cliente nessa situação'
             }
             hint={
               search
                 ? 'Tente outro nome, CPF ou cidade.'
                 : tab === 'alcancavel'
                   ? 'Use "Completar contatos" para buscar o telefone dos clientes.'
-                  : 'Os clientes aparecem aqui conforme as NF-e são importadas.'
+                  : tab === 'nao_recebe'
+                    ? 'Quem responder "Número errado" ou "Não quero receber" aparece aqui.'
+                    : 'Os clientes aparecem aqui conforme as NF-e são importadas.'
             }
           />
         )}

@@ -2,8 +2,11 @@
 // Sai pela API oficial (modelo com 3 botões) quando a loja tem número oficial
 // conectado; sem ele, pelo número não oficial do Mensy (texto com 1, 2 e 3).
 // Ações:
-//   rodada    só o pg_cron (x-cron-token): manda para quem está em
-//             crm_primeira_msg_pendentes, até 50 por vez.
+//   chegou    só o banco (x-cron-token), quando chega pedido ou o enriquecimento
+//             acha o WhatsApp (primeira-mensagem-na-hora.sql): espera 5 s e
+//             manda para esse cliente.
+//   rodada    só o pg_cron (x-cron-token), a cada 5 min: reserva do que
+//             escapou, manda para quem está em crm_primeira_msg_pendentes.
 //   preparar  admin ou master: cria o modelo contatta_confirmacao_pedido na
 //             conta da Meta da loja (se ainda não existe) e espelha em
 //             wa_templates. A Meta analisa; o aviso de aprovação chega por
@@ -28,8 +31,10 @@ const ok = (corpo: Json) => responder(200, corpo, CORS)
 const falha = (status: number, error: string) => responder(status, { ok: false, error }, CORS)
 const POR_RODADA = 50
 const PRAZO_MS = 100_000
-// Não oficial: poucas por rodada e com pausa, para o número não ser marcado como disparo
-const NAO_OFICIAL_POR_RODADA = 8
+// Não oficial: no máximo 8 por loja a cada 5 min (na hora + rodada) e, na rodada,
+// com pausa entre uma e outra, para o número não ser marcado como disparo
+const NAO_OFICIAL_TETO = 8
+const ESPERA_MS = 5000
 const pausa = () => new Promise((r) => setTimeout(r, 6000 + Math.random() * 6000))
 
 Deno.serve(async (req) => {
@@ -38,12 +43,16 @@ Deno.serve(async (req) => {
   const b = (await req.json().catch(() => ({}))) as Json
 
   try {
-    if (b.action === 'rodada' || b.action === 'preparar_auto') {
+    if (b.action === 'rodada' || b.action === 'preparar_auto' || b.action === 'chegou') {
       const { token: cron } = await rpc('crm_billing_cron_token')
       if (!cron || req.headers.get('x-cron-token') !== cron) return responder(401, { ok: false })
       if (b.action === 'preparar_auto') {
         if (typeof b.client_id !== 'string') return falha(400, 'Loja não informada.')
         return await preparar(b.client_id, null)
+      }
+      if (b.action === 'chegou') {
+        if (typeof b.customer_id !== 'string') return falha(400, 'Cliente não informado.')
+        return ok(await chegou(b.customer_id))
       }
       return ok(await rodada(Date.now() + PRAZO_MS))
     }
@@ -129,7 +138,7 @@ async function preparar(clientId: string, userId: string | null) {
 
 // ---------------------------------------------------------------------------
 
-type Resultado = { ok: boolean; status?: number; error?: string; enviada?: boolean }
+type Resultado = { ok: boolean; status?: number; error?: string; enviada?: boolean; adiada?: boolean }
 
 /** Manda para um cliente: reserva, monta as variáveis do pedido mais recente, chama a Meta, registra. */
 async function mandar(clientId: string, customerId: string, userId: string | null, manual: boolean, w?: Json | null): Promise<Resultado> {
@@ -152,7 +161,12 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
   const naoOficial = canal === 'nao_oficial' ? await numeroNaoOficial(clientId) : null
   if (canal === 'nao_oficial' && !naoOficial) return { ok: false, status: 409, error: 'O número da loja está desconectado.' }
 
-  if (!(await escalar<boolean>('crm_primeira_msg_reservar', { p_customer_id: customerId, p_de_novo: manual }))) {
+  // automática pelo não oficial: reserva dentro do teto da loja; o botão do cliente passa direto
+  if (naoOficial && !manual) {
+    const vez = await escalar<string>('crm_primeira_msg_reservar_vez', { p_customer_id: customerId, p_teto: NAO_OFICIAL_TETO })
+    if (vez === 'aguarde') return { ok: false, adiada: true, error: 'Teto de 5 minutos da loja; vai na próxima rodada.' }
+    if (vez !== 'ok') return { ok: false, status: 409, error: 'A primeira mensagem já foi enviada para este cliente.' }
+  } else if (!(await escalar<boolean>('crm_primeira_msg_reservar', { p_customer_id: customerId, p_de_novo: manual }))) {
     return { ok: false, status: 409, error: 'A primeira mensagem já foi enviada para este cliente.' }
   }
 
@@ -208,15 +222,15 @@ async function rodada(ate: number): Promise<Json> {
   const numeros = new Map<string, Json | null>()
   const canais = new Map<string, string | null>()
   const naoOficiais = new Map<string, number>()
-  let enviadas = 0, falhas = 0
+  const cheias = new Set<string>() // lojas que bateram o teto: o resto fica para a próxima rodada
+  let enviadas = 0, falhas = 0, adiadas = 0
   for (const f of fila) {
     if (Date.now() > ate) break
     const cid = String(f.client_id)
+    if (cheias.has(cid)) continue
     if (!canais.has(cid)) canais.set(cid, await escalar<string>('crm_primeira_msg_canal', { p_client_id: cid }))
     if (canais.get(cid) === 'nao_oficial') {
-      // o resto fica para a próxima rodada (5 min)
       const n = naoOficiais.get(cid) ?? 0
-      if (n >= NAO_OFICIAL_POR_RODADA) continue
       if (n > 0) await pausa()
       naoOficiais.set(cid, n + 1)
     } else if (!numeros.has(cid)) {
@@ -224,10 +238,23 @@ async function rodada(ate: number): Promise<Json> {
     }
     const r = await mandar(cid, String(f.customer_id), null, false, numeros.get(cid))
     if (r.ok) enviadas++
-    else {
+    else if (r.adiada) {
+      adiadas++
+      cheias.add(cid)
+    } else {
       falhas++
       console.error('primeira mensagem', f.customer_id, r.error)
     }
   }
-  return { ok: true, enviadas, falhas, fila: fila.length }
+  return { ok: true, enviadas, falhas, adiadas, fila: fila.length }
+}
+
+/** Pedido novo (ou WhatsApp novo): espera uns segundos e manda, se o cliente ainda está na fila. */
+async function chegou(customerId: string): Promise<Json> {
+  await new Promise((r) => setTimeout(r, ESPERA_MS))
+  const [f] = await rpcLinhas('crm_primeira_msg_pendentes', { p_limite: 1, p_customer_id: customerId })
+  if (!f) return { ok: true, enviada: false }
+  const r = await mandar(String(f.client_id), customerId, null, false)
+  if (!r.ok && !r.adiada) console.error('primeira mensagem na hora', customerId, r.error)
+  return { ok: true, enviada: Boolean(r.ok), adiada: Boolean(r.adiada) }
 }
