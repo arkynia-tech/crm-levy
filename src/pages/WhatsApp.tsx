@@ -19,7 +19,7 @@ import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/u
 import { oficialConfigurado, QUALIDADE_NUMERO, useWaOficial } from '../hooks/waOficial'
 import { abrirSignupDaMeta, metaSignupDisponivel, prepararSdkDaMeta } from '../lib/metaSignup'
 
-/** O QR da uazapi vem em base64 ou já como data URI; a tela aceita os dois. */
+/** O QR vem em base64 ou já como data URI (Mensy manda data URI); a tela aceita os dois. */
 function qrSrc(qr: string): string {
   return qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`
 }
@@ -41,7 +41,7 @@ function CartaoInstancia({ i, gerarQrJa = false }: { i: WaInstance; gerarQrJa?: 
 
   const conectando = i.status === 'connecting' || i.status === 'creating'
 
-  // Quem sabe se o celular já leu o QR é a uazapi, e só a ação "status" vai
+  // Quem sabe se o celular já leu o QR é o Mensy, e só a ação "status" vai
   // perguntar. Sem isto a tela ficaria em "aguardando leitura" para sempre,
   // mesmo com o aparelho já pareado.
   useEffect(() => {
@@ -438,7 +438,7 @@ function OpcaoConexao({
 
 /**
  * Conectar um número: a pessoa escolhe entre a API oficial da Meta (janela da
- * Meta, com ou sem coexistência) e o QR Code da uazapi. Os dois caminhos
+ * Meta, com ou sem coexistência) e o QR Code (Mensy). Os dois caminhos
  * gravam o número nesta loja, que é o que as campanhas usam.
  */
 function ConectarNumero({
@@ -523,7 +523,7 @@ function ConectarNumero({
     setErro(null)
     const nome = label.trim()
     if (!nome) return setErro('Dê um nome pra identificar este número.')
-    // O nome vira o identificador na uazapi, que é único na conta inteira
+    // Dois números com o mesmo nome na loja confundem na hora de escolher
     if (usados.some((u) => u.toLowerCase() === nome.toLowerCase())) {
       return setErro('Já existe um número com esse nome nesta loja. Escolha outro.')
     }

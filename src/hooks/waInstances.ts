@@ -2,7 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 
+// Número novo nasce no Mensy (função wa-mensy, 25/10/2026). O fluxo n8n da
+// uazapi fica só para os números antigos, até serem apagados.
 const INSTANCE_URL = import.meta.env.VITE_N8N_WA_INSTANCE_URL as string | undefined
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const MENSY_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/wa-mensy` : undefined
 
 /** Estados da uazapi, mais 'creating', que é nosso enquanto ela não responde. */
 export type WaStatus =
@@ -25,8 +29,8 @@ export interface WaInstance {
   last_status_at: string | null
   last_error: string | null
   created_at: string
-  /** 'uazapi' (QR Code) ou 'cloud_api' (API oficial da Meta). Ausente antes do wa-api-oficial.sql. */
-  provider?: 'uazapi' | 'cloud_api'
+  /** 'mensy' (QR Code, desde 25/10/2026), 'uazapi' (QR Code antigo) ou 'cloud_api' (API oficial). */
+  provider?: 'mensy' | 'uazapi' | 'cloud_api'
   waba_id?: string | null
   phone_number_id?: string | null
   verified_name?: string | null
@@ -60,15 +64,15 @@ interface WaActionResponse {
  * Toda ação passa pelo n8n: o admintoken da uazapi e o token da instância não
  * podem existir no navegador. O fluxo confere o papel pelo JWT antes de agir.
  */
-async function acao(payload: Record<string, unknown>): Promise<WaActionResponse> {
-  if (!INSTANCE_URL) {
+async function acao(payload: Record<string, unknown>, url: string | undefined): Promise<WaActionResponse> {
+  if (!url) {
     return { ok: false, error: 'Conexão com o WhatsApp indisponível no momento.' }
   }
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }
   try {
-    const res = await fetch(INSTANCE_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -137,8 +141,15 @@ export function useWaActions() {
     void queryClient.invalidateQueries({ queryKey: ['wa-quota', activeClient?.id] })
   }
 
+  // número da uazapi (antigo) segue pelo n8n; o resto, pelo Mensy
+  const urlDe = (instanceId?: string) => {
+    const lista = queryClient.getQueryData<WaInstance[]>(['wa-instances', activeClient?.id]) ?? []
+    const inst = instanceId ? lista.find((i) => i.id === instanceId) : undefined
+    return inst && (inst.provider ?? 'uazapi') === 'uazapi' ? INSTANCE_URL : MENSY_URL
+  }
+
   const chamar = async (payload: Record<string, unknown>) => {
-    const r = await acao({ ...payload, client_id: activeClient?.id })
+    const r = await acao({ ...payload, client_id: activeClient?.id }, urlDe(payload.instance_id as string | undefined))
     revalidar()
     return r
   }

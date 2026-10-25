@@ -9,14 +9,15 @@ import { formatDateTime } from '../lib/format'
 /**
  * Primeira mensagem ao cliente novo (decisão de 23/10/2026): a loja avisa que
  * recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele.
- * Só pela API oficial. O texto é fixo (é o modelo aprovado pela Meta).
+ * Com número da API oficial: modelo aprovado pela Meta, com 3 botões. Sem ele,
+ * pelo número não oficial (Mensy, 25/10/2026): o mesmo texto com 1, 2 e 3.
  */
 
 const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber']
 
 /** Como o cliente vê no WhatsApp, com dados de exemplo. */
-function Previa({ loja }: { loja: string }) {
+function Previa({ loja, numerada }: { loja: string; numerada: boolean }) {
   return (
     <div className="rounded-xl bg-[#efeae2] p-4" aria-label="Prévia da mensagem">
       <div className="max-w-sm overflow-hidden rounded-lg bg-white text-sm text-gray-800 shadow-sm">
@@ -25,14 +26,22 @@ function Previa({ loja }: { loja: string }) {
           o seu pedido <span className="font-medium">nº 1048</span>, com entrega em{' '}
           <span className="font-medium">Centro, Campinas/SP</span>.{'\n\n'}Para garantir que tudo chegue certinho,
           confirme se este WhatsApp é seu.
+          {numerada && (
+            <>
+              {' '}Responda só com o número:
+              {BOTOES.map((b, i) => `\n${i + 1}. ${b}`).join('')}
+            </>
+          )}
         </p>
-        <ul className="divide-y divide-gray-100 border-t border-gray-100">
-          {BOTOES.map((b) => (
-            <li key={b} className="py-2 text-center text-[13px] font-medium text-sky-600">
-              {b}
-            </li>
-          ))}
-        </ul>
+        {!numerada && (
+          <ul className="divide-y divide-gray-100 border-t border-gray-100">
+            {BOTOES.map((b) => (
+              <li key={b} className="py-2 text-center text-[13px] font-medium text-sky-600">
+                {b}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <p className="mt-2 text-xs text-gray-500">
         Nome, número do pedido e bairro e cidade da entrega vêm do pedido. Rua e número ficam de fora: se o WhatsApp for de
@@ -59,9 +68,11 @@ export function SecaoPrimeiraMensagem() {
   const definir = useDefinirPrimeiraMsg()
   if (isLoading || estado === null || estado === undefined) return null
 
-  const { numero, modelo, ligado } = estado
+  const { numero, modelo, ligado, nao_oficial: naoOficial } = estado
   const aprovado = modelo?.status === 'APPROVED'
-  const loja = numero?.verified_name || 'sua loja'
+  // sem número oficial, sai pelo não oficial (texto com 1, 2 e 3)
+  const pelaNaoOficial = !numero && Boolean(naoOficial)
+  const loja = numero?.verified_name || naoOficial?.profile_name || naoOficial?.label || 'sua loja'
 
   const ligar = () => {
     if (
@@ -75,6 +86,38 @@ export function SecaoPrimeiraMensagem() {
     definir.mutate(!ligado)
   }
 
+  const chave = (
+    <>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={ligado}
+          aria-label="Mandar a primeira mensagem sozinha"
+          onClick={ligar}
+          disabled={definir.isPending}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-60 ${
+            ligado ? 'bg-brand-600' : 'bg-gray-300'
+          }`}
+        >
+          <span
+            aria-hidden
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+              ligado ? 'translate-x-[22px]' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+        <span className="text-sm text-gray-800">
+          {ligado ? 'Ligada: sai sozinha para cada cliente novo' : 'Desligada: só sai pelo botão na tela do cliente'}
+        </span>
+      </div>
+      {ligado && estado.desde && (
+        <p className="text-xs text-gray-500">Vale para pedidos feitos desde {formatDateTime(estado.desde)}.</p>
+      )}
+      {definir.isError && <p className="text-sm text-red-700">{(definir.error as Error).message}</p>}
+    </>
+  )
+
   return (
     <section className="card p-5">
       <div className="flex items-center gap-2">
@@ -83,15 +126,28 @@ export function SecaoPrimeiraMensagem() {
       </div>
       <p className="mt-1 max-w-2xl text-sm text-gray-500">
         A loja avisa que recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele. "Sim, está certo"
-        marca o WhatsApp como confirmado; "Número errado" e "Não quero receber" tiram o número das campanhas. Sai pelo
-        número da API oficial, uma vez por cliente.
+        marca o WhatsApp como confirmado; "Número errado" e "Não quero receber" tiram o número das campanhas. Uma vez
+        por cliente: pela API oficial quando a loja tem esse número; sem ele, pelo número conectado por QR Code, com as
+        respostas 1, 2 e 3.
       </p>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start">
         <div className="space-y-4">
-          {!numero ? (
+          {pelaNaoOficial ? (
+            <div className="space-y-3">
+              <Situacao tom="ok" icone={CheckCircle2}>
+                Sai pelo número {naoOficial?.profile_name || naoOficial?.label || naoOficial?.phone}, conectado por QR Code.
+              </Situacao>
+              <p className="max-w-xl rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Número não oficial: mensagem para quem ainda não falou com a loja pode gerar denúncia e o WhatsApp pode
+                bloquear o número. Sai no máximo 8 a cada 5 minutos, com pausa entre elas. Para não correr esse risco,
+                conecte um número pela API oficial.
+              </p>
+              {chave}
+            </div>
+          ) : !numero ? (
             <Situacao tom="espera" icone={Clock3}>
-              Precisa de um número conectado pela API oficial.{' '}
+              Precisa de um número conectado.{' '}
               <Link to="/whatsapp" className="font-medium underline underline-offset-2">
                 Conectar na tela WhatsApp
               </Link>
@@ -124,40 +180,16 @@ export function SecaoPrimeiraMensagem() {
               <Situacao tom="ok" icone={CheckCircle2}>
                 Modelo aprovado pela Meta.
               </Situacao>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={ligado}
-                  aria-label="Mandar a primeira mensagem sozinha"
-                  onClick={ligar}
-                  disabled={definir.isPending}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-60 ${
-                    ligado ? 'bg-brand-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    aria-hidden
-                    className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
-                      ligado ? 'translate-x-[22px]' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
-                <span className="text-sm text-gray-800">
-                  {ligado ? 'Ligada: sai sozinha para cada cliente novo' : 'Desligada: só sai pelo botão na tela do cliente'}
-                </span>
-              </div>
-              {ligado && estado.desde && (
-                <p className="text-xs text-gray-500">Vale para pedidos feitos desde {formatDateTime(estado.desde)}.</p>
-              )}
-              {definir.isError && <p className="text-sm text-red-700">{(definir.error as Error).message}</p>}
+              {chave}
             </div>
           )}
           <p className="text-xs text-gray-500">
-            A Meta cobra cada envio na conta da loja (mensagem de utilidade). Quem pediu para não receber nunca recebe.
+            {pelaNaoOficial
+              ? 'Pelo número não oficial não há custo por mensagem. Quem pediu para não receber nunca recebe.'
+              : 'A Meta cobra cada envio na conta da loja (mensagem de utilidade). Quem pediu para não receber nunca recebe.'}
           </p>
         </div>
-        <Previa loja={loja} />
+        <Previa loja={loja} numerada={pelaNaoOficial} />
       </div>
     </section>
   )
@@ -184,12 +216,13 @@ export function BotaoPrimeiraMensagem({
 }) {
   const { data: estado } = useEstadoPrimeiraMsg()
   const enviar = useEnviarPrimeiraMsg(customerId)
-  if (!estado || estado.modelo?.status !== 'APPROVED' || !estado.numero) return null
+  if (!estado?.canal) return null
 
   const status = registro?.status
   const enviada = status === 'enviada' || status === 'enviando'
   const mandar = () => {
-    if (window.confirm('Mandar a primeira mensagem para este cliente agora?\n\nA Meta cobra o envio na conta da loja.')) {
+    const aviso = estado.canal === 'oficial' ? 'A Meta cobra o envio na conta da loja.' : 'Sai pelo número conectado por QR Code.'
+    if (window.confirm(`Mandar a primeira mensagem para este cliente agora?\n\n${aviso}`)) {
       enviar.mutate()
     }
   }

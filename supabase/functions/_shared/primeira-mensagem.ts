@@ -81,6 +81,19 @@ export function variaveis(v: { nome: unknown; loja: unknown; pedido: string; ent
   return [primeiroNome(v.nome), limpo(v.loja) || 'nossa loja', v.pedido, v.entrega]
 }
 
+/**
+ * Número não oficial (Mensy, 25/10/2026): o mesmo texto, sem botão, com as
+ * opções numeradas. A resposta 1, 2 ou 3 chega por crm_wa_mensy_aviso.
+ */
+export function textoNaoOficial(vars: string[]): string {
+  const [nome, loja, pedido, onde] = vars
+  return (
+    `Oi, ${nome}! Aqui é da ${loja}. Recebemos o seu pedido ${pedido}, com entrega em ${onde}.\n\n` +
+    'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu. Responda só com o número:\n' +
+    '1. Sim, está certo\n2. Número errado\n3. Não quero receber'
+  )
+}
+
 /** O corpo como o cliente lê (para guardar no histórico da conversa). */
 export function textoFinal(vars: string[]): string {
   return CORPO.replace(/\{\{(\d)\}\}/g, (_, i) => vars[Number(i) - 1] ?? '')
