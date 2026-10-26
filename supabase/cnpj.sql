@@ -255,7 +255,7 @@ as $$
        and coalesce(p_consulta->'TELEFONES'->>('CEL' || i), '') <> ''
        and coalesce(p_consulta->'TELEFONES'->>('DDDCEL' || i), '') <> ''
     union all
-    -- 2410 (empresa): celulares dos sócios, depois dos telefones da empresa
+    -- 2410 (empresa): celulares dos sócios (vêm depois dos telefones da empresa)
     select concat(s->>'DDDCELSOCIO', s->>'CELSOCIO'),
            (upper(coalesce(s->>'FLWHATSAPPCELSOCIO', '')) in ('S', 'SIM', 'Y', 'YES', '1', 'TRUE')),
            2, ord
