@@ -17,9 +17,11 @@ else
 fi
 
 echo "2/6 Traefik na VPS (lendo os labels do n8n-dev)"
-INFO=$(ssh mensy-prod 'c=$(docker ps --format "{{.Names}}" | grep -i n8n | head -1); t=$(docker ps --format "{{.Names}}" | grep -i traefik | head -1);
+# o Traefik da VPS roda na rede do host e alcança os containers pela rede de cada
+# um: o repasse entra na mesma rede do n8n-dev
+INFO=$(ssh mensy-prod 'c=$(docker ps --format "{{.Names}}" | grep -i n8n | head -1);
   docker inspect "$c" --format "{{range \$k,\$v := .Config.Labels}}{{\$k}}={{\$v}}{{println}}{{end}}" | grep -E "routers\..*\.(tls\.certresolver|entrypoints)=" ;
-  echo "rede=$(docker inspect "$t" --format "{{range \$k,\$v := .NetworkSettings.Networks}}{{\$k}} {{end}}" | tr " " "\n" | grep -v "^$" | head -1)"')
+  echo "rede=$(docker inspect "$c" --format "{{range \$k,\$v := .NetworkSettings.Networks}}{{\$k}} {{end}}" | tr " " "\n" | grep -v -e "^$" -e "^host$" | head -1)"')
 RESOLVER=$(echo "$INFO" | grep certresolver= | head -1 | cut -d= -f2)
 ENTRY=$(echo "$INFO" | grep entrypoints= | head -1 | cut -d= -f2 | cut -d, -f1)
 REDE=$(echo "$INFO" | grep ^rede= | cut -d= -f2)
