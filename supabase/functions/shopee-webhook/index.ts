@@ -7,8 +7,11 @@
 // (erp_order_events); ler e gravar o pedido fica para depois de responder, e a
 // busca de hora em hora cobre aviso que não chegou.
 //
-// Assinatura: cabeçalho Authorization = HMAC-SHA256(partner_key, url + '|' +
-// corpo cru), em hex.
+// Assinatura: cabeçalho Authorization = HMAC-SHA256(push partner key, url +
+// '|' + corpo cru), em hex. A push partner key fica na tela Push Mechanism do
+// console (secret SHOPEE_PUSH_KEY; sem ela, vale a Partner Key).
+// Ao salvar o endereço no console, a Shopee manda um aviso de teste e só aceita
+// se a resposta for 2xx: com a assinatura certa, ele cai em "ignorado" (200).
 //
 // Aviso: {"shop_id": 123, "code": 3, "timestamp": ..., "data": {"ordersn": "...", "status": "...", "update_time": ...}}
 //   code 3  status do pedido mudou        -> fila (o pedido é lido de novo)
@@ -16,7 +19,7 @@
 //   outros  respondidos com 200 e ignorados
 
 import type { Json } from '../_shared/asaas.ts'
-import { chavesDoApp, enfileirar, PROVEDOR, processarFila, webhookConfere, WEBHOOK_URL } from '../_shared/shopee.ts'
+import { chaveDosAvisos, enfileirar, PROVEDOR, processarFila, webhookConfere, WEBHOOK_URL } from '../_shared/shopee.ts'
 import { banco, depoisDeResponder, responder } from '../_shared/comum.ts'
 
 const PEDIDO = 3
@@ -32,11 +35,11 @@ async function conexoesDaLoja(shopId: string, soConectadas = true): Promise<stri
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { ok: false })
-  const app = chavesDoApp()
-  if (!app) return responder(503, { ok: false })
+  const chave = chaveDosAvisos()
+  if (!chave) return responder(503, { ok: false })
 
   const corpo = await req.text()
-  if (!(await webhookConfere(WEBHOOK_URL, corpo, req.headers.get('authorization'), app.key))) {
+  if (!(await webhookConfere(WEBHOOK_URL, corpo, req.headers.get('authorization'), chave))) {
     console.error('aviso da Shopee com assinatura que não confere')
     return responder(401, { ok: false })
   }

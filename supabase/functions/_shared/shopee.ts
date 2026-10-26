@@ -47,6 +47,13 @@ function credenciais(): Credenciais | null {
 export const configurado = () => credenciais() !== null
 export const chavesDoApp = () => credenciais()
 
+/**
+ * Chave que assina os avisos (push). A Shopee mostra uma "Push Partner Key"
+ * própria na tela Push Mechanism (no teste é diferente da Partner Key); sem
+ * ela cadastrada (SHOPEE_PUSH_KEY), vale a Partner Key.
+ */
+export const chaveDosAvisos = () => Deno.env.get('SHOPEE_PUSH_KEY') || credenciais()?.key || null
+
 // ---------------------------------------------------------------------------
 // assinatura
 
