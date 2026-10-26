@@ -8,11 +8,11 @@ import { LojasBling } from './LojasBling'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Até abrir para todas as lojas, só o master vê o Bling (ou o admin de uma loja
- * que o master liberou). Virar para true depois do primeiro lojista real com a
- * entrada automática das vendas (fase 2) funcionando.
+ * Aberto para todas as lojas desde 26/10/2026 (decisão do Mohamad). Anda junto
+ * com o secret BLING_ABERTO_PARA_LOJAS=1 da bling-conexao. Para fechar de novo:
+ * false aqui, tirar o secret, e liberar loja a loja em clients.bling_liberado.
  */
-export const BLING_ABERTO_PARA_LOJAS = false
+export const BLING_ABERTO_PARA_LOJAS = true
 
 /** Abre a autorização no Bling. Usado pelo cartão e pelo "Conectar de novo". */
 function useConectarBling() {
