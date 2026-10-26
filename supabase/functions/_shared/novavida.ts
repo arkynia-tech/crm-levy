@@ -6,12 +6,22 @@
 //     (crm_enrich_consultado) e tira o CPF da fila para sempre;
 //   - resposta que não é 200/204 não marca nada: a pergunta não foi respondida.
 // Credencial em integration_secrets (key 'novavida': usuario, senha, cliente).
+//
+// A NovaVida recusa o login vindo dos servidores do Supabase (fora do Brasil) e
+// aceita o mesmo login de IP brasileiro. Com NOVAVIDA_URL (26/10/2026) as
+// chamadas passam pelo repasse da VPS em São Paulo
+// (https://shopee-proxy.arkynia.com.br/novavida), com a chave SHOPEE_PROXY_CHAVE.
 
 import type { Json } from './asaas.ts'
 import { banco } from './comum.ts'
 
-const TOKEN_URL = 'https://wsnv.novavidati.com.br/wslocalizador.asmx/GerarTokenJson'
-const CONSULTA_URL = 'https://wsnv.novavidati.com.br/WSLocalizador.asmx/CONSULTAR'
+const BASE = (Deno.env.get('NOVAVIDA_URL') ?? 'https://wsnv.novavidati.com.br').replace(/\/$/, '')
+const TOKEN_URL = BASE + '/wslocalizador.asmx/GerarTokenJson'
+const CONSULTA_URL = BASE + '/WSLocalizador.asmx/CONSULTAR'
+/** Cabeçalho do repasse: só vai quando NOVAVIDA_URL aponta para ele. */
+const REPASSE: Record<string, string> = Deno.env.get('NOVAVIDA_URL') && Deno.env.get('SHOPEE_PROXY_CHAVE')
+  ? { 'x-contatta-proxy': Deno.env.get('SHOPEE_PROXY_CHAVE')! }
+  : {}
 export const FONTE = 'nvbook_pf_2429'
 export const FONTE_PJ = 'nvbook_pj_2410'
 
@@ -26,7 +36,7 @@ export async function gerarToken(): Promise<{ token: string } | { erro: string }
   if (!c?.usuario) return { erro: 'credencial da NovaVida não cadastrada' }
   const r = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...REPASSE },
     body: JSON.stringify({ credencial: { usuario: c.usuario, senha: c.senha, cliente: c.cliente } }),
   }).catch(() => null)
   if (!r) return { erro: 'NovaVida fora do ar' }
@@ -40,7 +50,7 @@ export async function gerarToken(): Promise<{ token: string } | { erro: string }
 export async function consultar(token: string, doc: string): Promise<{ status: number | null; corpo: unknown }> {
   const r = await fetch(CONSULTA_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...REPASSE },
     body: new URLSearchParams({ consulta: ehCnpj(doc) ? '2410' : '2429', documento: doc.replace(/\D/g, ''), token }),
   }).catch(() => null)
   if (!r) return { status: null, corpo: null }
