@@ -401,7 +401,9 @@ export default function Integracoes() {
                   )}
                   {shopeeContas.length > 0 && (
                     <GrupoCanal marca="shopee" nome="Shopee" contas={shopeeContas} outra={<OutraLojaShopee />} rotuloOutra="Conectar outra loja" unidade={['loja', 'lojas']}>
-                      {shopeeContas.map((c) => <LinhaShopee key={c.conexao.id} conexao={c.conexao} />)}
+                      {shopeeContas.map((c) => (
+                        <LinhaShopee key={c.conexao.id} conexao={c.conexao} lojasDasNotas={avulsas.filter((s) => s.marketplace === 'shopee')} />
+                      ))}
                     </GrupoCanal>
                   )}
                   {tiktokContas.length > 0 && (

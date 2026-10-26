@@ -364,8 +364,10 @@ export function montarPedido(o: Json, shopId: string): Json {
 // a loja do Contatta que recebe esta loja da Shopee (uma por conexão, ligada sozinha)
 
 /**
- * Garante a loja do Contatta desta conexão (marketplace "shopee", chave
- * shopee:<shop_id>) e o vínculo em erp_store_links. Devolve o id da loja.
+ * Garante a loja do Contatta desta conexão e o vínculo em erp_store_links.
+ * Devolve o id da loja. Se a conta já tem a loja que a importação de notas
+ * criou com o mesmo shop_id (chave do intermediador), usa ela: o mesmo pedido
+ * não entra duas vezes (shopee-lojas.sql). Senão, cria shopee:<shop_id>.
  */
 export async function garantirLoja(con: { connection_id: string; client_id: string; account_id: string; account_name?: string | null }): Promise<string | null> {
   const ext = String(con.account_id)
@@ -383,6 +385,15 @@ export async function garantirLoja(con: { connection_id: string; client_id: stri
     return data as Json | null
   }
   let loja = await lerLojaContatta()
+  if (!loja) {
+    const { data: dasNotas } = await banco
+      .from('stores').select('id, client_id')
+      .eq('client_id', con.client_id).eq('marketplace', CANAL).eq('external_shop_id', ext).maybeSingle()
+    const { data: ocupada } = dasNotas
+      ? await banco.from('erp_store_links').select('id').eq('store_id', dasNotas.id).limit(1)
+      : { data: [] }
+    if (dasNotas && !ocupada?.length) loja = dasNotas as Json
+  }
   if (!loja) {
     const { error } = await banco.from('stores').upsert(
       { client_id: con.client_id, marketplace: CANAL, external_shop_id: chave, name: nome, updated_at: new Date().toISOString() },
