@@ -85,6 +85,19 @@ verify_jwt = false
 [functions.tiktok-pedidos]
 verify_jwt = false
 
+# Shopee, também sem a checagem de JWT do gateway:
+# - shopee-conexao confere o login por dentro (auth.getUser);
+# - shopee-webhook é chamado pela Shopee e confere o cabeçalho Authorization (HMAC);
+# - shopee-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.shopee-conexao]
+verify_jwt = false
+
+[functions.shopee-webhook]
+verify_jwt = false
+
+[functions.shopee-pedidos]
+verify_jwt = false
+
 # Mercado Livre, também sem a checagem de JWT do gateway:
 # - mercadolivre-conexao confere o login por dentro (auth.getUser);
 # - mercadolivre-webhook é chamado pelo Mercado Livre (sem assinatura: confere o
