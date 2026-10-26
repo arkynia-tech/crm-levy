@@ -1,0 +1,29 @@
+# Repasse de IP fixo para a Shopee (o IP desta VPS fica na lista de IPs do app).
+# As funções do Supabase chamam https://<host>/prod/api/v2/... (ou /sandbox/...)
+# com o cabeçalho x-contatta-proxy; a chave vem de PROXY_CHAVE (envsubst da
+# imagem oficial do nginx: $http_... e $host não são variáveis de ambiente e ficam).
+server {
+  listen 80;
+
+  location = /saude { return 200 "ok\n"; }
+
+  location /prod/ {
+    if ($http_x_contatta_proxy != "${PROXY_CHAVE}") { return 403; }
+    proxy_pass https://partner.shopeemobile.com/;
+    proxy_set_header Host partner.shopeemobile.com;
+    proxy_set_header x-contatta-proxy "";
+    proxy_ssl_server_name on;
+    proxy_read_timeout 60s;
+  }
+
+  location /sandbox/ {
+    if ($http_x_contatta_proxy != "${PROXY_CHAVE}") { return 403; }
+    proxy_pass https://openplatform.sandbox.test-stable.shopee.sg/;
+    proxy_set_header Host openplatform.sandbox.test-stable.shopee.sg;
+    proxy_set_header x-contatta-proxy "";
+    proxy_ssl_server_name on;
+    proxy_read_timeout 60s;
+  }
+
+  location / { return 404; }
+}

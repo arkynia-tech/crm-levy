@@ -11,6 +11,7 @@ import { useConexoesNuvemshop, useNuvemshopLiberado } from '../hooks/nuvemshop'
 import { useConexaoShopify, useShopifyPreparado } from '../hooks/shopify'
 import { useConexoesMercadoLivre, useMercadoLivreLiberado } from '../hooks/mercadolivre'
 import { useConexoesTiktok, useTiktokLiberado } from '../hooks/tiktok'
+import { useConexoesShopee, useShopeeLiberado } from '../hooks/shopee'
 import { BLING_ABERTO_PARA_LOJAS, CartaoBling, LinhaBling } from '../components/ConexaoBling'
 import { CartaoNuvemshop, LinhaNuvemshop, NUVEMSHOP_ABERTO_PARA_LOJAS, OutraLojaNuvemshop } from '../components/ConexaoNuvemshop'
 import { CartaoShopify, LinhaShopify } from '../components/ConexaoShopify'
@@ -21,6 +22,7 @@ import {
   OutraContaMercadoLivre,
 } from '../components/ConexaoMercadoLivre'
 import { CartaoTiktok, LinhaTiktok, OutraLojaTiktok, TIKTOK_ABERTO_PARA_LOJAS } from '../components/ConexaoTiktok'
+import { CartaoShopee, LinhaShopee, OutraLojaShopee, SHOPEE_ABERTO_PARA_LOJAS } from '../components/ConexaoShopee'
 import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
 import { CnpjDaLoja } from '../components/CnpjDaLoja'
 import { LojasDasConexoesProvider } from '../components/lojas-da-conexao'
@@ -51,6 +53,7 @@ function useCanaisVisiveis() {
   const { data: nuvemshopLiberado = false } = useNuvemshopLiberado(activeClient?.id, admin && !NUVEMSHOP_ABERTO_PARA_LOJAS)
   const { data: mercadoLivreLiberado = false } = useMercadoLivreLiberado(activeClient?.id, admin && !MERCADOLIVRE_ABERTO_PARA_LOJAS)
   const { data: tiktokLiberado = false } = useTiktokLiberado(activeClient?.id, admin && !TIKTOK_ABERTO_PARA_LOJAS)
+  const { data: shopeeLiberado = false } = useShopeeLiberado(activeClient?.id, admin && !SHOPEE_ABERTO_PARA_LOJAS)
   return {
     isMaster,
     podeEditar: isMaster || admin,
@@ -62,6 +65,8 @@ function useCanaisVisiveis() {
     mercadoLivre: isMaster || (admin && (MERCADOLIVRE_ABERTO_PARA_LOJAS || mercadoLivreLiberado)),
     // fechado até a revisão de dados do TikTok sair (master e loja liberada)
     tiktok: isMaster || (admin && (TIKTOK_ABERTO_PARA_LOJAS || tiktokLiberado)),
+    // app em teste na Shopee (sem Go-Live): master e loja liberada
+    shopee: isMaster || (admin && (SHOPEE_ABERTO_PARA_LOJAS || shopeeLiberado)),
   }
 }
 
@@ -294,6 +299,7 @@ export default function Integracoes() {
   const prep = useShopifyPreparado(activeClient?.id, ver.shopify)
   const ml = useConexoesMercadoLivre(ver.mercadoLivre ? activeClient?.id : undefined)
   const tiktok = useConexoesTiktok(ver.tiktok ? activeClient?.id : undefined)
+  const shopee = useConexoesShopee(ver.shopee ? activeClient?.id : undefined)
 
   const stores = useStores()
   const storeIds = (stores.data ?? []).map((s) => s.id)
@@ -308,7 +314,8 @@ export default function Integracoes() {
     (ver.nuvemshop && nuvem.isLoading) ||
     (ver.shopify && (shop.isLoading || prep.isLoading)) ||
     (ver.mercadoLivre && ml.isLoading) ||
-    (ver.tiktok && tiktok.isLoading)
+    (ver.tiktok && tiktok.isLoading) ||
+    (ver.shopee && shopee.isLoading)
 
   // Contas ligadas (ou que precisam conectar de novo), por canal
   const mlContas: Conta[] = ver.mercadoLivre
@@ -318,14 +325,18 @@ export default function Integracoes() {
   const tiktokContas: Conta[] = ver.tiktok
     ? (tiktok.data ?? []).filter((c) => ligada(c.status)).map((c) => ({ canal: 'tiktok_shop', conexao: c }))
     : []
+  const shopeeContas: Conta[] = ver.shopee
+    ? (shopee.data ?? []).filter((c) => ligada(c.status)).map((c) => ({ canal: 'shopee', conexao: c }))
+    : []
   const nuvemConta: Conta[] = ver.nuvemshop
     ? (nuvem.data ?? []).filter((c) => ligada(c.status)).map((c) => ({ canal: 'nuvemshop', conexao: c }))
     : []
   const shopConta: Conta[] = ver.shopify && shop.data && ligada(shop.data.status) ? [{ canal: 'shopify', conexao: shop.data }] : []
   const blingConta: Conta[] = ver.bling && bling.data && ligada(bling.data.status) ? [{ canal: 'bling', conexao: bling.data }] : []
-  const contas = [...mlContas, ...tiktokContas, ...nuvemConta, ...shopConta, ...blingConta]
+  const contas = [...mlContas, ...shopeeContas, ...tiktokContas, ...nuvemConta, ...shopConta, ...blingConta]
   const canais = [
     { marca: 'mercado_livre', nome: 'Mercado Livre', n: mlContas.length },
+    { marca: 'shopee', nome: 'Shopee', n: shopeeContas.length },
     { marca: 'tiktok_shop', nome: 'TikTok Shop', n: tiktokContas.length },
     { marca: 'nuvemshop', nome: 'Nuvemshop', n: nuvemConta.length },
     { marca: 'shopify', nome: 'Shopify', n: shopConta.length },
@@ -339,6 +350,7 @@ export default function Integracoes() {
   // Mercado Livre com conta ligada: "outra conta" fica no grupo dele
   const mlDisponivel = ver.mercadoLivre && ml.data !== undefined && mlContas.length === 0
   const tiktokDisponivel = ver.tiktok && tiktok.data !== undefined && tiktokContas.length === 0
+  const shopeeDisponivel = ver.shopee && shopee.data !== undefined && shopeeContas.length === 0
   const faltaSql = ver.isMaster
     ? [
         ver.bling && !bling.isLoading && bling.data === undefined ? 'bling-conexao.sql' : null,
@@ -346,6 +358,7 @@ export default function Integracoes() {
         ver.shopify && !shop.isLoading && shop.data === undefined ? 'shopify.sql' : null,
         ver.mercadoLivre && !ml.isLoading && ml.data === undefined ? 'mercadolivre.sql' : null,
         ver.tiktok && !tiktok.isLoading && tiktok.data === undefined ? 'tiktok.sql' : null,
+        ver.shopee && !shopee.isLoading && shopee.data === undefined ? 'shopee.sql' : null,
       ].filter(Boolean)
     : []
 
@@ -386,6 +399,11 @@ export default function Integracoes() {
                       {mlContas.map((c) => <LinhaMercadoLivre key={c.conexao.id} conexao={c.conexao} isMaster={ver.isMaster} />)}
                     </GrupoCanal>
                   )}
+                  {shopeeContas.length > 0 && (
+                    <GrupoCanal marca="shopee" nome="Shopee" contas={shopeeContas} outra={<OutraLojaShopee />} rotuloOutra="Conectar outra loja" unidade={['loja', 'lojas']}>
+                      {shopeeContas.map((c) => <LinhaShopee key={c.conexao.id} conexao={c.conexao} />)}
+                    </GrupoCanal>
+                  )}
                   {tiktokContas.length > 0 && (
                     <GrupoCanal marca="tiktok_shop" nome="TikTok Shop" contas={tiktokContas} outra={<OutraLojaTiktok />} rotuloOutra="Conectar outra loja" unidade={['loja', 'lojas']}>
                       {tiktokContas.map((c) => <LinhaTiktok key={c.conexao.id} conexao={c.conexao} />)}
@@ -410,7 +428,7 @@ export default function Integracoes() {
               </Secao>
             )}
 
-            {(nuvemDisponivel || shopDisponivel || blingDisponivel || mlDisponivel || tiktokDisponivel || faltaSql.length > 0) && (
+            {(nuvemDisponivel || shopDisponivel || blingDisponivel || mlDisponivel || tiktokDisponivel || shopeeDisponivel || faltaSql.length > 0) && (
               <Secao
                 id="conectar"
                 titulo={contas.length > 0 ? 'Conectar um canal novo' : 'Conectar um canal'}
@@ -418,6 +436,7 @@ export default function Integracoes() {
               >
                 <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {mlDisponivel && <CartaoMercadoLivre ligadas={0} desconectadas={mlDesligadas} />}
+                  {shopeeDisponivel && <CartaoShopee conexao={shopee.data?.[0] ?? null} />}
                   {tiktokDisponivel && <CartaoTiktok conexao={tiktok.data?.[0] ?? null} />}
                   {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data?.[0] ?? null} />}
                   {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
@@ -453,6 +472,7 @@ export default function Integracoes() {
                   ...(shopDisponivel || shopConta.length > 0 ? ['shopify'] : []),
                   ...(ver.mercadoLivre ? ['mercado_livre'] : []),
                   ...(ver.tiktok ? ['tiktok_shop'] : []),
+                  ...(ver.shopee ? ['shopee'] : []),
                 ]}
               />
             </Secao>
