@@ -347,7 +347,8 @@ export function montarPedido(o: Json, shopId: string): Json {
     cancelado,
     status: cancelado ? 'cancelado' : 'paid',
     total: numero(o.total_amount),
-    cpf: doc.length === 11 ? doc : null,
+    // CPF ou CNPJ (comprador empresa, consultado na 2410 desde 26/10/2026)
+    cpf: doc.length === 11 || doc.length === 14 ? doc : null,
     nome: semMascara(end.name),
     email: null,
     telefone: celularBr(end.phone),

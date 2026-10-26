@@ -1,7 +1,7 @@
-// NovaVida (NVBOOK_PF, consulta 2429): o que o fluxo "Enriquecimento NovaVida"
-// do n8n faz, para as funções do Supabase. As regras de leitura são as mesmas
-// do nó "Montar patches", para o cliente ficar igual venha de onde vier:
-//   - extra.novavida = { fonte: 'nvbook_pf_2429', http, resposta } só quando a
+// NovaVida: CPF na NVBOOK_PF (consulta 2429) e, desde 26/10/2026, CNPJ na
+// NVBOOK_PJ (consulta 2410). O que o fluxo "Enriquecimento NovaVida" do n8n
+// fazia, para as funções do Supabase, com as mesmas regras de leitura:
+//   - extra.novavida = { fonte: 'nvbook_pf_2429' ou 'nvbook_pj_2410', http, resposta } só quando a
 //     NovaVida respondeu (200/204): é o que conta como "consultado"
 //     (crm_enrich_consultado) e tira o CPF da fila para sempre;
 //   - resposta que não é 200/204 não marca nada: a pergunta não foi respondida.
@@ -13,6 +13,10 @@ import { banco } from './comum.ts'
 const TOKEN_URL = 'https://wsnv.novavidati.com.br/wslocalizador.asmx/GerarTokenJson'
 const CONSULTA_URL = 'https://wsnv.novavidati.com.br/WSLocalizador.asmx/CONSULTAR'
 export const FONTE = 'nvbook_pf_2429'
+export const FONTE_PJ = 'nvbook_pj_2410'
+
+/** CNPJ tem 14 dígitos; CPF, 11. */
+export const ehCnpj = (doc: string) => doc.replace(/\D/g, '').length === 14
 
 /** Token do dia: um por corrida basta. */
 export async function gerarToken(): Promise<{ token: string } | { erro: string }> {
@@ -32,12 +36,12 @@ export async function gerarToken(): Promise<{ token: string } | { erro: string }
   return { token }
 }
 
-/** Uma consulta 2429. `status` é o HTTP; `corpo` vem cru para ler a razão da recusa. */
-export async function consultar(token: string, cpf: string): Promise<{ status: number | null; corpo: unknown }> {
+/** Uma consulta: 2429 para CPF, 2410 para CNPJ. `status` é o HTTP; `corpo` vem cru para ler a razão da recusa. */
+export async function consultar(token: string, doc: string): Promise<{ status: number | null; corpo: unknown }> {
   const r = await fetch(CONSULTA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ consulta: '2429', documento: cpf.replace(/\D/g, ''), token }),
+    body: new URLSearchParams({ consulta: ehCnpj(doc) ? '2410' : '2429', documento: doc.replace(/\D/g, ''), token }),
   }).catch(() => null)
   if (!r) return { status: null, corpo: null }
   return { status: r.status, corpo: await r.text().catch(() => '') }
@@ -74,6 +78,32 @@ export function celulares(t: Json | null | undefined): string[] {
   return [...todos.filter((x) => x.whats), ...todos.filter((x) => !x.whats)].map((x) => x.fone)
 }
 
+const sim = (v: unknown) => /^(s|sim|y|yes|1|true)$/i.test(String(v ?? '').trim())
+const ehCelular = (fone: string) => fone.length === 11 && fone[2] === '9'
+
+/**
+ * WhatsApp de uma empresa (consulta 2410), na ordem decidida em 26/10/2026:
+ * o telefone da empresa marcado como WhatsApp; senão o celular de um sócio
+ * marcado como WhatsApp; senão o primeiro celular (da empresa, depois dos
+ * sócios). Fixo sem WhatsApp não serve. Só dígitos (DDD + número).
+ */
+export function telefoneDaEmpresa(dados: Json | null | undefined): string | null {
+  if (!dados || typeof dados !== 'object') return null
+  const lista = (v: unknown) => (Array.isArray(v) ? v : v && typeof v === 'object' ? [v] : []) as Json[]
+  const empresa = lista(dados.TELEFONES)
+    .map((t) => ({ fone: `${t.DDD ?? ''}${t.FONE ?? t.TELEFONE ?? ''}`.replace(/\D/g, ''), whats: sim(t.WHATSAPP ?? t.FLWHATS) }))
+    .filter((t) => t.fone.length >= 10)
+  const socios = lista(dados.SOCIOS)
+    .map((s) => ({ fone: `${s.DDDCELSOCIO ?? ''}${s.CELSOCIO ?? ''}`.replace(/\D/g, ''), whats: sim(s.FLWHATSAPPCELSOCIO) }))
+    .filter((s) => s.fone.length >= 10)
+  return (
+    empresa.find((t) => t.whats)?.fone ??
+    socios.find((s) => s.whats)?.fone ??
+    [...empresa, ...socios].find((t) => ehCelular(t.fone))?.fone ??
+    null
+  )
+}
+
 /** A 2429 manda AAAAMMDD; a antiga mandava DD/MM/AAAA. */
 export function nascimento(s: unknown): string | null {
   const v = String(s ?? '').trim()
@@ -101,15 +131,26 @@ export interface ClienteAtual {
  * O que gravar no cliente a partir da resposta. Nunca apaga o que já existe:
  * só preenche o que está vazio. `origem` vai para extra.enriquecido_por.
  */
-export function montarPatch(c: ClienteAtual, status: number, dados: Json | null, origem: string, agora: string): Json {
+export function montarPatch(c: ClienteAtual, status: number, dados: Json | null, origem: string, agora: string, pj = false): Json {
   const extra: Json = {
     ...(c.extra ?? {}),
     enriched_at: agora,
     enriquecido_por: origem,
-    novavida: { fonte: FONTE, http: status, resposta: dados },
+    novavida: { fonte: pj ? FONTE_PJ : FONTE, http: status, resposta: dados },
   }
   const patch: Json = { extra }
   if (!dados) return patch
+  if (pj) {
+    // empresa (2410): telefones e e-mails em lista, sem data de nascimento
+    const fone = c.phone ? null : telefoneDaEmpresa(dados)
+    if (fone) patch.phone = '+55' + fone
+    const email = (Array.isArray(dados.EMAILS) ? dados.EMAILS : []).map((e: Json) => String(e?.EMAIL ?? '').trim()).find(Boolean)
+    if (!c.email && email) patch.email = email
+    const end = dados.ENDERECO ?? {}
+    if (!c.city && end.CIDADE) patch.city = titulo(end.CIDADE)
+    if (!c.state && end.UF) patch.state = String(end.UF).toUpperCase()
+    return patch
+  }
   if (!c.phone) {
     const [primeiro] = celulares(dados.TELEFONES)
     if (primeiro) patch.phone = '+55' + primeiro
@@ -155,12 +196,16 @@ export async function consultarLote(
   opcoes: { origem: string; ate: number; aoMesmoTempo: number; placar: (clientId: string) => Placar },
 ): Promise<{ parou: string | null }> {
   let parar: string | null = null
+  // CNPJ recusado (2410 não liberada na conta, por exemplo) para só os CNPJs: os CPFs seguem
+  let pararCnpj: string | null = null
   const trabalhar = async () => {
     while (lista.length && !parar && Date.now() < opcoes.ate) {
       const c = lista.shift()!
       // ganhou telefone ou resposta entre a fila e agora (outra loja, o botão): não consulta
       const nv = (c.extra ?? {}).novavida
       if ((c.phone ?? '').trim() || (nv && (nv.fonte || nv.CONSULTA))) continue
+      const pj = ehCnpj(c.cpf)
+      if (pj && pararCnpj) continue
       const p = opcoes.placar(c.client_id)
       const r = await consultar(token, c.cpf)
       p.solicitados++
@@ -168,10 +213,11 @@ export async function consultarLote(
         const m = razao(r.status, r.corpo)
         p.falhas++
         p.motivos[m] = (p.motivos[m] ?? 0) + 1
-        parar = m
+        if (pj && !/saldo|credencial|token/i.test(m)) pararCnpj = `CNPJ: ${m}`
+        else parar = m
         continue
       }
-      const patch = montarPatch(c, r.status, abrir(r.corpo), opcoes.origem, new Date().toISOString())
+      const patch = montarPatch(c, r.status, abrir(r.corpo), opcoes.origem, new Date().toISOString(), pj)
       const { error: e } = await banco.from('customers').update(patch).eq('id', c.id)
       if (e) {
         console.error('customers update', c.id, e.message)
@@ -181,5 +227,6 @@ export async function consultarLote(
     }
   }
   await Promise.all(Array.from({ length: opcoes.aoMesmoTempo }, trabalhar))
+  if (pararCnpj) console.error('consulta de CNPJ recusada, CNPJs ficaram para depois:', pararCnpj)
   return { parou: parar }
 }

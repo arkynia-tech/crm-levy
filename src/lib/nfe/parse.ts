@@ -92,7 +92,8 @@ export function lerNota(arq: ArquivoXml): NotaLida | null {
     numero_nf: texto(ide, 'nNF'),
     data_emissao: texto(ide, 'dhEmi') || texto(ide, 'dEmi') || null,
     buyer_name: texto(dest, 'xNome'),
-    buyer_cpf: digitos(texto(dest, 'CPF')),
+    // CPF ou, para comprador empresa, CNPJ (consultado na 2410 desde 26/10/2026)
+    buyer_cpf: digitos(texto(dest, 'CPF')) || digitos(texto(dest, 'CNPJ')),
     buyer_email: texto(dest, 'email'),
     buyer_phone: texto(dest, 'fone'),
     cidade: texto(ender, 'xMun') || null,

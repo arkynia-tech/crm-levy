@@ -95,7 +95,7 @@ igual('cancelado: flag', c.cancelado, true)
 const semCpf = montarPedido({ ...pedido, cpf: '' }, '1')
 igual('sem CPF: cpf nulo (o banco devolve sem_cpf)', semCpf.cpf, null)
 const cnpj = montarPedido({ ...pedido, cpf: '12.345.678/0001-90' }, '1')
-igual('CNPJ no campo cpf não entra como CPF', cnpj.cpf, null)
+igual('CNPJ no campo cpf entra como documento (comprador empresa)', cnpj.cpf?.length, 14)
 
 igual('diaSP de 0 é nulo', diaSP(0), null)
 igual('diaSP da virada (23h50 em SP)', diaSP(Date.UTC(2026, 9, 22, 2, 50) / 1000), '2026-10-21')

@@ -370,31 +370,46 @@ export function cpfValido(d: string): boolean {
   return dv(9) === Number(d[9]) && dv(10) === Number(d[10])
 }
 
+/** CNPJ de verdade: 14 dígitos, não repetidos, com os dois dígitos verificadores certos. */
+export function cnpjValido(d: string): boolean {
+  if (!/^\d{14}$/.test(d) || /^(\d)\1{13}$/.test(d)) return false
+  const dv = (n: number) => {
+    const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    const soma = pesos.reduce((s, p, i) => s + Number(d[i]) * p, 0)
+    const r = soma % 11
+    return r < 2 ? 0 : 11 - r
+  }
+  return dv(12) === Number(d[12]) && dv(13) === Number(d[13])
+}
+
+/** CPF ou CNPJ válido (desde 26/10/2026 o comprador empresa também entra). */
+const docValido = (d: string) => cpfValido(d) || cnpjValido(d)
+
 /**
- * Onde está o CPF do comprador, na ordem de confiança:
+ * Onde está o CPF (ou CNPJ) do comprador, na ordem de confiança:
  *   1. campo de documento do Brasil no checkout (localizedFields TAX_CREDENTIAL_BR);
  *   2. atributo do pedido gravado por app de CPF (chave com "cpf" ou "documento");
  *   3. campo empresa do endereço de cobrança ou de entrega com 11 dígitos.
- * Devolve só CPF válido (dígitos verificadores conferidos: celular com DDD também
- * tem 11 dígitos); CNPJ não vale, igual à importação de NF-e.
+ * Devolve só documento válido (dígitos verificadores conferidos: celular com DDD
+ * também tem 11 dígitos). CNPJ vale desde 26/10/2026, igual à importação de NF-e.
  */
 export function cpfDoPedido(o: Json): { cpf: string | null; fonte: string } {
   for (const n of nos(o.localizedFields)) {
     if (String(n.key) === 'TAX_CREDENTIAL_BR') {
       const d = digitos(n.value)
-      if (cpfValido(d)) return { cpf: d, fonte: 'checkout' }
-      return { cpf: null, fonte: d.length === 11 ? 'checkout_invalido' : `checkout_${d.length}d` }
+      if (docValido(d)) return { cpf: d, fonte: 'checkout' }
+      return { cpf: null, fonte: d.length === 11 || d.length === 14 ? 'checkout_invalido' : `checkout_${d.length}d` }
     }
   }
   for (const a of Array.isArray(o.customAttributes) ? o.customAttributes : []) {
     if (/cpf|documento|document|tax_?id/i.test(String(a?.key ?? ''))) {
       const d = digitos(a.value)
-      if (cpfValido(d)) return { cpf: d, fonte: 'atributo' }
+      if (docValido(d)) return { cpf: d, fonte: 'atributo' }
     }
   }
   for (const e of [o.billingAddress, o.shippingAddress]) {
     const d = digitos(e?.company)
-    if (cpfValido(d)) return { cpf: d, fonte: 'empresa_do_endereco' }
+    if (docValido(d)) return { cpf: d, fonte: 'empresa_do_endereco' }
   }
   return { cpf: null, fonte: 'nenhum' }
 }

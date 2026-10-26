@@ -67,7 +67,7 @@ igual('dia inválido vira nulo', diaSP('nunca'), null)
 
 // sem CPF no contato: cai no cliente; CNPJ não vale
 igual('CPF do cliente quando o contato não tem', montarPedido({ ...pedido, contact_identification: '' }, '1').cpf, '12345678909')
-igual('CNPJ não vira CPF', montarPedido({ ...pedido, contact_identification: '12.345.678/0001-95', customer: {} }, '1').cpf, null)
+igual('CNPJ entra como documento (comprador empresa)', montarPedido({ ...pedido, contact_identification: '12.345.678/0001-95', customer: {} }, '1').cpf, '12345678000195')
 
 // sem envio: endereço de cobrança
 const semEnvio = montarPedido({ ...pedido, shipping_address: null }, '1')

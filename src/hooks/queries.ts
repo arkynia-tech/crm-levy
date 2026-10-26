@@ -294,7 +294,7 @@ export function useAddCustomer() {
     const row = {
       client_id: activeClient.id,
       name: input.name.trim() || null,
-      cpf: cpf.length === 11 ? cpf : null,
+      cpf: cpf.length === 11 || cpf.length === 14 ? cpf : null,
       phone: input.phone || null,
       email: input.email?.trim().toLowerCase() || null,
       city: input.city?.trim() || null,

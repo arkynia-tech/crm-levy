@@ -81,6 +81,9 @@ const ROTULO_MP: Record<string, string> = {
   outro: 'Outro canal',
 }
 
+/** CPF (11) ou CNPJ (14): o comprador empresa entra desde 26/10/2026. */
+const docValido = (d: string) => d.length === 11 || d.length === 14
+
 function pedacos<T>(lista: T[], tamanho: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < lista.length; i += tamanho) out.push(lista.slice(i, i + tamanho))
@@ -202,7 +205,7 @@ export async function importarNotas(
   // entram os 100 primeiros (pela data da nota). O banco recusa o que passar.
   aoProgredir({ fase: 'Conferindo o crédito', feito: 0, total: 1 })
   const chaveDaNota = (n: NotaLida): string | null => {
-    if (n.buyer_cpf.length !== 11) return null
+    if (!docValido(n.buyer_cpf)) return null
     const l = lojaDaNota(n)
     const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
     return storeId ? `${storeId}|${n.order_ref}` : null
@@ -241,7 +244,7 @@ export async function importarNotas(
   // array faz o Postgres recusar o lote inteiro.
   const clientesPorCpf = new Map<string, Record<string, unknown>>()
   for (const n of notas) {
-    if (n.buyer_cpf.length !== 11) continue
+    if (!docValido(n.buyer_cpf)) continue
     const atual = clientesPorCpf.get(n.buyer_cpf) ?? { client_id: clientId, cpf: n.buyer_cpf, updated_at: agora }
     if (n.buyer_name) atual.name = n.buyer_name
     if (n.cidade) atual.city = n.cidade
@@ -272,7 +275,7 @@ export async function importarNotas(
   // --------------------------------------------------------------- pedidos
   const pedidosPorChave = new Map<string, Record<string, unknown>>()
   for (const n of notas) {
-    if (n.buyer_cpf.length !== 11) continue
+    if (!docValido(n.buyer_cpf)) continue
     const l = lojaDaNota(n)
     const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
     const customerId = idPorCpf.get(n.buyer_cpf)
@@ -371,7 +374,7 @@ export async function importarNotas(
   }
 
   const datas = notas.map((n) => n.data_emissao).filter(Boolean).sort() as string[]
-  const semCpf = notas.filter((n) => n.buyer_cpf.length !== 11).length
+  const semCpf = notas.filter((n) => !docValido(n.buyer_cpf)).length
 
   return {
     total_nfes: notasLidas.length,

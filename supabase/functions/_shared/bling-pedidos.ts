@@ -94,7 +94,8 @@ export function montarNota(n: Json, ct: Json | null): Json {
     // mesmo status da importação por XML ("Faturado (NF-e)")
     status: cancelado ? 'cancelado' : 'importado_nfe',
     total: numero(n.valorNota),
-    cpf: doc.length === 11 ? doc : null,
+    // CPF ou CNPJ (comprador empresa, consultado na 2410 desde 26/10/2026)
+    cpf: doc.length === 11 || doc.length === 14 ? doc : null,
     nome: texto(n.contato?.nome) ?? texto(ct?.nome),
     email: texto(n.contato?.email) ?? texto(ct?.email),
     telefone: digitos(ct?.celular) || digitos(n.contato?.telefone) || digitos(ct?.telefone) || null,

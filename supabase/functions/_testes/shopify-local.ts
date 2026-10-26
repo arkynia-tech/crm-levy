@@ -67,7 +67,8 @@ const repetido = S.montarPedido({ ...pedido, lineItems: { edges: [
   { node: { id: 'gid://shopify/LineItem/11', name: 'Camiseta (brinde)', sku: 'C', quantity: 1, variant: { id: 'gid://shopify/ProductVariant/77' }, originalUnitPriceSet: { shopMoney: { amount: '0.00' } } } },
 ] } }, 'x.myshopify.com')
 igual('mesma variante em duas linhas não se funde', repetido.itens.map((i: any) => i.external_item_id), ['10', '11'])
-igual('CNPJ no checkout não vale', S.cpfDoPedido({ ...pedido, localizedFields: { edges: [{ node: { key: 'TAX_CREDENTIAL_BR', value: '12.345.678/0001-95' } }] } }), { cpf: null, fonte: 'checkout_14d' })
+igual('CNPJ válido no checkout vale (comprador empresa)', S.cpfDoPedido({ ...pedido, localizedFields: { edges: [{ node: { key: 'TAX_CREDENTIAL_BR', value: '12.345.678/0001-95' } }] } }), { cpf: '12345678000195', fonte: 'checkout' })
+igual('CNPJ com dígito errado no checkout não vale', S.cpfDoPedido({ ...pedido, localizedFields: { edges: [{ node: { key: 'TAX_CREDENTIAL_BR', value: '12.345.678/0001-96' } }] } }), { cpf: null, fonte: 'checkout_invalido' })
 igual('sem CPF em lugar nenhum', S.cpfDoPedido({ ...pedido, localizedFields: null, customAttributes: [], billingAddress: end(), shippingAddress: end() }), { cpf: null, fonte: 'nenhum' })
 
 // o que entra
