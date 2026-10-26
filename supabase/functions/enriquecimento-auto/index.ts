@@ -1,5 +1,8 @@
-// Enriquecimento automático: o pg_cron chama de 10 em 10 minutos (ver
-// enriquecimento-automatico.sql) e só quando há cliente esperando.
+// Enriquecimento automático. Desde 26/10/2026 (enriquecer-na-hora.sql) o banco
+// chama assim que entra pedido de cliente com CPF/CNPJ sem telefone, e o
+// pg_cron passa de minuto em minuto como reserva. Uma rodada por vez (trava em
+// enrich_auto_trava): quem chega enquanto uma roda entra nas voltas seguintes
+// da mesma rodada, que só para quando a fila não traz ninguém novo.
 //
 // Decisão do Mohamad (23/10/2026): em loja com a chave ligada, cliente novo
 // com CPF e sem telefone é consultado na NovaVida uma vez, minutos depois da
@@ -29,16 +32,36 @@ Deno.serve(async (req) => {
   try {
     const { token: cron } = await rpc('crm_billing_cron_token')
     if (!cron || req.headers.get('x-cron-token') !== cron) return responder(401, { ok: false })
-    return responder(200, await rodada(Date.now() + PRAZO_MS))
+    return responder(200, await rodadas(Date.now() + PRAZO_MS))
   } catch (e) {
     console.error(e)
     return responder(500, { ok: false })
   }
 })
 
-async function rodada(ate: number): Promise<Json> {
-  const fila = await rpcLinhas('crm_enrich_auto_pendentes', { p_limite: POR_RODADA })
-  if (fila.length === 0) return { ok: true, consultados: 0 }
+/** Voltas até a fila não trazer ninguém novo (ou o prazo acabar), com a trava. */
+async function rodadas(ate: number): Promise<Json> {
+  const { pegou } = await rpc('crm_enrich_auto_pegar', { p_segundos: Math.ceil((ate - Date.now()) / 1000) + 30 })
+  if (pegou !== true) return { ok: true, ocupado: true }
+  const vistos = new Set<string>()
+  let consultados = 0
+  try {
+    while (Date.now() < ate - 5_000) {
+      const r = await rodada(ate, vistos)
+      consultados += Number(r.consultados ?? 0)
+      if (!r.ok || r.novos === 0) return { ...r, consultados }
+    }
+    return { ok: true, consultados }
+  } finally {
+    await rpc('crm_enrich_auto_soltar').catch(() => undefined)
+  }
+}
+
+async function rodada(ate: number, vistos: Set<string>): Promise<Json> {
+  // quem já passou nesta chamada (achou ou foi recusado) não volta na volta seguinte
+  const fila = (await rpcLinhas('crm_enrich_auto_pendentes', { p_limite: POR_RODADA })).filter((f) => !vistos.has(String(f.id)))
+  if (fila.length === 0) return { ok: true, consultados: 0, novos: 0 }
+  for (const f of fila) vistos.add(String(f.id))
 
   const acesso = await gerarToken()
   if ('erro' in acesso) {
@@ -83,5 +106,5 @@ async function rodada(ate: number): Promise<Json> {
 
   const total = corridas.reduce((s, c) => s + c.solicitados, 0)
   if (parar) console.error('NovaVida recusou, rodada parada:', parar)
-  return { ok: !parar, consultados: total, lojas: corridas.length, parou: parar, sobrou: pendentes.length }
+  return { ok: !parar, consultados: total, lojas: corridas.length, parou: parar, sobrou: pendentes.length, novos: fila.length }
 }
