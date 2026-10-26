@@ -8,12 +8,12 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Liberado loja a loja (decisão de 18/10/2026: o risco nos termos do Mercado
- * Livre foi aceito com essa proteção). Só o master vê, e o admin de loja
- * liberada em clients.mercadolivre_liberado. Para abrir para todas: true aqui e
- * o secret ML_ABERTO_PARA_LOJAS=1 da mercadolivre-conexao.
+ * Aberto para todas as lojas desde 26/10/2026 (decisão do Mohamad; antes era
+ * loja a loja, pelo risco nos termos do Mercado Livre). Anda junto com o secret
+ * ML_ABERTO_PARA_LOJAS=1 da mercadolivre-conexao. Para fechar de novo: false
+ * aqui, tirar o secret, e liberar loja a loja em clients.mercadolivre_liberado.
  */
-export const MERCADOLIVRE_ABERTO_PARA_LOJAS = false
+export const MERCADOLIVRE_ABERTO_PARA_LOJAS = true
 
 const TEXTO_ACEITE =
   'Confirmo que sou o responsável (controlador) pelos dados dos meus clientes que chegam pelo Mercado Livre, e que vou usá-los conforme a LGPD e as regras do Mercado Livre.'
