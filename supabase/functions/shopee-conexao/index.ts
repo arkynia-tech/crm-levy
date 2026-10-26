@@ -8,6 +8,9 @@
 //                 avisos de pedido já estão cadastrados no app (não por loja).
 //   desconectar   admin liberado ou master: apaga o token e para de buscar.
 //   status        admin liberado ou master: confere o token (renova se precisar).
+//   juntar        admin liberado ou master: a loja da conexão passa a ser a loja
+//                 que a importação de notas já tinha criado (store_id), e os
+//                 pedidos vão junto (crm_shopee_juntar_lojas, shopee-lojas.sql).
 //
 // Uma conta do Contatta liga várias lojas da Shopee (uma conexão por loja):
 // desconectar e status pedem o connection_id.
@@ -51,6 +54,8 @@ Deno.serve(async (req) => {
         return await desconectar(b.client_id, b.connection_id)
       case 'status':
         return await status(b.client_id, b.connection_id)
+      case 'juntar':
+        return await juntar(b.client_id, b.connection_id, b.store_id)
       default:
         return falha(400, 'Ação inválida.')
     }
@@ -167,6 +172,15 @@ async function desconectar(clientId: string, connectionId: unknown) {
     .eq('id', c.id)
   if (error) throw new Error('erp_connections: ' + error.message)
   return ok({ ok: true })
+}
+
+async function juntar(clientId: string, connectionId: unknown, storeId: unknown) {
+  const c = await conexaoDaLoja(clientId, connectionId)
+  if (!c) return falha(404, 'Essa loja da Shopee não está ligada a esta conta. Atualize a página.')
+  if (typeof storeId !== 'string' || !storeId) return falha(400, 'Escolha a loja das notas.')
+  const { data, error } = await banco.rpc('crm_shopee_juntar_lojas', { p_connection_id: c.id, p_store_id: storeId })
+  if (error) return falha(409, /escolha|outra conexão/.test(error.message) ? `Não deu para juntar: ${error.message}.` : 'Não deu para juntar agora.')
+  return ok({ ok: true, ...(data as Json) })
 }
 
 /** Confere se o token ainda vale (renova se precisar) e quantos pedidos esperam na fila. */

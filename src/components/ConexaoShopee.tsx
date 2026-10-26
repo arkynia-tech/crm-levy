@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link2, RefreshCw } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
 import type { ConexaoErp } from '../hooks/bling'
+import type { Store } from '../types'
 import { chamarShopee, type StatusShopee } from '../hooks/shopee'
 import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
@@ -79,8 +80,59 @@ export function OutraLojaShopee() {
   )
 }
 
+/**
+ * A loja das notas fiscais e a da conexão viram uma só (shopee-lojas.sql): sem
+ * isso o mesmo pedido entra pelas duas e gasta crédito duas vezes. Aparece
+ * quando a conta tem loja da Shopee vinda de nota e ainda sem conexão.
+ */
+function JuntarComNotas({ conexaoId, lojas }: { conexaoId: string; lojas: Store[] }) {
+  const { activeClient } = useCompany()
+  const queryClient = useQueryClient()
+  const [escolhida, setEscolhida] = useState(lojas.length === 1 ? lojas[0].id : '')
+  const [ocupado, setOcupado] = useState(false)
+  const [aviso, setAviso] = useState<{ tom: 'ok' | 'erro'; texto: string } | null>(null)
+  if (!activeClient) return null
+
+  const juntar = async () => {
+    const loja = lojas.find((l) => l.id === escolhida)
+    if (!loja) return setAviso({ tom: 'erro', texto: 'Escolha a loja das notas.' })
+    if (!window.confirm(`Juntar com "${loja.name ?? 'a loja das notas'}"?\n\nOs pedidos desta conexão passam para ela e o que estiver repetido fica uma vez só. Não dá para desfazer.`)) return
+    setOcupado(true)
+    setAviso(null)
+    const r = await chamarShopee<{ movidos: number; repetidos: number }>({
+      action: 'juntar', client_id: activeClient.id, connection_id: conexaoId, store_id: loja.id,
+    })
+    setOcupado(false)
+    if (!r.ok) return setAviso({ tom: 'erro', texto: r.error })
+    setAviso({ tom: 'ok', texto: `Pronto: agora é uma loja só.${r.repetidos > 0 ? ` ${r.repetidos} pedido${r.repetidos === 1 ? '' : 's'} repetido${r.repetidos === 1 ? '' : 's'} ficou uma vez só.` : ''}` })
+    void queryClient.invalidateQueries({ queryKey: ['stores'] })
+    void queryClient.invalidateQueries({ queryKey: ['store-ligacoes'] })
+  }
+
+  return (
+    <Faixa>
+      <p className="text-sm font-medium text-gray-900">Você também importa as notas fiscais desta loja?</p>
+      <p className="mt-0.5 max-w-xl text-sm text-gray-500">
+        Junte com a loja que as notas criaram. Assim o mesmo pedido não entra duas vezes nem gasta crédito em dobro.
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select className="input !w-72" value={escolhida} onChange={(e) => setEscolhida(e.target.value)} aria-label="Loja das notas fiscais">
+          <option value="">Escolha a loja das notas</option>
+          {lojas.map((l) => (
+            <option key={l.id} value={l.id}>{l.name ?? l.external_shop_id}</option>
+          ))}
+        </select>
+        <button type="button" className={`btn-secondary ${press}`} onClick={() => void juntar()} disabled={ocupado || !escolhida}>
+          {ocupado ? 'Juntando…' : 'Juntar'}
+        </button>
+      </div>
+      {aviso && <p className={`mt-2 text-sm ${aviso.tom === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{aviso.texto}</p>}
+    </Faixa>
+  )
+}
+
 /** Uma loja da Shopee conectada (ou precisando reconectar), dentro do grupo do canal. */
-export function LinhaShopee({ conexao }: { conexao: ConexaoErp }) {
+export function LinhaShopee({ conexao, lojasDasNotas = [] }: { conexao: ConexaoErp; lojasDasNotas?: Store[] }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   const { conectar, abrindo, erro } = useConectarShopee()
@@ -170,6 +222,8 @@ export function LinhaShopee({ conexao }: { conexao: ConexaoErp }) {
           )}
         </Faixa>
       )}
+
+      {!reconectar && lojasDasNotas.length > 0 && <JuntarComNotas conexaoId={conexao.id} lojas={lojasDasNotas} />}
 
       <Desconectar
         nome={conexao.account_name ? `a loja ${conexao.account_name}` : 'esta loja'}

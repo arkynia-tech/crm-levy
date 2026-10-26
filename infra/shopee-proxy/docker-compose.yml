@@ -1,7 +1,8 @@
 # Repasse da Shopee na VPS arkynia.prod (31.97.26.181, Docker + Traefik).
-# Sobe com:  PROXY_CHAVE=<a mesma de SHOPEE_PROXY_CHAVE no Supabase> docker compose up -d
-# A rede e o resolvedor de certificado do Traefik são os mesmos dos outros
-# serviços da VPS (conferir nos labels do n8n-dev antes de subir).
+# Quem sobe é o script subir.sh (no Mac): ele lê no n8n-dev a rede, o
+# entrypoint e o resolvedor de certificado do Traefik e grava tudo no .env da
+# pasta na VPS (/opt/shopee-proxy), junto com PROXY_CHAVE (a mesma de
+# SHOPEE_PROXY_CHAVE no Supabase).
 services:
   shopee-proxy:
     image: nginx:1.27-alpine
@@ -13,8 +14,9 @@ services:
     networks: [traefik]
     labels:
       - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
       - traefik.http.routers.shopee-proxy.rule=Host(`shopee-proxy.arkynia.com.br`)
-      - traefik.http.routers.shopee-proxy.entrypoints=websecure
+      - traefik.http.routers.shopee-proxy.entrypoints=${ENTRYPOINT:-websecure}
       - traefik.http.routers.shopee-proxy.tls.certresolver=${CERT_RESOLVER:-letsencrypt}
       - traefik.http.services.shopee-proxy.loadbalancer.server.port=80
 
