@@ -6,7 +6,7 @@
 Deno.env.set('SUPABASE_URL', 'http://localhost:1')
 Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'x')
 
-const { abrir, celulares, montarPatch, nascimento, razao } = await import('../_shared/novavida.ts')
+const { abrir, celulares, ehCnpj, montarPatch, nascimento, razao, telefoneDaEmpresa } = await import('../_shared/novavida.ts')
 
 let falhas = 0
 function igual(nome: string, a: unknown, b: unknown) {
@@ -49,6 +49,23 @@ igual('patch: não achou marca consultado e não inventa telefone', [p3.extra.no
 
 igual('razão: texto puro', razao(400, 'SALDO PRE PAGO INSUFICIENTE!'), 'SALDO PRE PAGO INSUFICIENTE!')
 igual('razão: sem resposta', razao(null, null), 'NovaVida não respondeu')
+
+// CNPJ (consulta 2410, 26/10/2026)
+igual('CNPJ é documento de 14 dígitos', [ehCnpj('12.345.678/0001-95'), ehCnpj('123.456.789-09')], [true, false])
+const pj = {
+  CNPJ: '12345678000195', RAZAO: 'LOJA EXEMPLO LTDA',
+  ENDERECO: { CIDADE: 'CAMPINAS', UF: 'sp' },
+  TELEFONES: [{ DDD: '19', FONE: '33334444', WHATSAPP: 'N' }, { DDD: '19', FONE: '988887777', WHATSAPP: 'N' }],
+  EMAILS: [{ EMAIL: '' }, { EMAIL: 'contato@exemplo.com.br' }],
+  SOCIOS: [{ NOME_SOCIO: 'ANA', DDDCELSOCIO: '11', CELSOCIO: '977776666', FLWHATSAPPCELSOCIO: 'S' }],
+}
+igual('PJ: sócio com WhatsApp ganha do celular da empresa sem WhatsApp', telefoneDaEmpresa(pj), '11977776666')
+igual('PJ: empresa com WhatsApp ganha do sócio', telefoneDaEmpresa({ ...pj, TELEFONES: [{ DDD: '19', FONE: '33334444', WHATSAPP: 'S' }] }), '1933334444')
+igual('PJ: sem WhatsApp, primeiro celular (da empresa)', telefoneDaEmpresa({ ...pj, SOCIOS: [{ DDDCELSOCIO: '11', CELSOCIO: '977776666', FLWHATSAPPCELSOCIO: 'N' }] }), '19988887777')
+igual('PJ: só fixo sem WhatsApp, nada', telefoneDaEmpresa({ TELEFONES: [{ DDD: '19', FONE: '33334444', WHATSAPP: 'N' }] }), null)
+const pp = montarPatch({ id: 'x', extra: null, phone: null, email: null, birth_date: null, city: null, state: null }, 200, pj, 'botao', 'agora', true)
+igual('PJ: grava fonte 2410, telefone, e-mail, cidade e UF', [pp.extra.novavida.fonte, pp.phone, pp.email, pp.city, pp.state],
+  ['nvbook_pj_2410', '+5511977776666', 'contato@exemplo.com.br', 'Campinas', 'SP'])
 
 console.log(falhas ? `\n${falhas} falha(s)` : '\ntudo certo')
 if (falhas) Deno.exit(1)

@@ -272,7 +272,7 @@ export function montarPedido(o: Json, faturamento: Json | null, sellerId: string
   const cancelado = CANCELADOS.has(status)
   const info = (faturamento?.buyer?.billing_info ?? faturamento?.billing_info ?? {}) as Json
   const ident = (info.identification ?? {}) as Json
-  const doc = String(ident.type ?? '').toUpperCase() === 'CPF' || !ident.type ? digitos(ident.number) : ''
+  const doc = ['CPF', 'CNPJ', ''].includes(String(ident.type ?? '').toUpperCase()) ? digitos(ident.number) : ''
   const nome = [texto(info.name), texto(info.last_name)].filter(Boolean).join(' ') || null
   const end = (info.address ?? {}) as Json
   return {
@@ -285,7 +285,8 @@ export function montarPedido(o: Json, faturamento: Json | null, sellerId: string
     cancelado,
     status: cancelado ? 'cancelado' : 'paid',
     total: numero(o.total_amount),
-    cpf: doc.length === 11 ? doc : null,
+    // CPF ou CNPJ (comprador empresa, consultado na 2410 desde 26/10/2026)
+    cpf: doc.length === 11 || doc.length === 14 ? doc : null,
     nome,
     // o Mercado Livre não passa e-mail nem telefone do comprador no Brasil
     email: null,

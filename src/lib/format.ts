@@ -1,17 +1,19 @@
-/** Dígitos de um CPF possivelmente formatado; null se ausente ou mascarado (ex.: "******"). */
+/** Dígitos de um CPF (ou CNPJ) possivelmente formatado; null se ausente ou mascarado (ex.: "******"). */
 export function cpfDigits(cpf: string | null | undefined): string | null {
   if (!cpf) return null
   const digits = cpf.replace(/\D/g, '')
-  return digits.length === 11 ? digits : null
+  return digits.length === 11 || digits.length === 14 ? digits : null
 }
 
 /**
- * Máscara de exibição: mostra só os 3 primeiros e os 2 últimos dígitos
- * (123.***.***-00). CPF ausente ou mascarado pelo marketplace vira "—".
+ * Máscara de exibição: mostra só o começo e os 2 últimos dígitos (o CPF fica
+ * 123, asteriscos e 00; o CNPJ, 12, asteriscos e os 2 finais). Ausente ou
+ * mascarado pelo marketplace vira "—".
  */
 export function maskCpf(cpf: string | null | undefined): string {
   const digits = cpfDigits(cpf)
   if (!digits) return '—'
+  if (digits.length === 14) return `${digits.slice(0, 2)}.***.***/****-${digits.slice(12)}`
   return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`
 }
 
