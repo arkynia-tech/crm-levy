@@ -1,6 +1,7 @@
 // Aviso de novidade no WhatsApp para o admin de cada conta do Contatta.
-// Sai pela Uazapi, instância Contatta: desde 18/10/2026 tudo do Contatta no
-// WhatsApp sai pelo número próprio dele; a arkynia fica só para a arkynIA.
+// Sai pelo número próprio do Contatta (0337), que desde 27/10/2026 está no
+// Mensy (conexão MENSY_SESSAO_NOVIDADES, padrão: contatta), e não mais na
+// Uazapi. A arkynia fica só para a arkynIA.
 //
 // Ações:
 //   testar      só master: manda o texto do rascunho para um número que ele
@@ -10,36 +11,17 @@
 //               decide se já pode: horário comercial e 90 a 180 s entre uma e
 //               outra. Sem aviso aprovado, não faz nada.
 //
-// O token da instância é achado pelo nome com o token de admin da Uazapi
-// (secret UAZAPI_ADMIN_TOKEN), como faz o despachante do n8n. Opcionais:
-// UAZAPI_URL e UAZAPI_INSTANCIA_NOVIDADES (padrão: Contatta).
+// Usa a mesma chave do Mensy das lojas (MENSY_API_KEY).
 
 import { type Json } from '../_shared/asaas.ts'
 import { banco, cors, responder, rpc } from '../_shared/comum.ts'
+import { mandar, mensyConfigurado } from '../_shared/mensy.ts'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
 const falha = (status: number, error: string) => responder(status, { ok: false, error }, CORS)
 
-const UAZ = (Deno.env.get('UAZAPI_URL') || 'https://arkyniatech.uazapi.com').replace(/\/+$/, '')
-const ADMIN = Deno.env.get('UAZAPI_ADMIN_TOKEN') || ''
-const INSTANCIA = Deno.env.get('UAZAPI_INSTANCIA_NOVIDADES') || 'Contatta'
-
-/** Token da instância pelo nome; só serve se estiver conectada. */
-async function tokenDaInstancia(): Promise<{ token: string | null; erro: string | null }> {
-  if (!ADMIN) return { token: null, erro: 'Token de admin da Uazapi não cadastrado (UAZAPI_ADMIN_TOKEN).' }
-  try {
-    const r = await fetch(`${UAZ}/instance/all`, { headers: { admintoken: ADMIN } })
-    if (!r.ok) return { token: null, erro: `A Uazapi recusou a lista de instâncias (HTTP ${r.status}).` }
-    const lista = (await r.json().catch(() => [])) as Json[]
-    const inst = (Array.isArray(lista) ? lista : []).find((i) => i?.name === INSTANCIA)
-    if (!inst) return { token: null, erro: `Instância ${INSTANCIA} não encontrada na Uazapi.` }
-    if (inst.status !== 'connected' || !inst.token) return { token: null, erro: `A instância ${INSTANCIA} está desconectada na Uazapi.` }
-    return { token: String(inst.token), erro: null }
-  } catch (e) {
-    return { token: null, erro: e instanceof Error ? e.message : String(e) }
-  }
-}
+const SESSAO = Deno.env.get('MENSY_SESSAO_NOVIDADES') || 'contatta'
 
 /** {loja} vira o nome da loja; sem nome, some junto com o espaço que sobra. */
 function personalizar(texto: string, loja: string | null): string {
@@ -58,25 +40,11 @@ function telefone(numero: unknown): string | null {
 }
 
 async function enviar(numero: string, texto: string): Promise<{ ok: boolean; id: string | null; erro: string | null }> {
-  const { token, erro: semToken } = await tokenDaInstancia()
-  if (!token) return { ok: false, id: null, erro: semToken }
-  // a Uazapi "digita" antes de mandar: chega como conversa, não como disparo
-  const delay = Math.min(12000, Math.max(1500, Math.round(texto.length * 40)))
-  try {
-    const r = await fetch(`${UAZ}/send/text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', token },
-      body: JSON.stringify({ number: numero, text: texto, linkPreview: true, delay }),
-    })
-    const j = (await r.json().catch(() => ({}))) as Json
-    if (!r.ok || j.error) {
-      const erro = typeof j.error === 'string' ? j.error : (j.error as Json)?.message || j.message || `HTTP ${r.status}`
-      return { ok: false, id: null, erro: String(erro) }
-    }
-    return { ok: true, id: (j.id || j.messageid || j.messageId || null) as string | null, erro: null }
-  } catch (e) {
-    return { ok: false, id: null, erro: e instanceof Error ? e.message : String(e) }
-  }
+  if (!mensyConfigurado()) return { ok: false, id: null, erro: 'Chave do Mensy não cadastrada (MENSY_API_KEY).' }
+  // "digita" antes de mandar: chega como conversa, não como disparo
+  const digitandoMs = Math.min(12000, Math.max(1500, Math.round(texto.length * 40)))
+  const r = await mandar(SESSAO, numero, texto, { digitandoMs })
+  return 'id' in r ? { ok: true, id: r.id, erro: null } : { ok: false, id: null, erro: r.erro }
 }
 
 async function despachar(): Promise<Response> {
@@ -117,7 +85,7 @@ Deno.serve(async (req) => {
       const texto = personalizar(String(b.texto || ''), String(b.loja || 'Loja Teste'))
       if (!texto) return falha(400, 'Escreva o texto do aviso.')
       const r = await enviar(numero, texto)
-      return r.ok ? ok({ ok: true }) : falha(502, r.erro || 'A Uazapi não confirmou o envio.')
+      return r.ok ? ok({ ok: true }) : falha(502, r.erro || 'O Mensy não confirmou o envio.')
     }
     return falha(400, 'Ação desconhecida.')
   } catch (e) {
