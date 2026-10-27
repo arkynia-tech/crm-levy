@@ -6,7 +6,7 @@
 import { AMBIENTE, asaas, erroDoAsaas, type Json, soDigitos } from '../_shared/asaas.ts'
 import { cors, hojeSP, ipDe, responder, rpc } from '../_shared/comum.ts'
 
-const ORIGENS = ['https://contatta.pro', 'https://app.contatta.pro']
+const ORIGENS = ['https://contatta.pro', 'https://www.contatta.pro', 'https://app.contatta.pro']
 const TENTE_DE_NOVO = 'Não deu pra continuar agora. Tente de novo em instantes.'
 const SEM_FATURA = 'Não deu pra gerar a fatura agora. Tente de novo em instantes.'
 
