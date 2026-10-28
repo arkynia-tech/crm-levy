@@ -106,6 +106,8 @@ export interface ModeloDaLoja {
 /** O texto que a loja escreveu (primeira-mensagem-personalizada.sql); texto null = usa o padrão. */
 export interface TextoPrimeiraMsg {
   texto: string | null
+  /** os botões que a loja deixou no fim (confirma, errado, parar); sem escolha, os três */
+  botoes?: string[]
   versao: number | null
   oficial: boolean
   modelos: ModeloDaLoja[]
@@ -129,8 +131,8 @@ export function usePersonalizarPrimeiraMsg() {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (texto: string) => {
-      const r = await chamar({ action: 'personalizar', client_id: activeClient!.id, texto })
+    mutationFn: async ({ texto, botoes }: { texto: string; botoes: string[] }) => {
+      const r = await chamar({ action: 'personalizar', client_id: activeClient!.id, texto, botoes })
       if (!r.ok) throw new Error(r.error)
       return r
     },

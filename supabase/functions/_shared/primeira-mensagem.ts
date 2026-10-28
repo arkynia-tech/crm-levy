@@ -24,7 +24,17 @@ export const CORPO =
   'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
 
 export const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber'] as const
-const PAYLOAD = ['confirma', 'errado', 'parar'] as const
+export const PAYLOAD = ['confirma', 'errado', 'parar'] as const
+export type Botao = (typeof PAYLOAD)[number]
+
+/**
+ * Os botões que a loja escolheu (texto próprio, 28/10/2026), na ordem fixa.
+ * Sem escolha guardada, os três.
+ */
+export function botoesEscolhidos(v: unknown): Botao[] {
+  if (!Array.isArray(v)) return [...PAYLOAD]
+  return PAYLOAD.filter((p) => v.includes(p))
+}
 
 /** O pedido de criação do modelo na conta da Meta da loja (categoria utilidade: aviso de pedido). */
 export function modeloParaCriar(): Json {
@@ -105,8 +115,8 @@ export function paraMeta(fone: string): string {
   return d.startsWith('55') ? d : '55' + d
 }
 
-/** POST /<phone_number_id>/messages: o modelo com as variáveis e um payload por botão. */
-export function envio(fone: string, vars: string[], clienteId: string, nome: string = MODELO): Json {
+/** POST /<phone_number_id>/messages: o modelo com as variáveis e um payload por botão (os que o modelo tem). */
+export function envio(fone: string, vars: string[], clienteId: string, nome: string = MODELO, botoes: readonly Botao[] = PAYLOAD): Json {
   return {
     messaging_product: 'whatsapp',
     to: paraMeta(fone),
@@ -116,7 +126,7 @@ export function envio(fone: string, vars: string[], clienteId: string, nome: str
       language: { code: IDIOMA },
       components: [
         { type: 'body', parameters: vars.map((text) => ({ type: 'text', text })) },
-        ...PAYLOAD.map((p, i) => ({
+        ...botoes.map((p, i) => ({
           type: 'button',
           sub_type: 'quick_reply',
           index: String(i),

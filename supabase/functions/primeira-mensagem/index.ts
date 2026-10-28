@@ -27,7 +27,8 @@
 import type { Json } from '../_shared/asaas.ts'
 import { banco, cors, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
 import {
-  entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, textoNaoOficial, variaveis,
+  type Botao, botoesEscolhidos, entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, textoNaoOficial,
+  variaveis,
 } from '../_shared/primeira-mensagem.ts'
 import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
 import { MODELO_ANIVERSARIO, modeloAniversarioParaCriar } from '../_shared/aniversario.ts'
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
     if (papel !== 'master' && papel !== 'admin') return falha(403, 'Só administrador ou master faz isso.')
 
     if (b.action === 'preparar') return await preparar(b.client_id, login.user.id)
-    if (b.action === 'personalizar') return await personalizar(b.client_id, b.texto, login.user.id)
+    if (b.action === 'personalizar') return await personalizar(b.client_id, b.texto, b.botoes, login.user.id)
     if (b.action === 'enviar') {
       if (typeof b.customer_id !== 'string') return falha(400, 'Cliente não informado.')
       const r = await mandar(b.client_id, b.customer_id, login.user.id, true)
@@ -144,10 +145,10 @@ async function preparar(clientId: string, userId: string | null) {
   return ok({ ok: true, status: primeira.status, aniversario: 'erro' in parabens ? null : parabens.status })
 }
 
-type TextoDaLoja = { texto: string; versao: number; anterior?: TextoDaLoja | null }
+type TextoDaLoja = { texto: string; versao: number; botoes: Botao[]; anterior?: TextoDaLoja | null }
 
 const comoTexto = (v: Json | null | undefined): TextoDaLoja | null =>
-  v?.texto && Number(v.versao) > 0 ? { texto: String(v.texto), versao: Number(v.versao) } : null
+  v?.texto && Number(v.versao) > 0 ? { texto: String(v.texto), versao: Number(v.versao), botoes: botoesEscolhidos(v.botoes) } : null
 
 /** O texto da loja e o anterior (que segue saindo pelo oficial até a Meta aprovar o novo). */
 async function textoDaLoja(clientId: string): Promise<TextoDaLoja | null> {
@@ -161,15 +162,19 @@ async function textoDaLoja(clientId: string): Promise<TextoDaLoja | null> {
 async function garantirPersonalizados(w: Json, t: TextoDaLoja, userId: string | null): Promise<string | null> {
   const variantes = temProdutos(t.texto) ? Array.from({ length: MAX_LINHAS }, (_, i) => i + 1) : [null]
   for (const linhas of variantes) {
-    const r = await garantirModelo(w, nomeDoModelo(t.versao, linhas), modeloPersonalizado(t.texto, t.versao, linhas), userId)
+    const r = await garantirModelo(w, nomeDoModelo(t.versao, linhas), modeloPersonalizado(t.texto, t.versao, linhas, t.botoes), userId)
     if ('erro' in r) return r.erro
   }
   return null
 }
 
-/** Grava o texto da loja (versão nova) e, com número oficial, manda os modelos para a Meta aprovar. */
-async function personalizar(clientId: string, bruto: unknown, userId: string) {
+/**
+ * Grava o texto da loja e os botões que ela deixou (versão nova) e, com número
+ * oficial, manda os modelos para a Meta aprovar.
+ */
+async function personalizar(clientId: string, bruto: unknown, botoesBrutos: unknown, userId: string) {
   const texto = typeof bruto === 'string' ? normalizar(bruto) : ''
+  const botoes = botoesEscolhidos(botoesBrutos)
   if (!texto) {
     await banco.from('app_settings').delete().eq('client_id', clientId).eq('key', CHAVE_TEXTO)
     return ok({ ok: true, padrao: true })
@@ -178,8 +183,8 @@ async function personalizar(clientId: string, bruto: unknown, userId: string) {
   if (erro) return falha(422, erro)
 
   const atual = await textoDaLoja(clientId)
-  if (atual?.texto === texto) return ok({ ok: true, versao: atual.versao })
-  const novo = { texto, versao: (atual?.versao ?? 0) + 1 }
+  if (atual?.texto === texto && atual.botoes.join() === botoes.join()) return ok({ ok: true, versao: atual.versao })
+  const novo = { texto, versao: (atual?.versao ?? 0) + 1, botoes }
 
   // oficial: a Meta precisa aceitar os modelos; até aprovar, sai o texto anterior (ou o padrão)
   const w = await numeroDaLoja(clientId)
@@ -188,7 +193,7 @@ async function personalizar(clientId: string, bruto: unknown, userId: string) {
     if (recusa) return falha(422, `A Meta não aceitou o texto: ${recusa}`)
   }
   // o texto que estava valendo fica guardado: pelo oficial ele segue saindo até a Meta aprovar o novo
-  const anterior = atual ? { texto: atual.texto, versao: atual.versao } : null
+  const anterior = atual ? { texto: atual.texto, versao: atual.versao, botoes: atual.botoes } : null
   const { error } = await banco.from('app_settings').upsert(
     { client_id: clientId, key: CHAVE_TEXTO, value: { ...novo, anterior, em: new Date().toISOString(), por: userId }, updated_at: new Date().toISOString() },
     { onConflict: 'client_id,key' },
@@ -286,7 +291,7 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
     : null
 
   if (naoOficial) {
-    const texto = daLoja && valores ? textoNaoOficialDaLoja(daLoja.texto, valores) : textoNaoOficial(vars)
+    const texto = daLoja && valores ? textoNaoOficialDaLoja(daLoja.texto, valores, daLoja.botoes) : textoNaoOficial(vars)
     const m = await mandarPeloMensy(naoOficial.instance_name, numero, texto, { digitandoMs: 3000 })
     if ('id' in m) {
       await rpc('crm_primeira_msg_concluir', {
@@ -304,16 +309,17 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
 
   // o texto da loja só sai com o modelo aprovado como Utilidade: senão o anterior
   // dela (se estava aprovado) e, por último, o padrão
-  let usar: ReturnType<typeof paraEnviar> | null = null
+  let usar: (ReturnType<typeof paraEnviar> & { botoes: Botao[] }) | null = null
   for (const t of daLoja && valores ? [daLoja, daLoja.anterior] : []) {
     if (!t || !valores) continue
     const p = paraEnviar(t.texto, t.versao, valores)
     if (await modeloDaLojaPronto(numeroOficial!, p.nome)) {
-      usar = p
+      usar = { ...p, botoes: t.botoes }
       break
     }
   }
-  const corpoEnvio = usar ? envio(numero, usar.parametros, customerId, usar.nome) : envio(numero, vars, customerId)
+  // o envio leva um payload por botão que o modelo tem, na mesma ordem
+  const corpoEnvio = usar ? envio(numero, usar.parametros, customerId, usar.nome, usar.botoes) : envio(numero, vars, customerId)
   const r = await graph(numeroOficial!.token, 'POST', `/${numeroOficial!.phone_number_id}/messages`, corpoEnvio)
   const wamid = r.json?.messages?.[0]?.id
   if (r.status >= 200 && r.status < 300 && wamid) {

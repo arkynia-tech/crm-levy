@@ -16,7 +16,16 @@ import { formatDateTime } from '../lib/format'
  */
 
 const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
-const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber']
+/** Os 3 botões, na ordem fixa: no número QR cada um mantém o número dele (1, 2, 3) mesmo sem os outros. */
+const BOTOES = [
+  { id: 'confirma', texto: 'Sim, está certo' },
+  { id: 'errado', texto: 'Número errado' },
+  { id: 'parar', texto: 'Não quero receber' },
+] as const
+const TODOS = BOTOES.map((b) => b.id) as string[]
+
+/** O que a prévia mostra: o texto (com os campos) e os botões marcados. */
+type Rascunho = { texto: string; botoes: string[] }
 
 /** O texto padrão (contatta_confirmacao_pedido), escrito com os campos do editor. */
 const TEXTO_PADRAO =
@@ -66,24 +75,27 @@ function TextoComExemplo({ texto, loja }: { texto: string; loja: string }) {
 }
 
 /** Como o cliente vê no WhatsApp, com dados de exemplo. */
-function Previa({ loja, numerada, texto = TEXTO_PADRAO }: { loja: string; numerada: boolean; texto?: string }) {
+function Previa({
+  loja, numerada, texto = TEXTO_PADRAO, botoes = TODOS,
+}: { loja: string; numerada: boolean; texto?: string; botoes?: string[] }) {
+  const ficam = BOTOES.map((b, i) => ({ ...b, numero: i + 1 })).filter((b) => botoes.includes(b.id))
   return (
     <div className="rounded-xl bg-[#efeae2] p-4" aria-label="Prévia da mensagem">
       <div className="max-w-sm overflow-hidden rounded-lg bg-white text-sm text-gray-800 shadow-sm">
         <p className="whitespace-pre-line px-3 pb-2 pt-2.5 leading-relaxed">
           <TextoComExemplo texto={texto} loja={loja} />
-          {numerada && (
+          {numerada && ficam.length > 0 && (
             <>
               {texto === TEXTO_PADRAO ? ' ' : '\n\n'}Responda só com o número:
-              {BOTOES.map((b, i) => `\n${i + 1}. ${b}`).join('')}
+              {ficam.map((b) => `\n${b.numero}. ${b.texto}`).join('')}
             </>
           )}
         </p>
-        {!numerada && (
+        {!numerada && ficam.length > 0 && (
           <ul className="divide-y divide-gray-100 border-t border-gray-100">
-            {BOTOES.map((b) => (
-              <li key={b} className="py-2 text-center text-[13px] font-medium text-sky-600">
-                {b}
+            {ficam.map((b) => (
+              <li key={b.id} className="py-2 text-center text-[13px] font-medium text-sky-600">
+                {b.texto}
               </li>
             ))}
           </ul>
@@ -135,10 +147,11 @@ function situacaoDoTexto(t: TextoPrimeiraMsg): { tom: 'ok' | 'espera' | 'erro'; 
 }
 
 /** Onde a loja escreve a própria primeira mensagem, com os campos do pedido. */
-function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (texto: string | null) => void }) {
+function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r: Rascunho | null) => void }) {
   const { data: atual } = useTextoPrimeiraMsg()
   const salvar = usePersonalizarPrimeiraMsg()
   const [rascunho, setRascunho] = useState<string | null>(null)
+  const [botoes, setBotoes] = useState<string[]>(TODOS)
   const campo = useRef<HTMLTextAreaElement>(null)
   if (atual === null || atual === undefined) return null
 
@@ -147,8 +160,10 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (t
   const situacao = proprio ? situacaoDoTexto(atual) : null
 
   const abrir = (texto: string) => {
+    const iniciais = atual.botoes ?? TODOS
     setRascunho(texto)
-    onPrevia(texto)
+    setBotoes(iniciais)
+    onPrevia({ texto, botoes: iniciais })
     salvar.reset()
   }
   const fechar = () => {
@@ -157,7 +172,12 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (t
   }
   const mudar = (texto: string) => {
     setRascunho(texto)
-    onPrevia(texto)
+    onPrevia({ texto, botoes })
+  }
+  const marcar = (id: string) => {
+    const novos = botoes.includes(id) ? botoes.filter((b) => b !== id) : TODOS.filter((b) => b === id || botoes.includes(b))
+    setBotoes(novos)
+    onPrevia({ texto: rascunho ?? '', botoes: novos })
   }
   const inserir = (nome: string) => {
     const el = campo.current
@@ -171,10 +191,10 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (t
       el?.setSelectionRange(inicio + pedaco.length, inicio + pedaco.length)
     })
   }
-  const gravar = (texto: string) =>
-    salvar.mutate(texto, { onSuccess: () => fechar() })
+  const gravar = (texto: string, escolhidos: string[]) =>
+    salvar.mutate({ texto, botoes: escolhidos }, { onSuccess: () => fechar() })
   const voltarAoPadrao = () => {
-    if (window.confirm('Voltar para o texto padrão do Contatta? O seu texto é apagado.')) gravar('')
+    if (window.confirm('Voltar para o texto padrão do Contatta? O seu texto é apagado.')) gravar('', TODOS)
   }
 
   return (
@@ -234,15 +254,45 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (t
             Os campos entre chaves viram os dados do pedido. {'{produtos}'} vira a lista do que a pessoa comprou, um item por
             linha (até 3; passando disso, a última linha diz quantos faltam). {'{canal}'} vira onde a pessoa comprou (Shopee, Mercado
             Livre, Amazon...; na loja própria, "nosso site"). Os botões{' '}
-            {numerada ? 'de resposta (1, 2 e 3)' : '"Sim, está certo", "Número errado" e "Não quero receber"'} entram sozinhos no fim.
-            {atual.oficial && ' A Meta analisa cada texto novo antes de ele valer.'}
+            marcados entram sozinhos no fim{numerada ? ', com o número de cada um' : ''}.
+            {atual.oficial && ' A Meta analisa cada texto novo (e cada mudança nos botões) antes de valer.'}
           </p>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-gray-900">Botões no fim da mensagem</legend>
+            <div className="flex flex-wrap gap-2">
+              {BOTOES.map((b, i) => {
+                const marcado = botoes.includes(b.id)
+                return (
+                  <label
+                    key={b.id}
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors duration-150 ${
+                      marcado ? 'border-brand-300 bg-brand-50 text-brand-900' : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 accent-brand-600"
+                      checked={marcado}
+                      onChange={() => marcar(b.id)}
+                    />
+                    {numerada ? `${i + 1}. ` : ''}
+                    {b.texto}
+                  </label>
+                )
+              })}
+            </div>
+            {!botoes.includes('parar') && (
+              <p className="text-xs text-amber-800">
+                Sem "Não quero receber", o cliente não tem um botão para sair. Quem não quer receber tende a denunciar o número.
+              </p>
+            )}
+          </fieldset>
           {salvar.isError && <p className="text-sm text-red-700">{(salvar.error as Error).message}</p>}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className={`btn-primary ${press}`}
-              onClick={() => gravar(rascunho ?? '')}
+              onClick={() => gravar(rascunho ?? '', botoes)}
               disabled={salvar.isPending || !(rascunho ?? '').trim()}
             >
               <Send className="h-4 w-4" aria-hidden />
@@ -270,7 +320,7 @@ export function SecaoPrimeiraMensagem() {
   const definir = useDefinirPrimeiraMsg()
   const { activeClient } = useCompany()
   const { data: textoAtual } = useTextoPrimeiraMsg()
-  const [previa, setPrevia] = useState<string | null>(null)
+  const [previa, setPrevia] = useState<Rascunho | null>(null)
   if (isLoading || estado === null || estado === undefined) return null
 
   const { numero, modelo, ligado, nao_oficial: naoOficial } = estado
@@ -396,7 +446,12 @@ export function SecaoPrimeiraMensagem() {
           </p>
           {(numero || pelaNaoOficial) && <EditorDoTexto numerada={pelaNaoOficial} onPrevia={setPrevia} />}
         </div>
-        <Previa loja={loja} numerada={pelaNaoOficial} texto={previa ?? textoAtual?.texto ?? TEXTO_PADRAO} />
+        <Previa
+          loja={loja}
+          numerada={pelaNaoOficial}
+          texto={previa?.texto ?? textoAtual?.texto ?? TEXTO_PADRAO}
+          botoes={previa?.botoes ?? (textoAtual?.texto ? textoAtual.botoes : undefined) ?? TODOS}
+        />
       </div>
     </section>
   )
