@@ -127,10 +127,15 @@ export function montarNota(n: Json, ct: Json | null): Json {
 // na mesma loja do Contatta.
 const MP_POR_CNPJ: Record<string, string> = {
   '35635824000112': 'shopee',
+  '03007331000141': 'mercado_livre',
   '03361252000134': 'mercado_livre',
   '15436940000103': 'amazon',
+  '47960950000121': 'magalu',
+  '27415911000136': 'tiktok_shop',
 }
-const ROTULO_MP: Record<string, string> = { shopee: 'Shopee', mercado_livre: 'Mercado Livre', amazon: 'Amazon' }
+const ROTULO_MP: Record<string, string> = {
+  shopee: 'Shopee', mercado_livre: 'Mercado Livre', amazon: 'Amazon', magalu: 'Magalu', tiktok_shop: 'TikTok Shop',
+}
 
 /**
  * Loja do Bling ainda sem loja do Contatta: se a nota traz o intermediador de
