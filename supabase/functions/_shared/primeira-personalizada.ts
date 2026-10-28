@@ -14,7 +14,8 @@
 // variável vazia. Por isso o texto com {produtos} vira três modelos, com 1, 2
 // e 3 linhas "• {{n}}"; cada pedido usa o do tamanho certo, e passando de 3
 // itens a última linha diz quantos faltam. O modelo da loja só é usado
-// aprovado e como Utilidade; senão segue o padrão (contatta_confirmacao_pedido).
+// aprovado e como Utilidade; senão segue o padrão (PADRAO, e antes dele
+// aprovado, contatta_confirmacao_pedido).
 // Número não oficial: o texto vale na hora, com a lista de verdade.
 //
 // Aqui só o que não depende de rede; a função primeira-mensagem faz as chamadas.
@@ -28,10 +29,18 @@ const TEXTO_DO_BOTAO = Object.fromEntries(PAYLOAD.map((p, i) => [p, BOTOES[i]]))
 export const CAMPOS = ['nome', 'loja', 'pedido', 'entrega', 'produtos', 'canal'] as const
 export type Campo = (typeof CAMPOS)[number]
 
-/** O texto que a tela oferece para começar: o padrão com a lista do que foi comprado. */
-export const SUGESTAO =
-  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}:\n{produtos}\n\n' +
+/**
+ * O texto padrão do Contatta desde 28/10/2026 (decisão do Mohamad: o que ele
+ * escreveu no Mercadão das Placas vale para toda loja sem texto próprio), com
+ * os 3 botões.
+ * Vira os modelos contatta_primeira_padrao_1/_2/_3; até a Meta aprovar, sai o
+ * antigo (contatta_confirmacao_pedido).
+ */
+export const PADRAO =
+  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido} do(a) {canal}:\n{produtos}\n\n' +
   'A entrega vai para {entrega}. Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
+/** A versão do padrão: 0 (as da loja começam em 1). */
+export const VERSAO_PADRAO = 0
 
 /** Os campos no texto: {nome}, {loja}... */
 const RE_CAMPO = new RegExp(`\\{(${CAMPOS.join('|')})\\}`, 'g')
@@ -72,9 +81,10 @@ export function validar(texto: string): string | null {
 
 export const temProdutos = (texto: string) => /\{produtos\}/.test(texto)
 
-/** Nome do modelo na Meta: um por versão do texto (e por quantidade de linhas de produto). */
+/** Nome do modelo na Meta: um por versão do texto (e por quantidade de linhas de produto). A versão 0 é o padrão. */
 export function nomeDoModelo(versao: number, linhas: number | null): string {
-  return linhas ? `contatta_primeira_v${versao}_${linhas}` : `contatta_primeira_v${versao}`
+  const base = versao === VERSAO_PADRAO ? 'contatta_primeira_padrao' : `contatta_primeira_v${versao}`
+  return linhas ? `${base}_${linhas}` : base
 }
 
 /** As linhas da lista: "2x Camiseta Brasil G"; passando de 3 itens, a última diz quantos faltam. */

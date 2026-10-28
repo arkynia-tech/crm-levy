@@ -7,8 +7,9 @@
 //             manda para esse cliente.
 //   rodada    só o pg_cron (x-cron-token), a cada 5 min: reserva do que
 //             escapou, manda para quem está em crm_primeira_msg_pendentes.
-//   preparar  admin ou master: cria o modelo contatta_confirmacao_pedido (e o
-//             do parabéns, contatta_aniversario: aniversario-oficial.sql) na
+//   preparar  admin ou master: cria o modelo contatta_confirmacao_pedido, os do
+//             texto padrão (contatta_primeira_padrao_1/_2/_3) e o do
+//             parabéns (contatta_aniversario: aniversario-oficial.sql) na
 //             conta da Meta da loja (se ainda não existe) e espelha em
 //             wa_templates. A Meta analisa; o aviso de aprovação chega por
 //             crm_wa_meta_evento.
@@ -27,14 +28,14 @@
 import type { Json } from '../_shared/asaas.ts'
 import { banco, cors, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
 import {
-  type Botao, botoesEscolhidos, entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, textoFinal, textoNaoOficial,
+  type Botao, botoesEscolhidos, entrega, envio, erroDaMeta, GRAPH, modeloParaCriar, MODELO, numeroDoPedido, PAYLOAD, textoFinal,
   variaveis,
 } from '../_shared/primeira-mensagem.ts'
 import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
 import { MODELO_ANIVERSARIO, modeloAniversarioParaCriar } from '../_shared/aniversario.ts'
 import {
-  canalDoPedido, linhasDeProdutos, MAX_LINHAS, modeloPersonalizado, nomeDoModelo, normalizar, paraEnviar, temProdutos,
-  textoNaoOficialDaLoja, validar,
+  canalDoPedido, linhasDeProdutos, MAX_LINHAS, modeloPersonalizado, nomeDoModelo, normalizar, PADRAO, paraEnviar, temProdutos,
+  textoNaoOficialDaLoja, validar, VERSAO_PADRAO,
 } from '../_shared/primeira-personalizada.ts'
 
 const CHAVE_TEXTO = 'primeira_mensagem_texto'
@@ -132,6 +133,9 @@ async function preparar(clientId: string, userId: string | null) {
   if (!w) return falha(409, 'Conecte um número pela API oficial na tela WhatsApp antes.')
 
   const primeira = await garantirModelo(w, MODELO, modeloParaCriar(), userId)
+  // o texto padrão com a lista do que foi comprado; até a Meta aprovar, sai o de cima
+  const padrao = await garantirPersonalizados(w, TEXTO_PADRAO, userId)
+  if (padrao) console.error('modelo padrão', clientId, padrao)
   // o do parabéns vai junto: a loja liga pelo oficial no cartão de Aniversariantes quando quiser
   const parabens = await garantirModelo(w, MODELO_ANIVERSARIO, modeloAniversarioParaCriar(), userId)
   if ('erro' in parabens) console.error('modelo do parabéns', clientId, parabens.erro)
@@ -146,6 +150,9 @@ async function preparar(clientId: string, userId: string | null) {
 }
 
 type TextoDaLoja = { texto: string; versao: number; botoes: Botao[]; anterior?: TextoDaLoja | null }
+
+/** O que sai para a loja sem texto próprio (primeira-personalizada.ts, PADRAO). */
+const TEXTO_PADRAO: TextoDaLoja = { texto: PADRAO, versao: VERSAO_PADRAO, botoes: [...PAYLOAD] }
 
 const comoTexto = (v: Json | null | undefined): TextoDaLoja | null =>
   v?.texto && Number(v.versao) > 0 ? { texto: String(v.texto), versao: Number(v.versao), botoes: botoesEscolhidos(v.botoes) } : null
@@ -279,19 +286,20 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
     entrega: entrega(pedido?.ship_address, c.city, c.state),
   })
 
-  // texto da loja (primeira-personalizada.ts), com a lista do que foi comprado
+  // texto da loja ou o padrão (primeira-personalizada.ts), com a lista do que foi comprado
   const daLoja = await textoDaLoja(clientId)
   let itens: Json[] = []
-  if (daLoja && (temProdutos(daLoja.texto) || temProdutos(daLoja.anterior?.texto ?? '')) && pedido?.id) {
+  if (pedido?.id) {
     const { data } = await banco.from('order_items').select('product_name, sku, quantity').eq('order_id', pedido.id).limit(50)
     itens = data ?? []
   }
-  const valores = daLoja
-    ? { nome: vars[0], loja: vars[1], pedido: vars[2], entrega: vars[3], canal: canalDoPedido(pedido?.marketplace), produtos: linhasDeProdutos(itens) }
-    : null
+  const valores = {
+    nome: vars[0], loja: vars[1], pedido: vars[2], entrega: vars[3], canal: canalDoPedido(pedido?.marketplace), produtos: linhasDeProdutos(itens),
+  }
 
   if (naoOficial) {
-    const texto = daLoja && valores ? textoNaoOficialDaLoja(daLoja.texto, valores, daLoja.botoes) : textoNaoOficial(vars)
+    const t = daLoja ?? TEXTO_PADRAO
+    const texto = textoNaoOficialDaLoja(t.texto, valores, t.botoes)
     const m = await mandarPeloMensy(naoOficial.instance_name, numero, texto, { digitandoMs: 3000 })
     if ('id' in m) {
       await rpc('crm_primeira_msg_concluir', {
@@ -308,10 +316,10 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
   }
 
   // o texto da loja só sai com o modelo aprovado como Utilidade: senão o anterior
-  // dela (se estava aprovado) e, por último, o padrão
+  // dela (se estava aprovado), depois o padrão e, por último, o padrão antigo
   let usar: (ReturnType<typeof paraEnviar> & { botoes: Botao[] }) | null = null
-  for (const t of daLoja && valores ? [daLoja, daLoja.anterior] : []) {
-    if (!t || !valores) continue
+  for (const t of [daLoja, daLoja?.anterior, TEXTO_PADRAO]) {
+    if (!t) continue
     const p = paraEnviar(t.texto, t.versao, valores)
     if (await modeloDaLojaPronto(numeroOficial!, p.nome)) {
       usar = { ...p, botoes: t.botoes }

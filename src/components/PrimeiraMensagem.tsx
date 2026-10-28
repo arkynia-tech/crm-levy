@@ -20,21 +20,16 @@ const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 const BOTOES = [
   { id: 'confirma', texto: 'Sim, está certo' },
   { id: 'errado', texto: 'Número errado' },
-  { id: 'parar', texto: 'Não quero receber' },
+  { id: 'parar', texto: 'Não quero mais mensagens' },
 ] as const
 const TODOS = BOTOES.map((b) => b.id) as string[]
 
 /** O que a prévia mostra: o texto (com os campos) e os botões marcados. */
 type Rascunho = { texto: string; botoes: string[] }
 
-/** O texto padrão (contatta_confirmacao_pedido), escrito com os campos do editor. */
+/** O texto padrão do Contatta, com a lista do que a pessoa comprou (igual a PADRAO da função). */
 const TEXTO_PADRAO =
-  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}, com entrega em {entrega}.\n\n' +
-  'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
-
-/** Para começar: o padrão com a lista do que a pessoa comprou (igual a SUGESTAO da função). */
-const SUGESTAO =
-  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}:\n{produtos}\n\n' +
+  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido} do(a) {canal}:\n{produtos}\n\n' +
   'A entrega vai para {entrega}. Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
 
 const CAMPOS = [
@@ -86,7 +81,7 @@ function Previa({
           <TextoComExemplo texto={texto} loja={loja} />
           {numerada && ficam.length > 0 && (
             <>
-              {texto === TEXTO_PADRAO ? ' ' : '\n\n'}Responda só com o número:
+              {'\n\n'}Responda só com o número:
               {ficam.map((b) => `\n${b.numero}. ${b.texto}`).join('')}
             </>
           )}
@@ -202,7 +197,7 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-gray-900">Texto da mensagem</h3>
         {!editando && (
-          <button type="button" className={`btn-secondary ${press}`} onClick={() => abrir(atual.texto ?? SUGESTAO)}>
+          <button type="button" className={`btn-secondary ${press}`} onClick={() => abrir(atual.texto ?? TEXTO_PADRAO)}>
             <PencilLine className="h-4 w-4" aria-hidden />
             {proprio ? 'Editar o texto' : 'Escrever o meu texto'}
           </button>
@@ -283,7 +278,7 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
             </div>
             {!botoes.includes('parar') && (
               <p className="text-xs text-amber-800">
-                Sem "Não quero receber", o cliente não tem um botão para sair. Quem não quer receber tende a denunciar o número.
+                Sem "Não quero mais mensagens", o cliente não tem um botão para sair. Quem não quer receber tende a denunciar o número.
               </p>
             )}
           </fieldset>
@@ -301,9 +296,9 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
             <button type="button" className={`btn-secondary ${press}`} onClick={fechar} disabled={salvar.isPending}>
               Cancelar
             </button>
-            {!(rascunho ?? '').includes('{produtos}') && (
-              <button type="button" className="text-sm font-medium text-brand-700 underline underline-offset-2" onClick={() => mudar(SUGESTAO)}>
-                Usar a sugestão com produtos
+            {(rascunho ?? '') !== TEXTO_PADRAO && (
+              <button type="button" className="text-sm font-medium text-brand-700 underline underline-offset-2" onClick={() => mudar(TEXTO_PADRAO)}>
+                Começar do texto padrão
               </button>
             )}
           </div>
@@ -382,7 +377,7 @@ export function SecaoPrimeiraMensagem() {
       </div>
       <p className="mt-1 max-w-2xl text-sm text-gray-500">
         A loja avisa que recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele. "Sim, está certo"
-        marca o WhatsApp como confirmado; "Número errado" e "Não quero receber" tiram o número das campanhas. Uma vez
+        marca o WhatsApp como confirmado; "Número errado" e "Não quero mais mensagens" tiram o número das campanhas. Uma vez
         por cliente: pela API oficial quando a loja tem esse número; sem ele, pelo número conectado por QR Code, com as
         respostas 1, 2 e 3.
       </p>
@@ -463,7 +458,7 @@ type Registro = { status?: string; em?: string; erro?: string; resposta?: { bota
 const RESPOSTA: Record<string, { texto: string; tom: string }> = {
   confirma: { texto: 'Respondeu "Sim, está certo": WhatsApp confirmado', tom: 'text-emerald-700' },
   errado: { texto: 'Respondeu "Número errado": o número saiu das campanhas', tom: 'text-amber-800' },
-  parar: { texto: 'Respondeu "Não quero receber": o número saiu das campanhas', tom: 'text-amber-800' },
+  parar: { texto: 'Respondeu "Não quero mais mensagens": o número saiu das campanhas', tom: 'text-amber-800' },
 }
 
 /** Na tela do cliente: o que já foi enviado e o botão de mandar agora (admin e master). */
