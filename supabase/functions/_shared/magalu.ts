@@ -228,15 +228,23 @@ function claims(token: string): Json {
   }
 }
 
-/** Tenant e nome da loja que o token carrega, se carregar. */
-export function lojaDoToken(token: string): { tenant: string | null; nome: string | null } {
+/**
+ * Tenant e nome da loja que o token carrega. O ID Magalu manda tenant
+ * "<TIPO>.<uuid>" e tenant_title: conta pessoal vem "GENPUB.<uuid>" com
+ * tenant_title "person" e não lê pedido nenhum (a API responde X-Tenant-Id
+ * ausente, 28/10/2026). Loja (seller) vem com o nome dela em tenant_title.
+ */
+export function lojaDoToken(token: string): { tenant: string | null; nome: string | null; pessoal: boolean } {
   const c = claims(token)
   const t = c.tenant ?? c.tenant_id ?? c.tid ?? c.org ?? c.organization ?? null
   const id = typeof t === 'string' ? t : t && typeof t === 'object' ? (t.uuid ?? t.id ?? null) : null
-  const nome = t && typeof t === 'object' ? (t.name ?? t.legal_name ?? null) : (c.tenant_name ?? null)
+  const titulo = typeof c.tenant_title === 'string' ? c.tenant_title.trim() : ''
+  const pessoal = /^GENPUB\./i.test(typeof t === 'string' ? t : '') || titulo.toLowerCase() === 'person'
+  const nome = t && typeof t === 'object' ? (t.name ?? t.legal_name ?? null) : !pessoal && titulo ? titulo : (c.tenant_name ?? null)
   return {
     tenant: typeof id === 'string' && UUID.test(id) ? id.match(UUID)![0] : null,
     nome: typeof nome === 'string' && nome.trim() ? nome.trim() : null,
+    pessoal,
   }
 }
 

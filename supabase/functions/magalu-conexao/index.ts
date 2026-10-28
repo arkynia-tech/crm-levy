@@ -122,6 +122,9 @@ async function retorno(b: Json, userId: string) {
 
   // Qual loja autorizou: o token pode dizer; a inscrição dos avisos traz o tenant no id.
   const doToken = lojaDoToken(t.tokens.access_token)
+  if (doToken.pessoal) {
+    return falha(422, 'Você autorizou a sua conta pessoal da Magalu, não a loja. Conecte de novo e, na tela da Magalu, escolha a loja (o seller), não o seu perfil.')
+  }
   const avisos = await inscreverAvisos(t.tokens.access_token)
   if ('erro' in avisos) console.error('inscrição nos avisos', avisos.erro)
   const tenant = doToken.tenant ?? ('erro' in avisos ? null : avisos.tenant)
