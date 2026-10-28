@@ -33,6 +33,7 @@ const CAMPOS = [
   { campo: 'loja', rotulo: 'Loja' },
   { campo: 'pedido', rotulo: 'Nº do pedido' },
   { campo: 'entrega', rotulo: 'Entrega' },
+  { campo: 'canal', rotulo: 'Canal' },
   { campo: 'produtos', rotulo: 'Produtos' },
 ] as const
 
@@ -40,8 +41,8 @@ const EXEMPLO_PRODUTOS = ['2x Camiseta Brasil G', '1x Boné Preto']
 
 /** O texto com os campos trocados pelos dados de exemplo, em destaque. */
 function TextoComExemplo({ texto, loja }: { texto: string; loja: string }) {
-  const exemplo: Record<string, string> = { nome: 'Ana', loja, pedido: 'nº 1048', entrega: 'Centro, Campinas/SP' }
-  const partes = texto.split(/(\{(?:nome|loja|pedido|entrega|produtos)\})/g)
+  const exemplo: Record<string, string> = { nome: 'Ana', loja, pedido: 'nº 1048', entrega: 'Centro, Campinas/SP', canal: 'Shopee' }
+  const partes = texto.split(/(\{(?:nome|loja|pedido|entrega|produtos|canal)\})/g)
   return (
     <>
       {partes.map((p, i) => {
@@ -89,7 +90,8 @@ function Previa({ loja, numerada, texto = TEXTO_PADRAO }: { loja: string; numera
         )}
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        Nome, número do pedido{texto.includes('{produtos}') ? ', produtos' : ''} e bairro e cidade da entrega vêm do pedido.
+        Nome, número do pedido{texto.includes('{canal}') ? ', canal' : ''}{texto.includes('{produtos}') ? ', produtos' : ''} e bairro e
+        cidade da entrega vêm do pedido.
         Rua e número ficam de fora: se o WhatsApp for de outra pessoa, ela não fica sabendo o endereço do cliente.
       </p>
     </div>
@@ -230,7 +232,8 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (t
           />
           <p className="text-xs text-gray-500">
             Os campos entre chaves viram os dados do pedido. {'{produtos}'} vira a lista do que a pessoa comprou, um item por
-            linha (até 3; passando disso, a última linha diz quantos faltam). Os botões{' '}
+            linha (até 3; passando disso, a última linha diz quantos faltam). {'{canal}'} vira onde a pessoa comprou (Shopee, Mercado
+            Livre, Amazon...; na loja própria, "nosso site"). Os botões{' '}
             {numerada ? 'de resposta (1, 2 e 3)' : '"Sim, está certo", "Número errado" e "Não quero receber"'} entram sozinhos no fim.
             {atual.oficial && ' A Meta analisa cada texto novo antes de ele valer.'}
           </p>

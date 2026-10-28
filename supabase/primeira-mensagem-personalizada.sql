@@ -1,6 +1,6 @@
 -- Primeira mensagem com o texto da loja (27/10/2026).
 -- Decisão do Mohamad: a loja escreve a própria primeira mensagem, com campos
--- ({nome}, {loja}, {pedido}, {entrega}, {produtos}). O texto fica em
+-- ({nome}, {loja}, {pedido}, {entrega}, {produtos}, {canal}). O texto fica em
 -- app_settings 'primeira_mensagem_texto' = {texto, versao, em, por}, gravado
 -- pela função primeira-mensagem (ação personalizar), que também cria os modelos
 -- na Meta: contatta_primeira_v<versao> ou, com {produtos},
