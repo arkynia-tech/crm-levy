@@ -25,7 +25,6 @@ const MP_COLORS: Record<string, string> = {
   magalu: '#0086ff',
   nuvemshop: '#0ea5e9',
   shopify: '#5e8e3e',
-  magalu: '#0086ff',
   whatsapp: '#16a34a',
   venda_direta: '#7c3aed',
 }
