@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
   }
   const ativa = (cons ?? []).some((c) => String(c.id) === conexao && c.status === 'conectado')
 
-  const pedido = ev?.data?.params?.id ?? String(ev?.data?.resource ?? '').match(/\/orders\/([^/?]+)/)?.[1]
+  // a Magalu lê o pedido pelo code (GET /seller/v1/orders/{code}); o resource traz o code,
+  // e params.id pode ser o id interno, que a leitura não acha (sandbox, 28/10/2026)
+  const pedido = String(ev?.data?.resource ?? '').match(/\/orders\/([^/?]+)/)?.[1] ?? ev?.data?.params?.code ?? ev?.data?.params?.id
   if (ev?.topic !== 'orders_order' || !pedido) return responder(200, { ok: true, ignorado: true })
 
   try {
