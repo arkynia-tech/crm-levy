@@ -94,3 +94,46 @@ export function useEnviarPrimeiraMsg(customerId: string | undefined) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['customer', customerId] }),
   })
 }
+
+/** Um dos modelos do texto da loja na Meta (contatta_primeira_v<versão>[_linhas]). */
+export interface ModeloDaLoja {
+  name: string
+  status: string
+  category: string | null
+  rejected_reason: string | null
+}
+
+/** O texto que a loja escreveu (primeira-mensagem-personalizada.sql); texto null = usa o padrão. */
+export interface TextoPrimeiraMsg {
+  texto: string | null
+  versao: number | null
+  oficial: boolean
+  modelos: ModeloDaLoja[]
+}
+
+export function useTextoPrimeiraMsg() {
+  const { activeClient } = useCompany()
+  return useQuery({
+    queryKey: ['primeira-msg-texto', activeClient?.id],
+    enabled: Boolean(activeClient),
+    queryFn: async (): Promise<TextoPrimeiraMsg | null> => {
+      const { data, error } = await supabase.rpc('crm_primeira_msg_texto', { p_client_id: activeClient!.id })
+      if (error) return null
+      return (data ?? null) as TextoPrimeiraMsg | null
+    },
+  })
+}
+
+/** Grava o texto da loja (vazio = volta ao padrão); com número oficial, a Meta analisa antes de valer. */
+export function usePersonalizarPrimeiraMsg() {
+  const { activeClient } = useCompany()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (texto: string) => {
+      const r = await chamar({ action: 'personalizar', client_id: activeClient!.id, texto })
+      if (!r.ok) throw new Error(r.error)
+      return r
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['primeira-msg-texto', activeClient?.id] }),
+  })
+}

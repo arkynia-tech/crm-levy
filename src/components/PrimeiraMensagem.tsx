@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { Fragment, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Clock3, MessageSquareText, Send, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock3, MessageSquareText, PencilLine, Send, XCircle } from 'lucide-react'
 import {
-  useDefinirPrimeiraMsg, useEnviarPrimeiraMsg, useEstadoPrimeiraMsg, usePrepararPrimeiraMsg,
+  useDefinirPrimeiraMsg, useEnviarPrimeiraMsg, useEstadoPrimeiraMsg, usePersonalizarPrimeiraMsg, usePrepararPrimeiraMsg,
+  useTextoPrimeiraMsg, type TextoPrimeiraMsg,
 } from '../hooks/primeiraMensagem'
 import { useCompany } from '../context/CompanyContext'
 import { formatDateTime } from '../lib/format'
@@ -17,19 +18,62 @@ import { formatDateTime } from '../lib/format'
 const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber']
 
+/** O texto padrão (contatta_confirmacao_pedido), escrito com os campos do editor. */
+const TEXTO_PADRAO =
+  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}, com entrega em {entrega}.\n\n' +
+  'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
+
+/** Para começar: o padrão com a lista do que a pessoa comprou (igual a SUGESTAO da função). */
+const SUGESTAO =
+  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}:\n{produtos}\n\n' +
+  'A entrega vai para {entrega}. Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
+
+const CAMPOS = [
+  { campo: 'nome', rotulo: 'Nome' },
+  { campo: 'loja', rotulo: 'Loja' },
+  { campo: 'pedido', rotulo: 'Nº do pedido' },
+  { campo: 'entrega', rotulo: 'Entrega' },
+  { campo: 'produtos', rotulo: 'Produtos' },
+] as const
+
+const EXEMPLO_PRODUTOS = ['2x Camiseta Brasil G', '1x Boné Preto']
+
+/** O texto com os campos trocados pelos dados de exemplo, em destaque. */
+function TextoComExemplo({ texto, loja }: { texto: string; loja: string }) {
+  const exemplo: Record<string, string> = { nome: 'Ana', loja, pedido: 'nº 1048', entrega: 'Centro, Campinas/SP' }
+  const partes = texto.split(/(\{(?:nome|loja|pedido|entrega|produtos)\})/g)
+  return (
+    <>
+      {partes.map((p, i) => {
+        const campo = /^\{(\w+)\}$/.exec(p)?.[1]
+        if (!campo) return <Fragment key={i}>{p}</Fragment>
+        if (campo === 'produtos') {
+          return (
+            <span key={i} className="font-medium">
+              {EXEMPLO_PRODUTOS.map((l) => `• ${l}`).join('\n')}
+            </span>
+          )
+        }
+        return (
+          <span key={i} className="font-medium">
+            {exemplo[campo]}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
 /** Como o cliente vê no WhatsApp, com dados de exemplo. */
-function Previa({ loja, numerada }: { loja: string; numerada: boolean }) {
+function Previa({ loja, numerada, texto = TEXTO_PADRAO }: { loja: string; numerada: boolean; texto?: string }) {
   return (
     <div className="rounded-xl bg-[#efeae2] p-4" aria-label="Prévia da mensagem">
       <div className="max-w-sm overflow-hidden rounded-lg bg-white text-sm text-gray-800 shadow-sm">
         <p className="whitespace-pre-line px-3 pb-2 pt-2.5 leading-relaxed">
-          Oi, <span className="font-medium">Ana</span>! Aqui é da <span className="font-medium">{loja}</span>. Recebemos
-          o seu pedido <span className="font-medium">nº 1048</span>, com entrega em{' '}
-          <span className="font-medium">Centro, Campinas/SP</span>.{'\n\n'}Para garantir que tudo chegue certinho,
-          confirme se este WhatsApp é seu e se os seus dados estão corretos.
+          <TextoComExemplo texto={texto} loja={loja} />
           {numerada && (
             <>
-              {' '}Responda só com o número:
+              {texto === TEXTO_PADRAO ? ' ' : '\n\n'}Responda só com o número:
               {BOTOES.map((b, i) => `\n${i + 1}. ${b}`).join('')}
             </>
           )}
@@ -45,8 +89,8 @@ function Previa({ loja, numerada }: { loja: string; numerada: boolean }) {
         )}
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        Nome, número do pedido e bairro e cidade da entrega vêm do pedido. Rua e número ficam de fora: se o WhatsApp for de
-        outra pessoa, ela não fica sabendo o endereço do cliente.
+        Nome, número do pedido{texto.includes('{produtos}') ? ', produtos' : ''} e bairro e cidade da entrega vêm do pedido.
+        Rua e número ficam de fora: se o WhatsApp for de outra pessoa, ela não fica sabendo o endereço do cliente.
       </p>
     </div>
   )
@@ -62,12 +106,168 @@ function Situacao({ tom, icone: Icone, children }: { tom: 'ok' | 'espera' | 'err
   )
 }
 
+/**
+ * Situação do texto da loja na Meta. Os modelos (um, ou três com {produtos})
+ * só valem aprovados e como Utilidade; até lá sai o anterior ou o padrão.
+ */
+function situacaoDoTexto(t: TextoPrimeiraMsg): { tom: 'ok' | 'espera' | 'erro'; texto: string } {
+  if (!t.oficial) return { tom: 'ok', texto: 'O seu texto já está valendo.' }
+  const recusado = t.modelos.find((m) => m.status === 'REJECTED')
+  if (recusado) {
+    return {
+      tom: 'erro',
+      texto: `A Meta recusou o seu texto${recusado.rejected_reason ? ` (${recusado.rejected_reason})` : ''}. Continua saindo o texto anterior. Ajuste e salve de novo.`,
+    }
+  }
+  if (t.modelos.some((m) => m.status === 'APPROVED' && (m.category ?? '').toUpperCase() !== 'UTILITY')) {
+    return {
+      tom: 'erro',
+      texto:
+        'A Meta classificou o seu texto como marketing, que custa mais e não chega para todo mundo. Continua saindo o texto anterior. Deixe o texto falando só do pedido e salve de novo.',
+    }
+  }
+  if (t.modelos.length > 0 && t.modelos.every((m) => m.status === 'APPROVED')) {
+    return { tom: 'ok', texto: 'Aprovado pela Meta e em uso.' }
+  }
+  return { tom: 'espera', texto: 'Em análise na Meta (de minutos a 24 h). Até aprovar, continua saindo o texto anterior.' }
+}
+
+/** Onde a loja escreve a própria primeira mensagem, com os campos do pedido. */
+function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (texto: string | null) => void }) {
+  const { data: atual } = useTextoPrimeiraMsg()
+  const salvar = usePersonalizarPrimeiraMsg()
+  const [rascunho, setRascunho] = useState<string | null>(null)
+  const campo = useRef<HTMLTextAreaElement>(null)
+  if (atual === null || atual === undefined) return null
+
+  const editando = rascunho !== null
+  const proprio = Boolean(atual.texto)
+  const situacao = proprio ? situacaoDoTexto(atual) : null
+
+  const abrir = (texto: string) => {
+    setRascunho(texto)
+    onPrevia(texto)
+    salvar.reset()
+  }
+  const fechar = () => {
+    setRascunho(null)
+    onPrevia(null)
+  }
+  const mudar = (texto: string) => {
+    setRascunho(texto)
+    onPrevia(texto)
+  }
+  const inserir = (nome: string) => {
+    const el = campo.current
+    const base = rascunho ?? ''
+    const inicio = el?.selectionStart ?? base.length
+    const fim = el?.selectionEnd ?? base.length
+    const pedaco = nome === 'produtos' ? `\n{produtos}\n` : `{${nome}}`
+    mudar(base.slice(0, inicio) + pedaco + base.slice(fim))
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(inicio + pedaco.length, inicio + pedaco.length)
+    })
+  }
+  const gravar = (texto: string) =>
+    salvar.mutate(texto, { onSuccess: () => fechar() })
+  const voltarAoPadrao = () => {
+    if (window.confirm('Voltar para o texto padrão do Contatta? O seu texto é apagado.')) gravar('')
+  }
+
+  return (
+    <div className="space-y-3 border-t border-gray-100 pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-gray-900">Texto da mensagem</h3>
+        {!editando && (
+          <button type="button" className={`btn-secondary ${press}`} onClick={() => abrir(atual.texto ?? SUGESTAO)}>
+            <PencilLine className="h-4 w-4" aria-hidden />
+            {proprio ? 'Editar o texto' : 'Escrever o meu texto'}
+          </button>
+        )}
+      </div>
+
+      {!editando && (
+        <>
+          <p className="text-sm text-gray-600">
+            {proprio ? 'Sai o texto que a loja escreveu.' : 'Sai o texto padrão do Contatta, que está na prévia.'}
+          </p>
+          {situacao && (
+            <Situacao tom={situacao.tom} icone={situacao.tom === 'ok' ? CheckCircle2 : situacao.tom === 'espera' ? Clock3 : XCircle}>
+              {situacao.texto}
+            </Situacao>
+          )}
+          {proprio && (
+            <button type="button" className="text-sm font-medium text-gray-600 underline underline-offset-2" onClick={voltarAoPadrao}>
+              Voltar ao texto padrão
+            </button>
+          )}
+        </>
+      )}
+
+      {editando && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Inserir um campo do pedido">
+            <span className="text-xs text-gray-500">Inserir:</span>
+            {CAMPOS.map((c) => (
+              <button
+                key={c.campo}
+                type="button"
+                className={`rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:border-brand-300 hover:text-brand-700 ${press}`}
+                onClick={() => inserir(c.campo)}
+              >
+                {c.rotulo}
+              </button>
+            ))}
+          </div>
+          <textarea
+            ref={campo}
+            className="input min-h-[10rem] w-full font-normal leading-relaxed"
+            value={rascunho ?? ''}
+            onChange={(e) => mudar(e.target.value)}
+            maxLength={900}
+            aria-label="Texto da primeira mensagem"
+          />
+          <p className="text-xs text-gray-500">
+            Os campos entre chaves viram os dados do pedido. {'{produtos}'} vira a lista do que a pessoa comprou, um item por
+            linha (até 3; passando disso, a última linha diz quantos faltam). Os botões{' '}
+            {numerada ? 'de resposta (1, 2 e 3)' : '"Sim, está certo", "Número errado" e "Não quero receber"'} entram sozinhos no fim.
+            {atual.oficial && ' A Meta analisa cada texto novo antes de ele valer.'}
+          </p>
+          {salvar.isError && <p className="text-sm text-red-700">{(salvar.error as Error).message}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={`btn-primary ${press}`}
+              onClick={() => gravar(rascunho ?? '')}
+              disabled={salvar.isPending || !(rascunho ?? '').trim()}
+            >
+              <Send className="h-4 w-4" aria-hidden />
+              {salvar.isPending ? 'Salvando…' : atual.oficial ? 'Salvar e mandar para a Meta' : 'Salvar o texto'}
+            </button>
+            <button type="button" className={`btn-secondary ${press}`} onClick={fechar} disabled={salvar.isPending}>
+              Cancelar
+            </button>
+            {!(rascunho ?? '').includes('{produtos}') && (
+              <button type="button" className="text-sm font-medium text-brand-700 underline underline-offset-2" onClick={() => mudar(SUGESTAO)}>
+                Usar a sugestão com produtos
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Seção de Configurações › Disparos (admin e master). */
 export function SecaoPrimeiraMensagem() {
   const { data: estado, isLoading } = useEstadoPrimeiraMsg()
   const preparar = usePrepararPrimeiraMsg()
   const definir = useDefinirPrimeiraMsg()
   const { activeClient } = useCompany()
+  const { data: textoAtual } = useTextoPrimeiraMsg()
+  const [previa, setPrevia] = useState<string | null>(null)
   if (isLoading || estado === null || estado === undefined) return null
 
   const { numero, modelo, ligado, nao_oficial: naoOficial } = estado
@@ -191,8 +391,9 @@ export function SecaoPrimeiraMensagem() {
               ? 'Pelo número não oficial não há custo por mensagem. Quem pediu para não receber nunca recebe.'
               : 'A Meta cobra cada envio na conta da loja (mensagem de utilidade). Quem pediu para não receber nunca recebe.'}
           </p>
+          {(numero || pelaNaoOficial) && <EditorDoTexto numerada={pelaNaoOficial} onPrevia={setPrevia} />}
         </div>
-        <Previa loja={loja} numerada={pelaNaoOficial} />
+        <Previa loja={loja} numerada={pelaNaoOficial} texto={previa ?? textoAtual?.texto ?? TEXTO_PADRAO} />
       </div>
     </section>
   )
