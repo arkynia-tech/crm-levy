@@ -16,7 +16,7 @@
 import { type Json } from '../_shared/asaas.ts'
 import {
   acessoDaConexao, cancelarAvisos, configurado, deuCerto, erroDaMagalu, garantirLoja, inscreverAvisos, lojaDoToken, magalu, PROVEDOR,
-  trocarCode, urlDeAutorizacao,
+  SANDBOX, trocarCode, urlDeAutorizacao,
 } from '../_shared/magalu.ts'
 import { banco, cors, responder, rpc } from '../_shared/comum.ts'
 
@@ -122,7 +122,7 @@ async function retorno(b: Json, userId: string) {
 
   // Qual loja autorizou: o token pode dizer; a inscrição dos avisos traz o tenant no id.
   const doToken = lojaDoToken(t.tokens.access_token)
-  if (doToken.pessoal) {
+  if (doToken.pessoal && !SANDBOX) {
     return falha(422, 'Você autorizou a sua conta pessoal da Magalu, não a loja. Conecte de novo e, na tela da Magalu, escolha a loja (o seller), não o seu perfil.')
   }
   const avisos = await inscreverAvisos(t.tokens.access_token)
@@ -142,7 +142,7 @@ async function retorno(b: Json, userId: string) {
     return falha(409, 'Essa loja da Magalu já está conectada em outra conta do Contatta. Desconecte lá primeiro.')
   }
 
-  const nome = doToken.nome ?? 'Loja Magalu'
+  const nome = doToken.nome ?? (SANDBOX ? 'Sandbox Magalu' : 'Loja Magalu')
   const r = await rpc('crm_erp_conectar', {
     p_client_id: s.client_id, p_provider: PROVEDOR, p_user_id: userId,
     p_access: t.tokens.access_token, p_refresh: t.tokens.refresh_token,
