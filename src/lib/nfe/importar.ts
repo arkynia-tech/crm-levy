@@ -78,6 +78,7 @@ const ROTULO_MP: Record<string, string> = {
   mercado_livre: 'Mercado Livre',
   amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  venda_direta: 'Venda direta',
   outro: 'Outro canal',
 }
 
@@ -90,11 +91,17 @@ function pedacos<T>(lista: T[], tamanho: number): T[][] {
   return out
 }
 
-function lojaDaNota(n: NotaLida): { marketplace: string; shopId: string; nome: string } {
-  // Sem intermediador na nota: era o caso das notas da Shopee, por isso o padrão.
-  // Intermediador que não conhecemos não vira Shopee: entra como "outro".
-  const marketplace = n.inter_cnpj ? MP_POR_CNPJ[n.inter_cnpj] ?? 'outro' : 'shopee'
+/**
+ * Sem intermediador na nota é venda direta (WhatsApp, balcão, site próprio sem
+ * marketplace), desde 28/10/2026. Antes caía como Shopee: onde a loja já existe
+ * assim (shopee + emit:<CNPJ>), segue Shopee para não partir o histórico.
+ * Intermediador que não conhecemos não vira Shopee: entra como "outro".
+ */
+function lojaDaNota(n: NotaLida, shopeeSemIntermediador: Set<string>): { marketplace: string; shopId: string; nome: string } {
   const shopId = n.inter_handle.trim() || `emit:${n.emit_cnpj}`
+  const marketplace = n.inter_cnpj
+    ? MP_POR_CNPJ[n.inter_cnpj] ?? 'outro'
+    : shopeeSemIntermediador.has(shopId) ? 'shopee' : 'venda_direta'
   return { marketplace, shopId, nome: `${ROTULO_MP[marketplace] ?? marketplace} · ${shopId}` }
 }
 
@@ -119,6 +126,15 @@ export async function importarNotas(
   // ---------------------------------------------------------------- lojas
   aoProgredir({ fase: 'Identificando as lojas', feito: 0, total: 1 })
 
+  // lojas desta conta criadas como Shopee por nota sem intermediador (antes de 28/10/2026)
+  const shopeeAntigas = new Set<string>()
+  {
+    const { data } = await supabase
+      .from('stores').select('external_shop_id')
+      .eq('client_id', clientId).eq('marketplace', 'shopee').like('external_shop_id', 'emit:%')
+    for (const s of data ?? []) shopeeAntigas.add(s.external_shop_id as string)
+  }
+
   // Cada loja do marketplace pertence a uma conta só. Nota de loja que já é de
   // outra conta fica de fora: gravar daria erro de permissão (ou, para o
   // master, mudaria a loja de conta).
@@ -127,7 +143,7 @@ export async function importarNotas(
   {
     const unicas = new Map<string, { m: string; s: string }>()
     for (const n of notas) {
-      const l = lojaDaNota(n)
+      const l = lojaDaNota(n, shopeeAntigas)
       unicas.set(`${l.marketplace}|${l.shopId}`, { m: l.marketplace, s: l.shopId })
     }
     const { data, error } = await supabase.rpc('crm_lojas_de_outra_conta', {
@@ -141,7 +157,7 @@ export async function importarNotas(
     if (alheias.size > 0) {
       const antes = notas.length
       notas = notas.filter((n) => {
-        const l = lojaDaNota(n)
+        const l = lojaDaNota(n, shopeeAntigas)
         return !alheias.has(`${l.marketplace}|${l.shopId}`)
       })
       outraConta = antes - notas.length
@@ -161,7 +177,7 @@ export async function importarNotas(
 
   const lojasPorChave = new Map<string, { client_id: string; marketplace: string; name: string; external_shop_id: string; updated_at: string }>()
   for (const n of notas) {
-    const l = lojaDaNota(n)
+    const l = lojaDaNota(n, shopeeAntigas)
     const chave = `${l.marketplace}|${l.shopId}`
     if (!lojasPorChave.has(chave)) {
       lojasPorChave.set(chave, {
@@ -187,7 +203,7 @@ export async function importarNotas(
     const lojasPorCnpj = new Map<string, Set<string>>()
     for (const n of notas) {
       if (!/^\d{14}$/.test(n.emit_cnpj)) continue
-      const l = lojaDaNota(n)
+      const l = lojaDaNota(n, shopeeAntigas)
       const id = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
       if (!id) continue
       if (!lojasPorCnpj.has(n.emit_cnpj)) lojasPorCnpj.set(n.emit_cnpj, new Set())
@@ -206,7 +222,7 @@ export async function importarNotas(
   aoProgredir({ fase: 'Conferindo o crédito', feito: 0, total: 1 })
   const chaveDaNota = (n: NotaLida): string | null => {
     if (!docValido(n.buyer_cpf)) return null
-    const l = lojaDaNota(n)
+    const l = lojaDaNota(n, shopeeAntigas)
     const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
     return storeId ? `${storeId}|${n.order_ref}` : null
   }
@@ -276,7 +292,7 @@ export async function importarNotas(
   const pedidosPorChave = new Map<string, Record<string, unknown>>()
   for (const n of notas) {
     if (!docValido(n.buyer_cpf)) continue
-    const l = lojaDaNota(n)
+    const l = lojaDaNota(n, shopeeAntigas)
     const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
     const customerId = idPorCpf.get(n.buyer_cpf)
     if (!storeId || !customerId) continue
@@ -318,7 +334,7 @@ export async function importarNotas(
   const itensPorChave = new Map<string, Record<string, unknown>>()
   const itensSemId: Record<string, unknown>[] = []
   for (const n of notas) {
-    const l = lojaDaNota(n)
+    const l = lojaDaNota(n, shopeeAntigas)
     const storeId = idPorLoja.get(`${l.marketplace}|${l.shopId}`)
     const orderId = storeId ? idPorPedido.get(`${storeId}|${n.order_ref}`) : undefined
     if (!orderId) continue

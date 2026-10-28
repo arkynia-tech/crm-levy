@@ -4,6 +4,7 @@ import { useCustomerDetail } from '../hooks/queries'
 import { formatCurrency, formatDate, formatDateTime, maskCpf } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, OrderStatusBadge } from '../components/ui'
 import { BotaoPrimeiraMensagem } from '../components/PrimeiraMensagem'
+import { ApagarVenda, RegistrarVenda } from '../components/RegistrarVenda'
 import { useUserRole } from '../hooks/settings'
 
 export default function CustomerDetail() {
@@ -94,6 +95,11 @@ export default function CustomerDetail() {
             registro={(customer.extra?.primeira_mensagem ?? null) as { status?: string; em?: string; erro?: string; resposta?: { botao?: string; em?: string } } | null}
           />
         )}
+        {Boolean(papel) && (
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <RegistrarVenda customerId={customer.id} />
+          </div>
+        )}
       </div>
 
       <h2 className="mb-3 mt-6 font-display text-base font-semibold text-gray-900">
@@ -117,6 +123,9 @@ export default function CustomerDetail() {
                   {order.status && <OrderStatusBadge status={order.status} />}
                 </div>
                 <div className="flex items-center gap-3 text-sm">
+                  {(order.marketplace ?? order.stores?.marketplace) === 'whatsapp' && Boolean(papel) && (
+                    <ApagarVenda pedidoId={order.id} />
+                  )}
                   <span className="tabular-nums text-gray-500">{formatDateTime(order.ordered_at)}</span>
                   <span className="font-semibold tabular-nums">
                     {formatCurrency(order.total_amount, order.currency ?? 'BRL')}
