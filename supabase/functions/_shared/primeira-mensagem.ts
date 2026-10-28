@@ -106,13 +106,13 @@ export function paraMeta(fone: string): string {
 }
 
 /** POST /<phone_number_id>/messages: o modelo com as variáveis e um payload por botão. */
-export function envio(fone: string, vars: string[], clienteId: string): Json {
+export function envio(fone: string, vars: string[], clienteId: string, nome: string = MODELO): Json {
   return {
     messaging_product: 'whatsapp',
     to: paraMeta(fone),
     type: 'template',
     template: {
-      name: MODELO,
+      name: nome,
       language: { code: IDIOMA },
       components: [
         { type: 'body', parameters: vars.map((text) => ({ type: 'text', text })) },

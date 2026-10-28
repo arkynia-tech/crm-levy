@@ -16,6 +16,10 @@
 //             não). Já enviada, não manda de novo; a que falhou pode ir de novo.
 //   preparar_auto  só o banco (x-cron-token), quando um número oficial conecta:
 //             o mesmo preparar, sem ninguém clicar.
+//   personalizar  admin ou master: grava o texto da loja (app_settings
+//             'primeira_mensagem_texto', versão nova a cada mudança) e, com
+//             número oficial, manda os modelos dele para a Meta
+//             (primeira-personalizada.ts). Texto vazio volta ao padrão.
 //
 // Fala direto com a Graph API com o token do número (wa_instance_tokens), sem
 // passar pelo n8n: o fluxo "WA Oficial" cria modelo só com o botão de sair.
@@ -27,6 +31,12 @@ import {
 } from '../_shared/primeira-mensagem.ts'
 import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
 import { MODELO_ANIVERSARIO, modeloAniversarioParaCriar } from '../_shared/aniversario.ts'
+import {
+  linhasDeProdutos, MAX_LINHAS, modeloPersonalizado, nomeDoModelo, normalizar, paraEnviar, temProdutos,
+  textoNaoOficialDaLoja, validar,
+} from '../_shared/primeira-personalizada.ts'
+
+const CHAVE_TEXTO = 'primeira_mensagem_texto'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
@@ -67,6 +77,7 @@ Deno.serve(async (req) => {
     if (papel !== 'master' && papel !== 'admin') return falha(403, 'Só administrador ou master faz isso.')
 
     if (b.action === 'preparar') return await preparar(b.client_id, login.user.id)
+    if (b.action === 'personalizar') return await personalizar(b.client_id, b.texto, login.user.id)
     if (b.action === 'enviar') {
       if (typeof b.customer_id !== 'string') return falha(400, 'Cliente não informado.')
       const r = await mandar(b.client_id, b.customer_id, login.user.id, true)
@@ -123,8 +134,75 @@ async function preparar(clientId: string, userId: string | null) {
   // o do parabéns vai junto: a loja liga pelo oficial no cartão de Aniversariantes quando quiser
   const parabens = await garantirModelo(w, MODELO_ANIVERSARIO, modeloAniversarioParaCriar(), userId)
   if ('erro' in parabens) console.error('modelo do parabéns', clientId, parabens.erro)
+  // o texto da loja, se ela já tinha escrito um antes de conectar o número oficial
+  const texto = await textoDaLoja(clientId)
+  if (texto) {
+    const r = await garantirPersonalizados(w, texto, userId)
+    if (r) console.error('modelo da loja', clientId, r)
+  }
   if ('erro' in primeira) return falha(422, `A Meta não aceitou o modelo: ${primeira.erro}`)
   return ok({ ok: true, status: primeira.status, aniversario: 'erro' in parabens ? null : parabens.status })
+}
+
+type TextoDaLoja = { texto: string; versao: number; anterior?: TextoDaLoja | null }
+
+const comoTexto = (v: Json | null | undefined): TextoDaLoja | null =>
+  v?.texto && Number(v.versao) > 0 ? { texto: String(v.texto), versao: Number(v.versao) } : null
+
+/** O texto da loja e o anterior (que segue saindo pelo oficial até a Meta aprovar o novo). */
+async function textoDaLoja(clientId: string): Promise<TextoDaLoja | null> {
+  const { data } = await banco.from('app_settings').select('value').eq('client_id', clientId).eq('key', CHAVE_TEXTO).maybeSingle()
+  const v = data?.value as Json | null
+  const atual = comoTexto(v)
+  return atual ? { ...atual, anterior: comoTexto(v?.anterior) } : null
+}
+
+/** Os modelos do texto da loja na Meta: um só, ou com 1, 2 e 3 linhas de produto. null = todos criados. */
+async function garantirPersonalizados(w: Json, t: TextoDaLoja, userId: string | null): Promise<string | null> {
+  const variantes = temProdutos(t.texto) ? Array.from({ length: MAX_LINHAS }, (_, i) => i + 1) : [null]
+  for (const linhas of variantes) {
+    const r = await garantirModelo(w, nomeDoModelo(t.versao, linhas), modeloPersonalizado(t.texto, t.versao, linhas), userId)
+    if ('erro' in r) return r.erro
+  }
+  return null
+}
+
+/** Grava o texto da loja (versão nova) e, com número oficial, manda os modelos para a Meta aprovar. */
+async function personalizar(clientId: string, bruto: unknown, userId: string) {
+  const texto = typeof bruto === 'string' ? normalizar(bruto) : ''
+  if (!texto) {
+    await banco.from('app_settings').delete().eq('client_id', clientId).eq('key', CHAVE_TEXTO)
+    return ok({ ok: true, padrao: true })
+  }
+  const erro = validar(texto)
+  if (erro) return falha(422, erro)
+
+  const atual = await textoDaLoja(clientId)
+  if (atual?.texto === texto) return ok({ ok: true, versao: atual.versao })
+  const novo = { texto, versao: (atual?.versao ?? 0) + 1 }
+
+  // oficial: a Meta precisa aceitar os modelos; até aprovar, sai o texto anterior (ou o padrão)
+  const w = await numeroDaLoja(clientId)
+  if (w) {
+    const recusa = await garantirPersonalizados(w, novo, userId)
+    if (recusa) return falha(422, `A Meta não aceitou o texto: ${recusa}`)
+  }
+  // o texto que estava valendo fica guardado: pelo oficial ele segue saindo até a Meta aprovar o novo
+  const anterior = atual ? { texto: atual.texto, versao: atual.versao } : null
+  const { error } = await banco.from('app_settings').upsert(
+    { client_id: clientId, key: CHAVE_TEXTO, value: { ...novo, anterior, em: new Date().toISOString(), por: userId }, updated_at: new Date().toISOString() },
+    { onConflict: 'client_id,key' },
+  )
+  if (error) throw new Error(`app_settings: ${error.message}`)
+  return ok({ ok: true, versao: novo.versao, oficial: Boolean(w) })
+}
+
+/** O modelo do texto da loja para este pedido, só se a Meta aprovou como Utilidade. */
+async function modeloDaLojaPronto(w: Json, nome: string): Promise<boolean> {
+  const { data } = await banco
+    .from('wa_templates').select('status, category')
+    .eq('waba_id', w.waba_id).eq('name', nome).maybeSingle()
+  return data?.status === 'APPROVED' && String(data?.category ?? '').toUpperCase() === 'UTILITY'
 }
 
 /** Cria o modelo na conta da Meta da loja, se ainda não existe (ou foi recusado), e espelha em wa_templates. */
@@ -196,8 +274,19 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
     entrega: entrega(pedido?.ship_address, c.city, c.state),
   })
 
+  // texto da loja (primeira-personalizada.ts), com a lista do que foi comprado
+  const daLoja = await textoDaLoja(clientId)
+  let itens: Json[] = []
+  if (daLoja && (temProdutos(daLoja.texto) || temProdutos(daLoja.anterior?.texto ?? '')) && pedido?.id) {
+    const { data } = await banco.from('order_items').select('product_name, sku, quantity').eq('order_id', pedido.id).limit(50)
+    itens = data ?? []
+  }
+  const valores = daLoja
+    ? { nome: vars[0], loja: vars[1], pedido: vars[2], entrega: vars[3], produtos: linhasDeProdutos(itens) }
+    : null
+
   if (naoOficial) {
-    const texto = textoNaoOficial(vars)
+    const texto = daLoja && valores ? textoNaoOficialDaLoja(daLoja.texto, valores) : textoNaoOficial(vars)
     const m = await mandarPeloMensy(naoOficial.instance_name, numero, texto, { digitandoMs: 3000 })
     if ('id' in m) {
       await rpc('crm_primeira_msg_concluir', {
@@ -213,12 +302,27 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
     return { ok: false, status: 422, error: `O WhatsApp não entregou: ${m.erro}` }
   }
 
-  const r = await graph(numeroOficial!.token, 'POST', `/${numeroOficial!.phone_number_id}/messages`, envio(numero, vars, customerId))
+  // o texto da loja só sai com o modelo aprovado como Utilidade: senão o anterior
+  // dela (se estava aprovado) e, por último, o padrão
+  let usar: ReturnType<typeof paraEnviar> | null = null
+  for (const t of daLoja && valores ? [daLoja, daLoja.anterior] : []) {
+    if (!t || !valores) continue
+    const p = paraEnviar(t.texto, t.versao, valores)
+    if (await modeloDaLojaPronto(numeroOficial!, p.nome)) {
+      usar = p
+      break
+    }
+  }
+  const corpoEnvio = usar ? envio(numero, usar.parametros, customerId, usar.nome) : envio(numero, vars, customerId)
+  const r = await graph(numeroOficial!.token, 'POST', `/${numeroOficial!.phone_number_id}/messages`, corpoEnvio)
   const wamid = r.json?.messages?.[0]?.id
   if (r.status >= 200 && r.status < 300 && wamid) {
     await rpc('crm_primeira_msg_concluir', {
       p_customer_id: customerId,
-      p_info: { status: 'enviada', canal: 'oficial', fone: numero, wamid, pedido_id: pedido?.id ?? null, texto: textoFinal(vars), por: userId },
+      p_info: {
+        status: 'enviada', canal: 'oficial', fone: numero, wamid, pedido_id: pedido?.id ?? null,
+        texto: usar ? usar.texto : textoFinal(vars), modelo: usar ? usar.nome : MODELO, por: userId,
+      },
     })
     return { ok: true, enviada: true }
   }

@@ -1,0 +1,50 @@
+-- Primeira mensagem com o texto da loja (27/10/2026).
+-- Decisão do Mohamad: a loja escreve a própria primeira mensagem, com campos
+-- ({nome}, {loja}, {pedido}, {entrega}, {produtos}). O texto fica em
+-- app_settings 'primeira_mensagem_texto' = {texto, versao, em, por}, gravado
+-- pela função primeira-mensagem (ação personalizar), que também cria os modelos
+-- na Meta: contatta_primeira_v<versao> ou, com {produtos},
+-- contatta_primeira_v<versao>_1/_2/_3 (uma, duas e três linhas de produto).
+-- O padrão (contatta_confirmacao_pedido) continua aprovado e é o que sai até a
+-- Meta aprovar os modelos da loja como Utilidade.
+--
+-- Aqui só a leitura para a tela: o texto e a situação de cada modelo dele.
+
+create or replace function public.crm_primeira_msg_texto(p_client_id uuid)
+returns jsonb
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  with cfg as (
+    select s.value from public.app_settings s
+    where s.client_id = p_client_id and s.key = 'primeira_mensagem_texto'
+  ),
+  numero as (
+    select w.waba_id from public.wa_instances w
+    where w.client_id = p_client_id and w.provider = 'cloud_api' and w.status = 'connected'
+    order by w.last_status_at desc nulls last, w.created_at desc
+    limit 1
+  ),
+  modelos as (
+    select t.name, t.status, t.category, t.rejected_reason, t.updated_at
+    from public.wa_templates t
+    join numero n on n.waba_id = t.waba_id
+    join cfg on true
+    where t.name = 'contatta_primeira_v' || (cfg.value->>'versao')
+       or t.name like 'contatta_primeira_v' || (cfg.value->>'versao') || '\_%'
+  )
+  select case when public.crm_sees_customer_data(p_client_id) then
+    jsonb_build_object(
+      'texto', (select value->>'texto' from cfg),
+      'versao', (select (value->>'versao')::int from cfg),
+      'em', (select value->>'em' from cfg),
+      'oficial', exists (select 1 from numero),
+      'modelos', coalesce((select jsonb_agg(jsonb_build_object(
+                   'name', name, 'status', status, 'category', category,
+                   'rejected_reason', rejected_reason, 'updated_at', updated_at) order by name)
+                 from modelos), '[]'::jsonb))
+  end;
+$$;
+grant execute on function public.crm_primeira_msg_texto(uuid) to authenticated;
+
+-- Conferência: tem que vir true
+select exists (select 1 from pg_proc where proname = 'crm_primeira_msg_texto') as texto_da_loja_ok;
