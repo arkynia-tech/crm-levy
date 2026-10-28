@@ -8,12 +8,12 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Enquanto a integração com a Magalu está em teste (28/10/2026), só o master vê
- * o cartão; o admin vê se o master liberar a loja (clients.magalu_liberado).
- * Anda junto com o secret MAGALU_ABERTO_PARA_LOJAS=1 da magalu-conexao: abrir
- * os dois juntos depois da primeira loja real.
+ * Aberta para todas as lojas desde 28/10/2026, depois do teste de ponta a ponta
+ * no sandbox. Anda junto com o secret MAGALU_ABERTO_PARA_LOJAS=1 da
+ * magalu-conexao; com false, só o master vê o cartão e o admin vê se o master
+ * liberar a loja (clients.magalu_liberado).
  */
-export const MAGALU_ABERTO_PARA_LOJAS = false
+export const MAGALU_ABERTO_PARA_LOJAS = true
 
 function useConectarMagalu() {
   const { activeClient } = useCompany()
