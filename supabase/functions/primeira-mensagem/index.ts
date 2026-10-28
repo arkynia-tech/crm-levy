@@ -32,7 +32,7 @@ import {
 import { mandar as mandarPeloMensy } from '../_shared/mensy.ts'
 import { MODELO_ANIVERSARIO, modeloAniversarioParaCriar } from '../_shared/aniversario.ts'
 import {
-  linhasDeProdutos, MAX_LINHAS, modeloPersonalizado, nomeDoModelo, normalizar, paraEnviar, temProdutos,
+  canalDoPedido, linhasDeProdutos, MAX_LINHAS, modeloPersonalizado, nomeDoModelo, normalizar, paraEnviar, temProdutos,
   textoNaoOficialDaLoja, validar,
 } from '../_shared/primeira-personalizada.ts'
 
@@ -262,7 +262,7 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
   }
 
   const { data: pedidos } = await banco
-    .from('orders').select('id, external_order_id, ordered_at, created_at, status, ship_address')
+    .from('orders').select('id, external_order_id, ordered_at, created_at, status, ship_address, marketplace')
     .eq('customer_id', customerId).order('ordered_at', { ascending: false, nullsFirst: false }).limit(5)
   const pedido = (pedidos ?? []).find((o: Json) => !String(o.status ?? '').toLowerCase().includes('cancel')) ?? pedidos?.[0]
   const { data: loja } = await banco.from('clients').select('name').eq('id', clientId).maybeSingle()
@@ -282,7 +282,7 @@ async function mandar(clientId: string, customerId: string, userId: string | nul
     itens = data ?? []
   }
   const valores = daLoja
-    ? { nome: vars[0], loja: vars[1], pedido: vars[2], entrega: vars[3], produtos: linhasDeProdutos(itens) }
+    ? { nome: vars[0], loja: vars[1], pedido: vars[2], entrega: vars[3], canal: canalDoPedido(pedido?.marketplace), produtos: linhasDeProdutos(itens) }
     : null
 
   if (naoOficial) {

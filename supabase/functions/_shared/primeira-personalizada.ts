@@ -8,6 +8,7 @@
 //   {pedido}    "nº 1048"
 //   {entrega}   bairro e cidade (sem rua nem número)
 //   {produtos}  a lista, uma linha por item ("• 2x Camiseta Brasil G")
+//   {canal}     onde a pessoa comprou ("Shopee", "Mercado Livre"; loja própria vira "nosso site")
 //
 // API oficial: a Meta não aceita quebra de linha dentro de uma variável nem
 // variável vazia. Por isso o texto com {produtos} vira três modelos, com 1, 2
@@ -21,13 +22,23 @@
 import type { Json } from './asaas.ts'
 import { BOTOES, IDIOMA } from './primeira-mensagem.ts'
 
-export const CAMPOS = ['nome', 'loja', 'pedido', 'entrega', 'produtos'] as const
+export const CAMPOS = ['nome', 'loja', 'pedido', 'entrega', 'produtos', 'canal'] as const
 export type Campo = (typeof CAMPOS)[number]
 
 /** O texto que a tela oferece para começar: o padrão com a lista do que foi comprado. */
 export const SUGESTAO =
   'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}:\n{produtos}\n\n' +
   'A entrega vai para {entrega}. Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
+
+/** Os campos no texto: {nome}, {loja}... */
+const RE_CAMPO = new RegExp(`\\{(${CAMPOS.join('|')})\\}`, 'g')
+
+/** {canal}: o nome que o cliente reconhece. Loja própria (Nuvemshop, Shopify) é "nosso site". */
+const NOME_DO_CANAL: Record<string, string> = {
+  shopee: 'Shopee', mercado_livre: 'Mercado Livre', amazon: 'Amazon', tiktok_shop: 'TikTok Shop', magalu: 'Magalu',
+  nuvemshop: 'nosso site', shopify: 'nosso site', whatsapp: 'WhatsApp',
+}
+export const canalDoPedido = (marketplace: unknown) => NOME_DO_CANAL[limpo(marketplace)] ?? 'nossa loja'
 
 export const MAX_LINHAS = 3
 const MAX_TEXTO = 900
@@ -79,7 +90,7 @@ export function linhasDeProdutos(itens: Json[]): string[] {
   return [...linhas.slice(0, MAX_LINHAS - 1), `e mais ${resto} ${resto === 1 ? 'item' : 'itens'}`]
 }
 
-export type Valores = { nome: string; loja: string; pedido: string; entrega: string; produtos: string[] }
+export type Valores = { nome: string; loja: string; pedido: string; entrega: string; canal: string; produtos: string[] }
 
 type Peca = { campo: Campo; linha?: number }
 
@@ -89,7 +100,7 @@ type Peca = { campo: Campo; linha?: number }
  */
 export function compilar(texto: string, linhas: number): { corpo: string; ordem: Peca[] } {
   const ordem: Peca[] = []
-  const corpo = normalizar(texto).replace(/\{(nome|loja|pedido|entrega|produtos)\}/g, (_, campo: Campo) => {
+  const corpo = normalizar(texto).replace(RE_CAMPO, (_, campo: Campo) => {
     if (campo === 'produtos') {
       return Array.from({ length: linhas }, (_, i) => {
         ordem.push({ campo, linha: i })
@@ -108,7 +119,7 @@ function valorDa(p: Peca, v: Valores): string {
 }
 
 const EXEMPLO: Valores = {
-  nome: 'Ana', loja: 'Loja Exemplo', pedido: 'nº 1048', entrega: 'Centro, Campinas/SP',
+  nome: 'Ana', loja: 'Loja Exemplo', pedido: 'nº 1048', entrega: 'Centro, Campinas/SP', canal: 'Shopee',
   produtos: ['2x Camiseta Brasil G', '1x Boné Preto', 'e mais 3 itens'],
 }
 
@@ -140,7 +151,7 @@ export function paraEnviar(texto: string, versao: number, v: Valores): { nome: s
 
 /** Número não oficial: o texto da loja com a lista de verdade e as opções numeradas. */
 export function textoNaoOficialDaLoja(texto: string, v: Valores): string {
-  const corpo = normalizar(texto).replace(/\{(nome|loja|pedido|entrega|produtos)\}/g, (_, campo: Campo) =>
+  const corpo = normalizar(texto).replace(RE_CAMPO, (_, campo: Campo) =>
     campo === 'produtos' ? v.produtos.map((l) => `• ${l}`).join('\n') : v[campo],
   )
   return `${corpo}\n\nResponda só com o número:\n${BOTOES.map((b, i) => `${i + 1}. ${b}`).join('\n')}`
