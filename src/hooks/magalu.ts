@@ -71,7 +71,7 @@ export interface StatusMagalu {
   ok: true
   token_ok: boolean
   conta: string | null
-  /** inscrição nos avisos de pedido ligada (sem ela, a busca a cada 10 minutos traz as vendas) */
+  /** inscrição nos avisos de pedido ligada (sem ela, a busca de hora em hora traz as vendas) */
   avisos: boolean
   na_fila: number
 }

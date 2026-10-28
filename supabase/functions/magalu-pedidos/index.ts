@@ -1,6 +1,6 @@
 // Fila e busca dos pedidos da Magalu (o pg_cron chama; ver magalu.sql).
 //   {"acao":"processar"}  a cada minuto, só quando há aviso vencido na fila.
-//   {"acao":"buscar"}     a cada 10 minutos: pedidos alterados na loja desde a
+//   {"acao":"buscar"}     de hora em hora: pedidos alterados na loja desde a
 //                         última busca (cobre o tempo desconectado e aviso
 //                         perdido) já são gravados; a fila é processada em
 //                         seguida. A busca também renova o token (dura ~2 h).
