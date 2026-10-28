@@ -27,14 +27,9 @@ const TODOS = BOTOES.map((b) => b.id) as string[]
 /** O que a prévia mostra: o texto (com os campos) e os botões marcados. */
 type Rascunho = { texto: string; botoes: string[] }
 
-/** O texto padrão (contatta_confirmacao_pedido), escrito com os campos do editor. */
+/** O texto padrão do Contatta, com a lista do que a pessoa comprou (igual a PADRAO da função). */
 const TEXTO_PADRAO =
-  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}, com entrega em {entrega}.\n\n' +
-  'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
-
-/** Para começar: o padrão com a lista do que a pessoa comprou (igual a SUGESTAO da função). */
-const SUGESTAO =
-  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido}:\n{produtos}\n\n' +
+  'Oi, {nome}! Aqui é da {loja}. Recebemos o seu pedido {pedido} do(a) {canal}:\n{produtos}\n\n' +
   'A entrega vai para {entrega}. Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
 
 const CAMPOS = [
@@ -86,7 +81,7 @@ function Previa({
           <TextoComExemplo texto={texto} loja={loja} />
           {numerada && ficam.length > 0 && (
             <>
-              {texto === TEXTO_PADRAO ? ' ' : '\n\n'}Responda só com o número:
+              {'\n\n'}Responda só com o número:
               {ficam.map((b) => `\n${b.numero}. ${b.texto}`).join('')}
             </>
           )}
@@ -202,7 +197,7 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-gray-900">Texto da mensagem</h3>
         {!editando && (
-          <button type="button" className={`btn-secondary ${press}`} onClick={() => abrir(atual.texto ?? SUGESTAO)}>
+          <button type="button" className={`btn-secondary ${press}`} onClick={() => abrir(atual.texto ?? TEXTO_PADRAO)}>
             <PencilLine className="h-4 w-4" aria-hidden />
             {proprio ? 'Editar o texto' : 'Escrever o meu texto'}
           </button>
@@ -301,9 +296,9 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
             <button type="button" className={`btn-secondary ${press}`} onClick={fechar} disabled={salvar.isPending}>
               Cancelar
             </button>
-            {!(rascunho ?? '').includes('{produtos}') && (
-              <button type="button" className="text-sm font-medium text-brand-700 underline underline-offset-2" onClick={() => mudar(SUGESTAO)}>
-                Usar a sugestão com produtos
+            {(rascunho ?? '') !== TEXTO_PADRAO && (
+              <button type="button" className="text-sm font-medium text-brand-700 underline underline-offset-2" onClick={() => mudar(TEXTO_PADRAO)}>
+                Começar do texto padrão
               </button>
             )}
           </div>
