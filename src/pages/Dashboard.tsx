@@ -22,6 +22,7 @@ const MP_COLORS: Record<string, string> = {
   mercado_livre: '#e6c700',
   amazon: '#ff9900',
   tiktok_shop: '#111827',
+  magalu: '#0086ff',
   nuvemshop: '#0ea5e9',
   shopify: '#5e8e3e',
   whatsapp: '#16a34a',

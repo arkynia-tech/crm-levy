@@ -67,10 +67,15 @@ async function prepararCredito(
   return { semTrava, disponivel, existentes }
 }
 
+// Mesma tabela em supabase/functions/_shared/bling-pedidos.ts. CNPJs conferidos
+// na Receita e em notas reais do UpSeller em 28/10/2026.
 const MP_POR_CNPJ: Record<string, string> = {
   '35635824000112': 'shopee',
-  '03361252000134': 'mercado_livre',
+  '03007331000141': 'mercado_livre', // Mercado Livre Brasil (o que o ML usa hoje)
+  '03361252000134': 'mercado_livre', // MercadoLivre.com Atividades de Internet (baixada; notas antigas)
   '15436940000103': 'amazon', // Amazon Serviços de Varejo do Brasil
+  '47960950000121': 'magalu', // Magazine Luiza
+  '27415911000136': 'tiktok_shop', // Bytedance Brasil
 }
 
 const ROTULO_MP: Record<string, string> = {
@@ -78,6 +83,7 @@ const ROTULO_MP: Record<string, string> = {
   mercado_livre: 'Mercado Livre',
   amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  magalu: 'Magalu',
   venda_direta: 'Venda direta',
   outro: 'Outro canal',
 }
@@ -186,6 +192,35 @@ export async function importarNotas(
       })
     }
   }
+
+  // Loja que entrou como "Outro canal" porque o CNPJ do intermediador ainda não
+  // estava na tabela: ao reimportar, ela vira o marketplace certo em vez de
+  // nascer uma loja nova. Assim os pedidos não duplicam nem gastam crédito
+  // (o pedido é a loja + o número). Usuário que aparece em mais de um
+  // marketplace no mesmo lote fica como está: não dá para saber qual é.
+  {
+    const marketplacesDoUsuario = new Map<string, Set<string>>()
+    for (const l of lojasPorChave.values()) {
+      if (l.marketplace === 'outro' || l.marketplace === 'venda_direta') continue
+      if (!marketplacesDoUsuario.has(l.external_shop_id)) marketplacesDoUsuario.set(l.external_shop_id, new Set())
+      marketplacesDoUsuario.get(l.external_shop_id)!.add(l.marketplace)
+    }
+    const usuarios = [...marketplacesDoUsuario.entries()].filter(([, m]) => m.size === 1).map(([s]) => s)
+    for (const bloco of pedacos(usuarios, LOTE_IDS)) {
+      const { data } = await supabase
+        .from('stores').select('id, external_shop_id')
+        .eq('client_id', clientId).eq('marketplace', 'outro').in('external_shop_id', bloco)
+      for (const s of data ?? []) {
+        const marketplace = [...marketplacesDoUsuario.get(s.external_shop_id as string)!][0]
+        // Se a loja do marketplace certo já existe, o banco recusa (chave única) e a antiga fica.
+        const { error } = await supabase.from('stores')
+          .update({ marketplace, name: lojasPorChave.get(`${marketplace}|${s.external_shop_id}`)!.name, updated_at: agora })
+          .eq('id', s.id)
+        if (error) console.warn('Loja "Outro canal" não reclassificada:', error.message)
+      }
+    }
+  }
+
   const idPorLoja = new Map<string, string>()
   for (const bloco of pedacos([...lojasPorChave.values()], LOTE)) {
     const { data, error } = await supabase

@@ -314,9 +314,9 @@ async function diagnostico(clientId: string) {
 // Tipo do canal de venda no Bling -> marketplace do Contatta (sugestão ao criar loja)
 const CANAL_PARA_MARKETPLACE: Record<string, string> = {
   shopee: 'shopee', mercadolivre: 'mercado_livre', mercado_livre: 'mercado_livre',
-  amazon: 'amazon', tiktok: 'tiktok_shop', tiktokshop: 'tiktok_shop',
+  amazon: 'amazon', tiktok: 'tiktok_shop', tiktokshop: 'tiktok_shop', magalu: 'magalu', magazineluiza: 'magalu',
 }
-const MARKETPLACES = new Set(['shopee', 'mercado_livre', 'amazon', 'tiktok_shop', 'outro'])
+const MARKETPLACES = new Set(['shopee', 'mercado_livre', 'amazon', 'tiktok_shop', 'magalu', 'outro'])
 
 const marketplaceDoCanal = (canal: unknown) =>
   CANAL_PARA_MARKETPLACE[String(canal ?? '').toLowerCase().replace(/[^a-z_]/g, '')] ?? 'outro'

@@ -75,6 +75,7 @@ export const MARKETPLACE_LABEL: Record<string, string> = {
   mercado_livre: 'Mercado Livre',
   amazon: 'Amazon',
   tiktok_shop: 'TikTok Shop',
+  magalu: 'Magalu',
   nuvemshop: 'Nuvemshop',
   shopify: 'Shopify',
   whatsapp: 'WhatsApp',
