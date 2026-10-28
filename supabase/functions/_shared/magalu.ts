@@ -337,13 +337,22 @@ export function celularDoCliente(fones: unknown): string | null {
   return null
 }
 
+/** Só no sandbox: celular de teste para o pedido fictício (que vem sem telefone) não disparar consulta na NovaVida. */
+const FONE_SANDBOX = Deno.env.get('MAGALU_SANDBOX_FONE') ?? ''
+
 /** Pedido da Magalu no formato de crm_erp_gravar_pedido. */
 export function montarPedido(o: Json, tenant: string): Json {
   const cancelado = String(o.status ?? '').toLowerCase() === 'cancelled'
   const cli = (o.customer && typeof o.customer === 'object' ? o.customer : {}) as Json
   const entregas: Json[] = Array.isArray(o.deliveries) ? o.deliveries : []
-  const end = (entregas.find((d) => d?.shipping?.recipient?.address)?.shipping?.recipient?.address ?? {}) as Json
-  const doc = digitos(cli.document_number)
+  const dest = (entregas.find((d) => d?.shipping?.recipient)?.shipping?.recipient ?? {}) as Json
+  const end = (dest.address ?? {}) as Json
+  // documento do comprador; inválido (o sandbox manda CNPJ de 12 dígitos), o de quem recebe
+  const docCli = digitos(cli.document_number)
+  const docDest = digitos(dest.document_number)
+  const valido = (d: string) => d.length === 11 || d.length === 14
+  const doc = valido(docCli) ? docCli : valido(docDest) ? docDest : ''
+  const doDestinatario = !valido(docCli) && valido(docDest)
   const cidade = texto(end.city)
   const estado = uf(texto(end.state))
   const bairro = texto(end.district)
@@ -371,10 +380,10 @@ export function montarPedido(o: Json, tenant: string): Json {
     status: cancelado ? 'cancelado' : 'paid',
     total: valor(amounts.total, amounts.normalizer),
     // CPF ou CNPJ (comprador empresa, consultado na 2410 desde 26/10/2026)
-    cpf: doc.length === 11 || doc.length === 14 ? doc : null,
-    nome: texto(cli.name),
+    cpf: doc || null,
+    nome: doDestinatario ? texto(dest.name) ?? texto(cli.name) : texto(cli.name),
     email: texto(cli.email),
-    telefone: celularDoCliente(cli.phones),
+    telefone: celularDoCliente(cli.phones) ?? celularDoCliente(dest.phones) ?? (SANDBOX && FONE_SANDBOX ? FONE_SANDBOX : null),
     nascimento: nasc && /^\d{4}-\d{2}-\d{2}/.test(nasc) ? nasc.slice(0, 10) : null,
     cidade,
     uf: estado,
