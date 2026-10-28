@@ -44,7 +44,14 @@ export const CANAL = 'magalu'
 export const WEBHOOK_URL = `${limpar(Deno.env.get('SUPABASE_URL') ?? '')}/functions/v1/magalu-webhook`
 const TOPICO = 'orders_order'
 /** Ler pedidos (idm client create --scopes). open:onboarding:write (avisos v1) não é oferecido pela Magalu. */
-export const ESCOPOS = 'open:order-order-seller:read'
+export const ESCOPOS = Deno.env.get('MAGALU_ESCOPOS') || 'open:order-order-seller:read'
+
+/**
+ * Sandbox (MAGALU_API_URL = https://api-sandbox.magalu.com, 28/10/2026): a
+ * Magalu prende um seller fictício à conta que autoriza, inclusive a pessoal
+ * (GENPUB). Só para testar; em produção a conta pessoal é recusada.
+ */
+export const SANDBOX = /sandbox/i.test(API)
 
 interface Credenciais {
   id: string
