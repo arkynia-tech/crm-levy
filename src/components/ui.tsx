@@ -11,6 +11,7 @@ export function MarketplaceBadge({ marketplace }: { marketplace: string | null |
     magalu: 'bg-blue-50 text-blue-800 border-blue-200',
     nuvemshop: 'bg-sky-50 text-sky-800 border-sky-200',
     shopify: 'bg-lime-50 text-lime-800 border-lime-200',
+    magalu: 'bg-blue-50 text-blue-800 border-blue-200',
     whatsapp: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     venda_direta: 'bg-violet-50 text-violet-800 border-violet-200',
   }

@@ -78,6 +78,7 @@ export const MARKETPLACE_LABEL: Record<string, string> = {
   magalu: 'Magalu',
   nuvemshop: 'Nuvemshop',
   shopify: 'Shopify',
+  magalu: 'Magalu',
   whatsapp: 'WhatsApp',
   venda_direta: 'Venda direta',
   outro: 'Outro canal',
