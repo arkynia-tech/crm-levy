@@ -139,3 +139,16 @@ verify_jwt = false
 
 [functions.wa-mensy-avisos]
 verify_jwt = false
+
+# Magalu (28/10/2026, magalu.sql):
+# - magalu-conexao confere o login por dentro (auth.getUser);
+# - magalu-webhook é chamado pela Magalu e confere X-Signature-256 (HMAC com o segredo da loja);
+# - magalu-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.magalu-conexao]
+verify_jwt = false
+
+[functions.magalu-webhook]
+verify_jwt = false
+
+[functions.magalu-pedidos]
+verify_jwt = false

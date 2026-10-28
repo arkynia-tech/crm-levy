@@ -30,6 +30,7 @@ import BlingRetorno from './pages/BlingRetorno'
 import NuvemshopRetorno from './pages/NuvemshopRetorno'
 import TiktokRetorno from './pages/TiktokRetorno'
 import ShopeeRetorno from './pages/ShopeeRetorno'
+import MagaluRetorno from './pages/MagaluRetorno'
 import MercadoLivreRetorno from './pages/MercadoLivreRetorno'
 import ShopifyRetorno from './pages/ShopifyRetorno'
 import Novidades from './pages/Novidades'
@@ -131,6 +132,7 @@ function Rotas() {
       <Route path="/shopify/retorno" element={<ShopifyRetorno />} />
       <Route path="/tiktok/retorno" element={<TiktokRetorno />} />
       <Route path="/shopee/retorno" element={<ShopeeRetorno />} />
+      <Route path="/magalu/retorno" element={<MagaluRetorno />} />
       <Route path="/mercadolivre/retorno" element={<MercadoLivreRetorno />} />
       <Route element={<ProtectedRoutes />}>
         <Route

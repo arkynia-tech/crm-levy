@@ -77,6 +77,7 @@ export const MARKETPLACE_LABEL: Record<string, string> = {
   tiktok_shop: 'TikTok Shop',
   nuvemshop: 'Nuvemshop',
   shopify: 'Shopify',
+  magalu: 'Magalu',
   whatsapp: 'WhatsApp',
   venda_direta: 'Venda direta',
   outro: 'Outro canal',

@@ -24,6 +24,7 @@ const MP_COLORS: Record<string, string> = {
   tiktok_shop: '#111827',
   nuvemshop: '#0ea5e9',
   shopify: '#5e8e3e',
+  magalu: '#0086ff',
   whatsapp: '#16a34a',
   venda_direta: '#7c3aed',
 }
