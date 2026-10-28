@@ -20,7 +20,10 @@
 // Aqui só o que não depende de rede; a função primeira-mensagem faz as chamadas.
 
 import type { Json } from './asaas.ts'
-import { BOTOES, IDIOMA } from './primeira-mensagem.ts'
+import { BOTOES, type Botao, IDIOMA, PAYLOAD } from './primeira-mensagem.ts'
+
+/** O texto de cada botão. */
+const TEXTO_DO_BOTAO = Object.fromEntries(PAYLOAD.map((p, i) => [p, BOTOES[i]])) as Record<Botao, string>
 
 export const CAMPOS = ['nome', 'loja', 'pedido', 'entrega', 'produtos', 'canal'] as const
 export type Campo = (typeof CAMPOS)[number]
@@ -123,8 +126,11 @@ const EXEMPLO: Valores = {
   produtos: ['2x Camiseta Brasil G', '1x Boné Preto', 'e mais 3 itens'],
 }
 
-/** O pedido de criação de um dos modelos da loja (categoria utilidade, os mesmos 3 botões). */
-export function modeloPersonalizado(texto: string, versao: number, linhas: number | null): Json {
+/**
+ * O pedido de criação de um dos modelos da loja (categoria utilidade), só com
+ * os botões que a loja deixou (nenhum = modelo sem botão).
+ */
+export function modeloPersonalizado(texto: string, versao: number, linhas: number | null, botoes: readonly Botao[] = PAYLOAD): Json {
   const { corpo, ordem } = compilar(texto, linhas ?? 0)
   return {
     name: nomeDoModelo(versao, linhas),
@@ -132,7 +138,7 @@ export function modeloPersonalizado(texto: string, versao: number, linhas: numbe
     category: 'UTILITY',
     components: [
       { type: 'BODY', text: corpo, example: { body_text: [ordem.map((p) => valorDa(p, EXEMPLO))] } },
-      { type: 'BUTTONS', buttons: BOTOES.map((text) => ({ type: 'QUICK_REPLY', text })) },
+      ...(botoes.length ? [{ type: 'BUTTONS', buttons: botoes.map((b) => ({ type: 'QUICK_REPLY', text: TEXTO_DO_BOTAO[b] })) }] : []),
     ],
   }
 }
@@ -149,10 +155,17 @@ export function paraEnviar(texto: string, versao: number, v: Valores): { nome: s
   }
 }
 
-/** Número não oficial: o texto da loja com a lista de verdade e as opções numeradas. */
-export function textoNaoOficialDaLoja(texto: string, v: Valores): string {
+/**
+ * Número não oficial: o texto da loja com a lista de verdade e as opções
+ * numeradas. Cada opção mantém o número dela (1 sim, 2 número errado, 3 não
+ * quero receber) mesmo sem as outras: é pelo número que a resposta é lida
+ * (crm_wa_mensy_aviso).
+ */
+export function textoNaoOficialDaLoja(texto: string, v: Valores, botoes: readonly Botao[] = PAYLOAD): string {
   const corpo = normalizar(texto).replace(RE_CAMPO, (_, campo: Campo) =>
     campo === 'produtos' ? v.produtos.map((l) => `• ${l}`).join('\n') : v[campo],
   )
-  return `${corpo}\n\nResponda só com o número:\n${BOTOES.map((b, i) => `${i + 1}. ${b}`).join('\n')}`
+  if (!botoes.length) return corpo
+  const opcoes = PAYLOAD.map((p, i) => (botoes.includes(p) ? `${i + 1}. ${BOTOES[i]}` : null)).filter(Boolean)
+  return `${corpo}\n\nResponda só com o número:\n${opcoes.join('\n')}`
 }
