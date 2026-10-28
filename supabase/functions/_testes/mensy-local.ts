@@ -27,7 +27,7 @@ igual('endereço dos avisos com a chave', urlDosAvisos(), 'http://localhost:1/fu
 
 const t = textoNaoOficial(['Ana', 'Loja Demo', 'nº 1048', 'Centro, Campinas/SP'])
 igual('texto não oficial: abre igual ao modelo', t.split('\n')[0], 'Oi, Ana! Aqui é da Loja Demo. Recebemos o seu pedido nº 1048, com entrega em Centro, Campinas/SP.')
-igual('texto não oficial: opções 1, 2 e 3', t.split('\n').slice(-3), ['1. Sim, está certo', '2. Número errado', '3. Não quero receber'])
+igual('texto não oficial: opções 1, 2 e 3', t.split('\n').slice(-3), ['1. Sim, está certo', '2. Número errado', '3. Não quero mais mensagens'])
 igual('texto não oficial: sem travessão', /[—–]/.test(t), false)
 
 console.log(falhas ? `\n${falhas} falha(s)` : '\ntudo certo')

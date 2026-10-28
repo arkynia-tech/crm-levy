@@ -29,7 +29,7 @@ const TABS: { key: CustTab; label: string; title: string }[] = [
   { key: 'alcancavel', label: 'Alcançáveis', title: 'Número válido, dá para mandar WhatsApp hoje' },
   { key: 'na_fila', label: 'Na fila', title: 'Sem número e ainda não consultados' },
   { key: 'sem_retorno', label: 'Sem retorno', title: 'Consultados, sem telefone encontrado. Cada CPF é consultado uma vez só' },
-  { key: 'nao_recebe', label: 'Não recebem', title: 'Responderam "Número errado" ou "Não quero receber", ou pediram para sair. Nada é enviado para eles' },
+  { key: 'nao_recebe', label: 'Não recebem', title: 'Responderam "Número errado" ou "Não quero mais mensagens", ou pediram para sair. Nada é enviado para eles' },
 ]
 
 /**
@@ -599,7 +599,7 @@ export default function Customers() {
                 : tab === 'alcancavel'
                   ? 'Use "Completar contatos" para buscar o telefone dos clientes.'
                   : tab === 'nao_recebe'
-                    ? 'Quem responder "Número errado" ou "Não quero receber" aparece aqui.'
+                    ? 'Quem responder "Número errado" ou "Não quero mais mensagens" aparece aqui.'
                     : 'Os clientes aparecem aqui conforme as NF-e são importadas.'
             }
           />

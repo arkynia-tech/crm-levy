@@ -10,7 +10,7 @@
 // Os botões levam um payload com o id do cliente:
 //   confirma:<id>  "Sim, está certo"   -> fase 4 marca o telefone como confirmado
 //   errado:<id>    "Número errado"     -> fase 4 descarta e passa ao próximo celular
-//   parar:<id>     "Não quero receber" -> crm_wa_meta_evento já põe em wa_optouts
+//   parar:<id>     "Não quero mais mensagens" -> crm_wa_meta_evento já põe em wa_optouts
 //                                         (payload que começa com "parar")
 
 import type { Json } from './asaas.ts'
@@ -23,7 +23,7 @@ export const CORPO =
   'Oi, {{1}}! Aqui é da {{2}}. Recebemos o seu pedido {{3}}, com entrega em {{4}}.\n\n' +
   'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos.'
 
-export const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero receber'] as const
+export const BOTOES = ['Sim, está certo', 'Número errado', 'Não quero mais mensagens'] as const
 export const PAYLOAD = ['confirma', 'errado', 'parar'] as const
 export type Botao = (typeof PAYLOAD)[number]
 
@@ -100,7 +100,7 @@ export function textoNaoOficial(vars: string[]): string {
   return (
     `Oi, ${nome}! Aqui é da ${loja}. Recebemos o seu pedido ${pedido}, com entrega em ${onde}.\n\n` +
     'Para garantir que tudo chegue certinho, confirme se este WhatsApp é seu e se os seus dados estão corretos. Responda só com o número:\n' +
-    '1. Sim, está certo\n2. Número errado\n3. Não quero receber'
+    '1. Sim, está certo\n2. Número errado\n3. Não quero mais mensagens'
   )
 }
 

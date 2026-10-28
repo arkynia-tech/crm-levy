@@ -20,7 +20,7 @@ const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 const BOTOES = [
   { id: 'confirma', texto: 'Sim, está certo' },
   { id: 'errado', texto: 'Número errado' },
-  { id: 'parar', texto: 'Não quero receber' },
+  { id: 'parar', texto: 'Não quero mais mensagens' },
 ] as const
 const TODOS = BOTOES.map((b) => b.id) as string[]
 
@@ -278,7 +278,7 @@ function EditorDoTexto({ numerada, onPrevia }: { numerada: boolean; onPrevia: (r
             </div>
             {!botoes.includes('parar') && (
               <p className="text-xs text-amber-800">
-                Sem "Não quero receber", o cliente não tem um botão para sair. Quem não quer receber tende a denunciar o número.
+                Sem "Não quero mais mensagens", o cliente não tem um botão para sair. Quem não quer receber tende a denunciar o número.
               </p>
             )}
           </fieldset>
@@ -377,7 +377,7 @@ export function SecaoPrimeiraMensagem() {
       </div>
       <p className="mt-1 max-w-2xl text-sm text-gray-500">
         A loja avisa que recebeu o pedido e pede para o cliente confirmar que o WhatsApp é dele. "Sim, está certo"
-        marca o WhatsApp como confirmado; "Número errado" e "Não quero receber" tiram o número das campanhas. Uma vez
+        marca o WhatsApp como confirmado; "Número errado" e "Não quero mais mensagens" tiram o número das campanhas. Uma vez
         por cliente: pela API oficial quando a loja tem esse número; sem ele, pelo número conectado por QR Code, com as
         respostas 1, 2 e 3.
       </p>
@@ -458,7 +458,7 @@ type Registro = { status?: string; em?: string; erro?: string; resposta?: { bota
 const RESPOSTA: Record<string, { texto: string; tom: string }> = {
   confirma: { texto: 'Respondeu "Sim, está certo": WhatsApp confirmado', tom: 'text-emerald-700' },
   errado: { texto: 'Respondeu "Número errado": o número saiu das campanhas', tom: 'text-amber-800' },
-  parar: { texto: 'Respondeu "Não quero receber": o número saiu das campanhas', tom: 'text-amber-800' },
+  parar: { texto: 'Respondeu "Não quero mais mensagens": o número saiu das campanhas', tom: 'text-amber-800' },
 }
 
 /** Na tela do cliente: o que já foi enviado e o botão de mandar agora (admin e master). */
