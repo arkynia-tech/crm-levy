@@ -25,6 +25,7 @@ import Comecar from './pages/Comecar'
 import ComprarPedidos from './pages/ComprarPedidos'
 import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
+import Envios from './pages/Envios'
 import BlingRetorno from './pages/BlingRetorno'
 import NuvemshopRetorno from './pages/NuvemshopRetorno'
 import TiktokRetorno from './pages/TiktokRetorno'
@@ -179,6 +180,10 @@ function Rotas() {
         <Route
           path="/painel-vendas"
           element={<RequirePermission permission="salesPanel"><PainelVendas /></RequirePermission>}
+        />
+        <Route
+          path="/envios"
+          element={<RequirePermission permission="sendLog"><Envios /></RequirePermission>}
         />
         <Route
           path="/assinatura"
