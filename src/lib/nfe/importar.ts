@@ -156,7 +156,9 @@ export async function importarNotas(
       p_client_id: clientId,
       p_lojas: [...unicas.values()],
     })
-    if (error && !/crm_lojas_de_outra_conta|does not exist|schema cache/i.test(error.message)) {
+    // só a função ainda não criada passa; qualquer outro erro dela (como o
+    // "operator does not exist" de 28/10/2026) para a importação em vez de pular a checagem
+    if (error && !/Could not find the function|schema cache/i.test(error.message)) {
       throw new Error(`Lojas: ${error.message}`)
     }
     const alheias = new Set(((data ?? []) as { m: string; s: string }[]).map((x) => `${x.m}|${x.s}`))
