@@ -9,12 +9,16 @@
 //   Token de ~2 h, renovado com o refresh.
 // - A resposta do token não diz qual loja autorizou. O id dela (tenant) sai do
 //   próprio token (JWT) ou da inscrição dos avisos, que leva o tenant no id.
-// - Avisos de pedido: inscrição por loja (PUT /v1/onboarding/signup, tópico
-//   orders_order). Cada inscrição recebe um segredo (whsec_*, mostrado uma vez
-//   só), guardado em erp_connection_tokens.webhook_secret; o aviso vem assinado:
+// - Avisos de pedido: inscrição por loja, tópico orders_order. A v1
+//   (PUT /v1/onboarding/signup) dá um segredo (whsec_*, mostrado uma vez só,
+//   guardado em erp_connection_tokens.webhook_secret) e assina o aviso:
 //   X-Signature-256 = sha256=HMAC-SHA256(segredo, X-Timestamp + '.' + corpo).
+//   Ela pede o escopo open:onboarding:write, que a Magalu não oferece para
+//   cliente novo (28/10/2026); aí vale a v0, sem assinatura. Sem assinatura o
+//   aviso só serve de gatilho: o pedido é sempre lido de novo na Magalu com o
+//   token da loja. E a busca roda a cada 10 minutos.
 // - O aviso só diz qual pedido mudou; o pedido completo vem de
-//   GET /seller/v1/orders/{id}. A busca de hora em hora lista os pedidos
+//   GET /seller/v1/orders/{id}. A busca (a cada 10 minutos) lista os pedidos
 //   alterados (GET /seller/v1/orders?updated_at__gte=) e já grava.
 // - Valores em inteiro com "normalizer" (14990 com normalizer 100 = 149,90).
 // - A venda que entra é o pedido com pagamento aprovado (approved, invoiced,
@@ -39,8 +43,8 @@ export const PROVEDOR = 'magalu'
 export const CANAL = 'magalu'
 export const WEBHOOK_URL = `${limpar(Deno.env.get('SUPABASE_URL') ?? '')}/functions/v1/magalu-webhook`
 const TOPICO = 'orders_order'
-/** Ler pedidos e se inscrever nos avisos: os dois precisam estar no cliente OAuth (idm client create --scopes). */
-export const ESCOPOS = 'open:order-order-seller:read open:onboarding:write'
+/** Ler pedidos (idm client create --scopes). open:onboarding:write (avisos v1) não é oferecido pela Magalu. */
+export const ESCOPOS = 'open:order-order-seller:read'
 
 interface Credenciais {
   id: string
@@ -164,8 +168,8 @@ async function renovar(refresh: string): Promise<{ tokens: Tokens | null; erro: 
 
 export type Acesso = { ok: true; token: string; tenant: string } | { ok: false; erro: string; morto: boolean }
 
-/** Renova quando faltar menos que isso: o token dura ~2 h e a busca roda de hora em hora. */
-const RENOVAR_ANTES_MS = 70 * 60_000
+/** Renova quando faltar menos que isso: o token dura ~2 h e a busca roda a cada 10 minutos. */
+const RENOVAR_ANTES_MS = 30 * 60_000
 
 /**
  * Token válido por mais um tempo (renova se precisar). Só grava a renovação se
@@ -237,18 +241,24 @@ export function lojaDoToken(token: string): { tenant: string | null; nome: strin
 }
 
 /**
- * Inscreve a loja nos avisos de pedido (v1, com segredo). Devolve o segredo
- * (mostrado só agora), o id da inscrição e o tenant, que vem dentro do id
- * ("{app}_{...}_{tenant}_{tópico}_subs").
+ * Inscreve a loja nos avisos de pedido: primeiro a v1 (com segredo, que só
+ * aparece agora); recusada, a v0 (sem assinatura). Devolve o id da inscrição e
+ * o tenant, que vem dentro do id ("{app}_{...}_{tenant}_{tópico}_subs").
  */
-export async function inscreverAvisos(token: string): Promise<{ segredo: string; inscricao: string; tenant: string | null } | { erro: string }> {
-  const r = await magalu('PUT', '/v1/onboarding/signup', token, { webhook: WEBHOOK_URL, topic_id: TOPICO })
-  if (!deuCerto(r)) return { erro: erroDaMagalu(r) }
-  const subs: Json[] = Array.isArray(r.corpo?.subscriptions) ? r.corpo.subscriptions : []
-  const s = subs.find((x) => x?.topic === TOPICO && x?.parameters?.secret) ?? subs.find((x) => x?.parameters?.secret)
-  if (!s) return { erro: `a Magalu não devolveu o segredo da inscrição (${JSON.stringify(subs.map((x) => x?.reason ?? x?.message ?? x?.topic)).slice(0, 200)})` }
-  const id = String(s.id ?? '')
-  return { segredo: String(s.parameters.secret), inscricao: id, tenant: id.match(UUID)?.[0] ?? null }
+export async function inscreverAvisos(token: string): Promise<{ segredo: string | null; inscricao: string; tenant: string | null } | { erro: string }> {
+  const inscricao = (corpo: Json, comSegredo: boolean) => {
+    const subs: Json[] = Array.isArray(corpo?.subscriptions) ? corpo.subscriptions : []
+    const s = subs.find((x) => x?.topic === TOPICO && (!comSegredo || x?.parameters?.secret)) ??
+      subs.find((x) => x?.id && (!comSegredo || x?.parameters?.secret))
+    return s ? { segredo: comSegredo ? String(s.parameters.secret) : null, inscricao: String(s.id ?? ''), tenant: String(s.id ?? '').match(UUID)?.[0] ?? null } : null
+  }
+  const v1 = await magalu('PUT', '/v1/onboarding/signup', token, { webhook: WEBHOOK_URL, topic_id: TOPICO })
+  const com = deuCerto(v1) ? inscricao(v1.corpo, true) : null
+  if (com) return com
+  const v0 = await magalu('PUT', '/v0/onboarding/signup', token, { webhook: WEBHOOK_URL, topic_id: TOPICO })
+  const sem = deuCerto(v0) ? inscricao(v0.corpo, false) : null
+  if (sem) return sem
+  return { erro: `v1 ${erroDaMagalu(v1)}; v0 ${erroDaMagalu(v0)}` }
 }
 
 /** Tira a inscrição dos avisos (ao desconectar). Falhar aqui não impede desconectar. */

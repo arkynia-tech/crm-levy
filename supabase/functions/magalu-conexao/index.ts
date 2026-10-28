@@ -151,6 +151,7 @@ async function retorno(b: Json, userId: string) {
       .update({ account_id: tenant, last_error: 'erro' in avisos ? `avisos de pedido não ligados: ${avisos.erro}` : null })
       .eq('id', r.connection_id)
     if (!('erro' in avisos)) {
+      // sem segredo (inscrição v0): o aviso só dispara a leitura do pedido na Magalu
       await banco.from('erp_connection_tokens')
         .update({ webhook_secret: avisos.segredo, webhook_id: avisos.inscricao })
         .eq('connection_id', r.connection_id)
@@ -192,9 +193,9 @@ async function status(clientId: string, connectionId: unknown) {
   if (!deuCerto(teste)) {
     return falha(409, `A Magalu não respondeu com o acesso do Contatta (${erroDaMagalu(teste)}). Se continuar, conecte de novo.`)
   }
-  const { data: tok } = await banco.from('erp_connection_tokens').select('webhook_secret').eq('connection_id', c.id).maybeSingle()
+  const { data: tok } = await banco.from('erp_connection_tokens').select('webhook_id').eq('connection_id', c.id).maybeSingle()
   const { count } = await banco
     .from('erp_order_events').select('id', { count: 'exact', head: true })
     .eq('connection_id', c.id).in('status', ['pendente', 'sem_credito'])
-  return ok({ ok: true, token_ok: true, conta: c.account_name, avisos: Boolean(tok?.webhook_secret), na_fila: count ?? 0 })
+  return ok({ ok: true, token_ok: true, conta: c.account_name, avisos: Boolean(tok?.webhook_id), na_fila: count ?? 0 })
 }

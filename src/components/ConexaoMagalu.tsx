@@ -146,7 +146,7 @@ export function LinhaMagalu({ conexao }: { conexao: ConexaoErp }) {
           {conferido && (
             <p className="mt-3 text-sm text-emerald-700">
               Tudo certo: acesso ok
-              {conferido.avisos ? ', avisos de pedido ligados' : ' (sem os avisos na hora: as vendas entram na busca de hora em hora)'}.
+              {conferido.avisos ? ', avisos de pedido ligados' : ' (sem os avisos na hora: as vendas entram na busca a cada 10 minutos)'}.
               {conferido.na_fila > 0 ? ` ${conferido.na_fila} pedido${conferido.na_fila === 1 ? '' : 's'} na fila para entrar.` : ''}
             </p>
           )}

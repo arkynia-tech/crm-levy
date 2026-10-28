@@ -6,9 +6,11 @@
 --
 -- O que muda em relação à Shopee:
 --   - autorização pelo ID Magalu (OAuth 2.0); token de ~2 h, renovado pelo refresh;
---   - os avisos de pedido são inscritos loja a loja, na conexão, cada um com um
---     segredo que assina os avisos: fica em erp_connection_tokens (sem policy,
---     o navegador não vê), em webhook_secret, com o id da inscrição em webhook_id;
+--   - os avisos de pedido são inscritos loja a loja, na conexão. A inscrição v1
+--     tem um segredo que assina os avisos (erp_connection_tokens.webhook_secret,
+--     sem policy: o navegador não vê); a Magalu não oferece o escopo dela, então
+--     vale a v0, sem assinatura (o aviso só dispara a leitura do pedido na API).
+--     O id da inscrição fica em webhook_id;
 --   - do comprador vêm CPF ou CNPJ, nome, e-mail, nascimento e telefones;
 --   - uma conta Magalu por loja do Contatta;
 --   - enquanto a integração está em teste, só o master vê o cartão; o admin só
@@ -40,8 +42,9 @@ alter table public.erp_connection_tokens add column if not exists webhook_id tex
 -- ---------------------------------------------------------------------------
 -- 3) Agendamentos (publicar as funções magalu-pedidos e magalu-webhook antes)
 --   pedidos  a cada minuto, só quando há aviso vencido na fila;
---   busca    de hora em hora: pedidos alterados desde a última busca e a
---            renovação do token (que dura ~2 h).
+--   busca    a cada 10 minutos: pedidos alterados desde a última busca e a
+--            renovação do token (que dura ~2 h). Mais curta que nas outras
+--            integrações porque o aviso pode não estar ligado.
 -- ---------------------------------------------------------------------------
 select cron.unschedule('contatta-magalu-pedidos') where exists (select 1 from cron.job where jobname = 'contatta-magalu-pedidos');
 select cron.schedule(
@@ -64,7 +67,7 @@ select cron.schedule(
 select cron.unschedule('contatta-magalu-busca') where exists (select 1 from cron.job where jobname = 'contatta-magalu-busca');
 select cron.schedule(
   'contatta-magalu-busca',
-  '47 * * * *',
+  '*/10 * * * *',
   $job$
     select net.http_post(
       url     := 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/magalu-pedidos',

@@ -9,7 +9,10 @@
 //
 // Assinatura: X-Signature-256 = sha256=HMAC-SHA256(segredo da inscrição,
 // X-Timestamp + '.' + corpo cru). O segredo é da loja (tenant), guardado em
-// erp_connection_tokens.webhook_secret.
+// erp_connection_tokens.webhook_secret. Loja inscrita pela v0 (sem segredo:
+// a Magalu não oferece o escopo da v1) manda aviso sem assinatura; ele é
+// aceito só para a conexão inscrita sem segredo e só dispara a leitura do
+// pedido na Magalu, com o token da loja: aviso falso não grava nada.
 //
 // Aviso: {"data": {"status": "new", "params": {"id": "..."}, "resource": "/seller/v1/orders/..."},
 //         "tenant_id": "...", "topic": "orders_order"}
@@ -40,7 +43,7 @@ Deno.serve(async (req) => {
   if (error) return responder(500, { ok: false })
   const ids = (cons ?? []).map((c) => String(c.id))
   const { data: toks } = ids.length
-    ? await banco.from('erp_connection_tokens').select('connection_id, webhook_secret').in('connection_id', ids)
+    ? await banco.from('erp_connection_tokens').select('connection_id, webhook_secret, webhook_id').in('connection_id', ids)
     : { data: [] }
   let conexao: string | null = null
   for (const t of toks ?? []) {
@@ -48,6 +51,11 @@ Deno.serve(async (req) => {
       conexao = String(t.connection_id)
       break
     }
+  }
+  // inscrição v0 (sem segredo): a conexão mais recente desta loja inscrita assim
+  if (!conexao) {
+    const semSegredo = (toks ?? []).find((t) => !t.webhook_secret && t.webhook_id)
+    if (semSegredo) conexao = String(semSegredo.connection_id)
   }
   if (!conexao) {
     console.error('aviso da Magalu sem conexão ou com assinatura que não confere', tenant)
