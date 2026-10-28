@@ -16,9 +16,9 @@
 //   Ela pede o escopo open:onboarding:write, que a Magalu não oferece para
 //   cliente novo (28/10/2026); aí vale a v0, sem assinatura. Sem assinatura o
 //   aviso só serve de gatilho: o pedido é sempre lido de novo na Magalu com o
-//   token da loja. E a busca roda a cada 10 minutos.
+//   token da loja. A v1 funcionou na primeira conexão real (28/10/2026).
 // - O aviso só diz qual pedido mudou; o pedido completo vem de
-//   GET /seller/v1/orders/{id}. A busca (a cada 10 minutos) lista os pedidos
+//   GET /seller/v1/orders/{code}. A busca (de hora em hora) lista os pedidos
 //   alterados (GET /seller/v1/orders?updated_at__gte=) e já grava.
 // - Valores em inteiro com "normalizer" (14990 com normalizer 100 = 149,90).
 // - A venda que entra é o pedido com pagamento aprovado (approved, invoiced,
@@ -175,8 +175,11 @@ async function renovar(refresh: string): Promise<{ tokens: Tokens | null; erro: 
 
 export type Acesso = { ok: true; token: string; tenant: string } | { ok: false; erro: string; morto: boolean }
 
-/** Renova quando faltar menos que isso: o token dura ~2 h e a busca roda a cada 10 minutos. */
-const RENOVAR_ANTES_MS = 30 * 60_000
+/**
+ * Renova quando faltar menos que isso: o token dura ~2 h e a busca roda de
+ * hora em hora; vencido, o refresh renova do mesmo jeito.
+ */
+const RENOVAR_ANTES_MS = 70 * 60_000
 
 /**
  * Token válido por mais um tempo (renova se precisar). Só grava a renovação se

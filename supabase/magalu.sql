@@ -42,9 +42,9 @@ alter table public.erp_connection_tokens add column if not exists webhook_id tex
 -- ---------------------------------------------------------------------------
 -- 3) Agendamentos (publicar as funções magalu-pedidos e magalu-webhook antes)
 --   pedidos  a cada minuto, só quando há aviso vencido na fila;
---   busca    a cada 10 minutos: pedidos alterados desde a última busca e a
---            renovação do token (que dura ~2 h). Mais curta que nas outras
---            integrações porque o aviso pode não estar ligado.
+--   busca    de hora em hora, como nas outras integrações: rede de segurança
+--            para aviso perdido (o pedido entra pelo aviso, em segundos) e a
+--            renovação do token (que dura ~2 h).
 -- ---------------------------------------------------------------------------
 select cron.unschedule('contatta-magalu-pedidos') where exists (select 1 from cron.job where jobname = 'contatta-magalu-pedidos');
 select cron.schedule(
@@ -67,7 +67,7 @@ select cron.schedule(
 select cron.unschedule('contatta-magalu-busca') where exists (select 1 from cron.job where jobname = 'contatta-magalu-busca');
 select cron.schedule(
   'contatta-magalu-busca',
-  '*/10 * * * *',
+  '47 * * * *',
   $job$
     select net.http_post(
       url     := 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/magalu-pedidos',
