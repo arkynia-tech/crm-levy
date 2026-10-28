@@ -77,6 +77,8 @@ export const MARKETPLACE_LABEL: Record<string, string> = {
   tiktok_shop: 'TikTok Shop',
   nuvemshop: 'Nuvemshop',
   shopify: 'Shopify',
+  whatsapp: 'WhatsApp',
+  venda_direta: 'Venda direta',
   outro: 'Outro canal',
 }
 
@@ -99,6 +101,7 @@ export function storeStatusLabel(status: string | null | undefined): string {
 }
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
+  venda_whatsapp: 'Venda no WhatsApp',
   importado_nfe: 'Faturado (NF-e)',
   cancelado: 'Cancelado',
   cancelled: 'Cancelado',

@@ -10,6 +10,8 @@ export function MarketplaceBadge({ marketplace }: { marketplace: string | null |
     tiktok_shop: 'bg-gray-900 text-white border-gray-900',
     nuvemshop: 'bg-sky-50 text-sky-800 border-sky-200',
     shopify: 'bg-lime-50 text-lime-800 border-lime-200',
+    whatsapp: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    venda_direta: 'bg-violet-50 text-violet-800 border-violet-200',
   }
   const cls = styles[marketplace ?? ''] ?? 'bg-gray-100 text-gray-700 border-gray-200'
   return (
@@ -41,7 +43,7 @@ export function OrderStatusBadge({ status }: { status: string }) {
 export function orderStatusTone(status: string | null | undefined): 'ok' | 'warn' | 'bad' | 'neutral' {
   const s = (status ?? '').toLowerCase()
   if (s.includes('cancel')) return 'bad'
-  if (s === 'importado_nfe') return 'ok'
+  if (s === 'importado_nfe' || s === 'venda_whatsapp') return 'ok'
   if (s.includes('complet') || s.includes('deliver') || s.includes('paid')) return 'ok'
   if (s.includes('ship') || s.includes('process') || s.includes('unpaid') || s.includes('pending')) return 'warn'
   return 'neutral'
