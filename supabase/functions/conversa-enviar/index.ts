@@ -7,7 +7,8 @@
 // A mensagem fica em wa_messages com origem 'conversa'; o gatilho do funil
 // marca a conversa como lida e passa "respondeu" para "conversando".
 //
-// Corpo: { conversation_id, texto }. Só administrador ou master da loja.
+// Corpo: { conversation_id, texto }. Só administrador ou master da loja, e a
+// loja precisa ter Conversas no plano (Pro para cima).
 
 import type { Json } from '../_shared/asaas.ts'
 import { banco, cors, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
@@ -40,6 +41,11 @@ Deno.serve(async (req) => {
     if (!cv) return falha(404, 'Conversa não encontrada.')
     const { papel } = await rpc('crm_role_check', { p_user_id: login.user.id, p_client_id: cv.client_id })
     if (papel !== 'master' && papel !== 'admin') return falha(403, 'Só administrador ou master responde conversas.')
+    // Conversas é do plano Pro para cima (conversas-por-plano.sql); o master responde em qualquer loja
+    if (papel !== 'master') {
+      const { data: liberado } = await banco.rpc('crm_tem_recurso', { p_client_id: cv.client_id, p_recurso: 'conversas' })
+      if (!liberado) return falha(403, 'Conversas faz parte do plano Pro. Mude de plano em Assinatura para responder por aqui.')
+    }
 
     const janelaAberta = cv.last_inbound_at && Date.now() - new Date(cv.last_inbound_at).getTime() < JANELA_MS
     // quem pediu para sair só recebe resposta se acabou de escrever

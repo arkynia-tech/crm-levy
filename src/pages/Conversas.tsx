@@ -5,13 +5,15 @@ import {
   Smartphone, UserRound, X,
 } from 'lucide-react'
 import {
-  type Conversa, type Filtro, type ItemConversa, type Mensagem, useConversa, useConversas, useMarcarLida, useMoverEtapa, useResponder,
+  type Conversa, type Filtro, type ItemConversa, type Mensagem, useConversa, useConversas, useMarcarLida, useMoverEtapa, useRecursos,
+  useResponder,
 } from '../hooks/conversas'
 import { ETAPA, ETAPAS, type Etapa, haQuanto, horaNaLista, rotuloDoDia, soHora } from '../lib/funil'
 import { formatCurrency, formatDate, formatPhone } from '../lib/format'
 import { causaDoErro } from '../lib/errosWhatsApp'
 import { ErrorState, MarketplaceBadge } from '../components/ui'
 import { RegistrarVenda } from '../components/RegistrarVenda'
+import { ConvitePlano } from '../components/ConvitePlano'
 
 /**
  * Conversas do WhatsApp da loja (conversas-funil.sql): quem escreveu, o que
@@ -88,6 +90,13 @@ function Tiques({ status, className = '' }: { status: string | null; className?:
 }
 
 export default function Conversas() {
+  const recursos = useRecursos()
+  if (recursos.isLoading) return null
+  if (!recursos.data?.conversas) return <ConvitePlano tela="conversas" />
+  return <TelaDeConversas />
+}
+
+function TelaDeConversas() {
   const [params, setParams] = useSearchParams()
   const selecionada = params.get('c')
   const [filtro, setFiltro] = useState<Filtro>('responderam')
