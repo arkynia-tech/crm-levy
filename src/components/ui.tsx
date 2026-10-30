@@ -65,7 +65,11 @@ function friendlyError(message: string): string {
   const m = message.toLowerCase()
   if (m.includes('failed to fetch') || m.includes('network')) return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
   if (m.includes('jwt') || m.includes('expired') || m.includes('not authenticated')) return 'Sua sessão expirou. Entre de novo.'
-  if (m.includes('row-level security') || m.includes('permission denied')) return 'Seu acesso não permite ver ou alterar esses dados.'
+  if (m.includes('row-level security') || m.includes('permission denied')) {
+    // "Lojas: new row violates..." (importação): a etapa fica, o resto vira a frase
+    const etapa = /^([A-ZÀ-Ú][\p{L} ()]{1,30}):\s/u.exec(message)?.[1]
+    return `Seu acesso não permite ver ou alterar esses dados${etapa ? ` (etapa: ${etapa})` : ''}.`
+  }
   if (/[a-z_]+\.[a-z_]+|relation|column|function|violates|syntax/.test(m)) return 'Tente recarregar a página em alguns segundos.'
   return message
 }
