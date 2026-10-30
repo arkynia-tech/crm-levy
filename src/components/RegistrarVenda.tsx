@@ -23,7 +23,7 @@ function hojeSP(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 }
 
-export function RegistrarVenda({ customerId }: { customerId: string }) {
+export function RegistrarVenda({ customerId, aoRegistrar }: { customerId: string; aoRegistrar?: () => void }) {
   const registrar = useRegistrarVenda(customerId)
   const [aberto, setAberto] = useState(false)
   const [valor, setValor] = useState('')
@@ -51,6 +51,7 @@ export function RegistrarVenda({ customerId }: { customerId: string }) {
           setDescricao('')
           setData(hojeSP())
           setFeito(r?.campanha?.nome ? `Venda registrada. Veio da campanha "${r.campanha.nome}".` : 'Venda registrada.')
+          aoRegistrar?.()
         },
       },
     )

@@ -127,6 +127,9 @@ verify_jwt = false
 [functions.primeira-mensagem]
 verify_jwt = false
 
+[functions.conversa-enviar]
+verify_jwt = false
+
 # Número não oficial pelo Mensy:
 # - wa-mensy confere o login por dentro (tela WhatsApp);
 # - wa-envio só aceita a chave de serviço (fluxo WA Campanhas);

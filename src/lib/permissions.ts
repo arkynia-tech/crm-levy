@@ -31,16 +31,18 @@ export type Permission =
   | 'billing' // ver a assinatura, trocar de plano e cancelar
   | 'salesPanel' // painel de vendas do Contatta (só master)
   | 'sendLog' // log de envios de todas as lojas (só master)
+  | 'conversas' // conversas do WhatsApp e funil (dado de cliente: dono e master)
 
 const BY_ROLE: Record<Role, Permission[]> = {
   master: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
     'importNfe', 'settings', 'integracoes', 'customerData', 'manageUsers', 'credits', 'manageClients',
-    'waInstances', 'billing', 'salesPanel', 'sendLog', 'novidades',
+    'waInstances', 'billing', 'salesPanel', 'sendLog', 'novidades', 'conversas',
   ],
   admin: [
     'dashboard', 'customers', 'segments', 'orders', 'products', 'campaigns',
     'importNfe', 'settings', 'integracoes', 'customerData', 'manageUsers', 'waInstances', 'billing', 'novidades',
+    'conversas',
   ],
   collaborator: ['campaigns', 'importNfe', 'novidades'],
 }
