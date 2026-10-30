@@ -10,6 +10,7 @@ import type { Etapa } from '../lib/funil'
  */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const FUNCAO_ENVIAR = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/conversa-enviar` : undefined
+const FUNCAO_MIDIA = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/conversa-midia` : undefined
 
 export type Filtro = 'responderam' | 'nao_lidas' | 'todas'
 
@@ -268,5 +269,51 @@ export function useRecursos() {
         : { conversas: false, ia: false, plano: null }
       return (data ?? { conversas: false, ia: false, plano: null }) as Recursos
     },
+  })
+}
+
+/** Chama a função conversa-midia (conversas-midia.sql) com a sessão de quem está vendo. */
+async function chamarMidia<T>(corpo: Record<string, unknown>): Promise<T> {
+  if (!FUNCAO_MIDIA) throw new Error('Supabase não configurado.')
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new Error('Sua sessão expirou. Entre de novo no Contatta.')
+  const res = await fetch(FUNCAO_MIDIA, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(corpo),
+  }).catch(() => null)
+  if (!res) throw new Error('Sem conexão com o Contatta.')
+  const json = (await res.json().catch(() => null)) as ({ ok: boolean; error?: string } & T) | null
+  if (!json?.ok) throw new Error(json?.error ?? 'Não deu para abrir agora.')
+  return json
+}
+
+/**
+ * Link do arquivo de uma mensagem (foto, áudio, vídeo, documento). O link vale
+ * 1 hora; pede outro antes de vencer. Só busca quando o balão aparece na tela.
+ */
+export function useMidia(messageId: string, ligado: boolean) {
+  return useQuery({
+    queryKey: ['conversa-midia', messageId],
+    enabled: ligado,
+    staleTime: 50 * 60_000,
+    gcTime: 55 * 60_000,
+    retry: 1,
+    queryFn: () => chamarMidia<{ url: string; tipo: string | null }>({ acao: 'midia', message_id: messageId }),
+  })
+}
+
+/** Fotos de perfil das conversas na tela: { <id>: url | null }. Sem foto, fica nas iniciais. */
+export function useFotos(ids: string[]) {
+  const chave = [...ids].sort().join(',')
+  return useQuery({
+    queryKey: ['conversa-fotos', chave],
+    enabled: ids.length > 0,
+    staleTime: 30 * 60_000,
+    placeholderData: (anterior) => anterior,
+    retry: false,
+    queryFn: async () =>
+      (await chamarMidia<{ fotos: Record<string, string | null> }>({ acao: 'fotos', ids: ids.slice(0, 40) })).fotos,
   })
 }

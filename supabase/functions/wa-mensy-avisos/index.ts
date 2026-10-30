@@ -9,12 +9,15 @@
 //                      wa_messages): é daí que saem o "respondeu", o SAIR/PARAR
 //                      das campanhas e o 1, 2, 3 da primeira mensagem. A que a
 //                      loja mandou pelo celular (fromMe) entra na conversa como
-//                      enviada (crm_wa_mensy_enviada, conversas-funil.sql)
+//                      enviada (crm_wa_mensy_enviada, conversas-funil.sql).
+//                      Foto, áudio, vídeo e documento: grava o endereço do
+//                      arquivo no Mensy, que a conversa-midia baixa
+//                      (conversas-midia.sql)
 //   connection.status  status do número na tela WhatsApp
 // Responde 200 na hora e trata depois (o Mensy espera até 30 s e tenta de novo).
 
 import type { Json } from '../_shared/asaas.ts'
-import { depoisDeResponder, responder, rpc } from '../_shared/comum.ts'
+import { banco, depoisDeResponder, responder, rpc } from '../_shared/comum.ts'
 import { motivo, statusDoContatta } from '../_shared/mensy.ts'
 
 const EVENTOS = new Set(['messages.received', 'connection.status'])
@@ -37,11 +40,13 @@ async function tratar(ev: Json) {
     if (d.isGroup) return
     const fone = String(d.from ?? d.chat ?? '').replace(/\D/g, '')
     if (fone.length < 10 || fone.length > 13) return // LID ou grupo: sem telefone
+    const id = d.id ?? ev.deliveryId
     if (d.fromMe) {
       await rpc('crm_wa_mensy_enviada', {
         p_session_id: ev.sessionId,
-        p_dados: { fone: '+' + fone, texto: d.text ?? (d.type ? `[${d.type}]` : null), id: d.id ?? ev.deliveryId },
+        p_dados: { fone: '+' + fone, texto: d.text ?? (d.type ? `[${d.type}]` : null), id },
       })
+      await guardarMidia(id, d.media)
       return
     }
     await rpc('crm_wa_mensy_aviso', {
@@ -51,9 +56,10 @@ async function tratar(ev: Json) {
         fone: '+' + fone,
         nome: d.pushName ?? null,
         texto: d.text ?? (d.type ? `[${d.type}]` : null),
-        id: d.id ?? ev.deliveryId,
+        id,
       },
     })
+    await guardarMidia(id, d.media)
     return
   }
 
@@ -68,4 +74,13 @@ async function tratar(ev: Json) {
       erro: motivo(d.status, d.reason ?? d.statusReason),
     },
   })
+}
+
+/** O arquivo da mensagem fica no Mensy: guarda o endereço e o tipo para a conversa-midia baixar. */
+async function guardarMidia(id: unknown, media: Json | undefined) {
+  if (!id || !media?.url) return
+  const { error } = await banco.from('wa_messages')
+    .update({ media_url: String(media.url), media_content_type: media.mimetype ? String(media.mimetype) : null })
+    .eq('twilio_sid', `mensy:${id}`)
+  if (error) console.error('wa_messages midia', error.message)
 }
