@@ -49,3 +49,35 @@ export function horaDaMensagem(iso: string): string {
   if (dia(d) === dia(new Date(hoje.getTime() - 86_400_000))) return `ontem ${hora}`
   return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} ${hora}`
 }
+
+const diaSP = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+
+/** Hora na lista de conversas, como no WhatsApp: "14:32" hoje, "Ontem", dia da semana nesta semana, depois a data. */
+export function horaNaLista(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const hoje = new Date()
+  if (diaSP(d) === diaSP(hoje)) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+  }
+  if (diaSP(d) === diaSP(new Date(hoje.getTime() - 86_400_000))) return 'Ontem'
+  if (hoje.getTime() - d.getTime() < 6 * 86_400_000) {
+    const s = d.toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' })
+    return s.charAt(0).toUpperCase() + s.slice(1).replace('-feira', '')
+  }
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' })
+}
+
+/** Separador de dia dentro da conversa: "Hoje", "Ontem" ou a data. */
+export function rotuloDoDia(iso: string): string {
+  const d = new Date(iso)
+  const hoje = new Date()
+  if (diaSP(d) === diaSP(hoje)) return 'Hoje'
+  if (diaSP(d) === diaSP(new Date(hoje.getTime() - 86_400_000))) return 'Ontem'
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' })
+}
+
+/** Só a hora ("14:32"), para dentro do balão. */
+export function soHora(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+}
