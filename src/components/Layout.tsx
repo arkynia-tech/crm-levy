@@ -25,6 +25,7 @@ import {
   Plug,
   MessagesSquare,
   Columns3,
+  Lock,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -38,7 +39,7 @@ import Logo from './Logo'
 import { metaSignupDisponivel } from '../lib/metaSignup'
 import { NovidadePopup } from './NovidadePopup'
 import { useNovidadePopup } from '../hooks/novidades'
-import { useNaoLidas } from '../hooks/conversas'
+import { useNaoLidas, useRecursos } from '../hooks/conversas'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
@@ -105,7 +106,9 @@ function SidebarContent({
   const { signOut, session } = useAuth()
   const { clients, activeClient, setActiveClientId } = useCompany()
   const { data: role } = useUserRole()
-  const { data: naoLidas = 0 } = useNaoLidas(can(role, 'conversas'))
+  const { data: recursos } = useRecursos()
+  const conversasNoPlano = Boolean(recursos?.conversas)
+  const { data: naoLidas = 0 } = useNaoLidas(can(role, 'conversas') && conversasNoPlano)
   // lançamento que o usuário ainda não viu: acende um ponto no item Novidades
   const { data: novidadePendente } = useNovidadePopup(Boolean(role) && !travado)
 
@@ -193,6 +196,9 @@ function SidebarContent({
                   )}
                 </span>
                 {!collapsed && label}
+                {!collapsed && recursos && !conversasNoPlano && (to === '/conversas' || to === '/funil') && (
+                  <Lock className="ml-auto h-3.5 w-3.5 text-slate-500" aria-label="Plano Pro" />
+                )}
                 {!collapsed && to === '/conversas' && naoLidas > 0 && (
                   <span className="ml-auto rounded-full bg-brand-600 px-1.5 py-px text-[11px] font-semibold tabular-nums text-white">
                     {naoLidas > 99 ? '99+' : naoLidas}

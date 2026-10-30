@@ -246,3 +246,27 @@ export function useMoverEtapa() {
     },
   })
 }
+
+/** O que o plano da loja libera (conversas-por-plano.sql). O master tem tudo em qualquer loja. */
+export interface Recursos {
+  conversas: boolean
+  ia: boolean
+  plano: string | null
+}
+
+export function useRecursos() {
+  const { activeClient } = useCompany()
+  return useQuery({
+    queryKey: ['recursos', activeClient?.id],
+    enabled: Boolean(activeClient),
+    staleTime: 60_000,
+    queryFn: async (): Promise<Recursos> => {
+      const { data, error } = await supabase.rpc('crm_recursos', { p_client_id: activeClient!.id })
+      // SQL ainda não rodado: o banco também não trava, então a tela segue aberta como antes
+      if (error) return /crm_recursos|schema cache|does not exist/i.test(error.message)
+        ? { conversas: true, ia: false, plano: null }
+        : { conversas: false, ia: false, plano: null }
+      return (data ?? { conversas: false, ia: false, plano: null }) as Recursos
+    },
+  })
+}

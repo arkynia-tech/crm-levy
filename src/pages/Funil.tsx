@@ -1,10 +1,11 @@
 import { useState, type DragEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { MessageSquareText } from 'lucide-react'
-import { type CartaoFunil, useFunil, useMoverEtapa } from '../hooks/conversas'
+import { type CartaoFunil, useFunil, useMoverEtapa, useRecursos } from '../hooks/conversas'
 import { ETAPAS, type Etapa, haQuanto } from '../lib/funil'
 import { formatCurrency, formatPhone } from '../lib/format'
 import { ErrorState, PageHeader } from '../components/ui'
+import { ConvitePlano } from '../components/ConvitePlano'
 
 /**
  * Funil das conversas (conversas-funil.sql): cada cartão é uma pessoa que
@@ -16,6 +17,13 @@ import { ErrorState, PageHeader } from '../components/ui'
 const PERIODOS = [7, 30, 90] as const
 
 export default function Funil() {
+  const recursos = useRecursos()
+  if (recursos.isLoading) return null
+  if (!recursos.data?.conversas) return <ConvitePlano tela="funil" />
+  return <TelaDoFunil />
+}
+
+function TelaDoFunil() {
   const [dias, setDias] = useState<number>(30)
   const funil = useFunil(dias)
   const mover = useMoverEtapa()
