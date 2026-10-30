@@ -1,12 +1,12 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type SyntheticEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCheck, Clock3, ExternalLink, MessagesSquare, PanelRightOpen, Search, SendHorizontal,
-  Smartphone, UserRound, X,
+  AlertTriangle, ArrowLeft, Check, CheckCheck, Clock3, ExternalLink, FileText, ImageOff, MessagesSquare, PanelRightOpen, Search,
+  SendHorizontal, Smartphone, UserRound, X,
 } from 'lucide-react'
 import {
-  type Conversa, type Filtro, type ItemConversa, type Mensagem, useConversa, useConversas, useMarcarLida, useMoverEtapa, useRecursos,
-  useResponder,
+  type Conversa, type Filtro, type ItemConversa, type Mensagem, useConversa, useConversas, useFotos, useMarcarLida, useMidia,
+  useMoverEtapa, useRecursos, useResponder,
 } from '../hooks/conversas'
 import { ETAPA, ETAPAS, type Etapa, haQuanto, horaNaLista, rotuloDoDia, soHora } from '../lib/funil'
 import { formatCurrency, formatDate, formatPhone } from '../lib/format'
@@ -54,16 +54,37 @@ function iniciais(nome: string): string {
   return ((p[0][0] ?? '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase()
 }
 
-function Avatar({ nome, pequeno }: { nome: string; pequeno?: boolean }) {
+/** Foto de perfil do WhatsApp quando a pessoa deixa ver; senão, as iniciais. */
+function Avatar({ nome, foto, pequeno }: { nome: string; foto?: string | null; pequeno?: boolean }) {
+  const [quebrou, setQuebrou] = useState<string | null>(null)
+  const tamanho = pequeno ? 'h-10 w-10 text-sm' : 'h-12 w-12 text-base'
+  if (foto && quebrou !== foto) {
+    return (
+      <img
+        src={foto}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setQuebrou(foto)}
+        className={`shrink-0 rounded-full bg-[#dfe5e7] object-cover ${tamanho}`}
+      />
+    )
+  }
   return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#dfe5e7] font-medium text-[#54656f] ${
-        pequeno ? 'h-10 w-10 text-sm' : 'h-12 w-12 text-base'
-      }`}
-    >
+    <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#dfe5e7] font-medium text-[#54656f] ${tamanho}`}>
       {iniciais(nome)}
     </span>
   )
+}
+
+/** O que vem no lugar do texto quando a mensagem é só arquivo ("[image]"), como o WhatsApp escreve. */
+const TIPOS: Record<string, string> = {
+  image: 'Foto', video: 'Vídeo', audio: 'Áudio', document: 'Documento', sticker: 'Figurinha',
+  reaction: 'Reação', location: 'Localização', contacts: 'Contato', unsupported: 'Mensagem que o WhatsApp não mostra aqui',
+}
+const marcador = (body: string | null) => /^\[([a-z_]+)\]$/.exec(body ?? '')?.[1] ?? null
+const textoDaPrevia = (body: string | null) => {
+  const tipo = marcador(body)
+  return tipo ? TIPOS[tipo] ?? 'Mensagem' : body
 }
 
 function SeloEtapa({ etapa }: { etapa: Etapa | null }) {
@@ -104,6 +125,9 @@ function TelaDeConversas() {
   const [busca, setBusca] = useState('')
   const [painel, setPainel] = useState(false)
   const lista = useConversas({ filtro, etapa, busca })
+  const ids = (lista.data?.itens ?? []).map((c) => c.id)
+  if (selecionada && !ids.includes(selecionada)) ids.unshift(selecionada)
+  const fotos = useFotos(ids.slice(0, 40)).data ?? {}
 
   const abrir = (id: string | null) => {
     const p = new URLSearchParams(params)
@@ -166,6 +190,7 @@ function TelaDeConversas() {
           carregando={lista.isLoading}
           erro={lista.isError ? (lista.error as Error).message : null}
           itens={lista.data?.itens ?? []}
+          fotos={fotos}
           filtro={filtro}
           selecionada={selecionada}
           onAbrir={abrir}
@@ -174,7 +199,7 @@ function TelaDeConversas() {
 
       {/* -------------------------------------------------------- conversa */}
       {selecionada ? (
-        <Fio key={selecionada} id={selecionada} onVoltar={() => abrir(null)} painel={painel} onPainel={setPainel} />
+        <Fio key={selecionada} id={selecionada} foto={fotos[selecionada]} onVoltar={() => abrir(null)} painel={painel} onPainel={setPainel} />
       ) : (
         <div className="hidden flex-col items-center justify-center gap-3 border-b-[6px] border-[#25d366] bg-[#f0f2f5] p-8 text-center md:flex xl:col-span-2">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#00a884] shadow-sm">
@@ -191,8 +216,11 @@ function TelaDeConversas() {
 }
 
 function ListaDeConversas({
-  carregando, erro, itens, filtro, selecionada, onAbrir,
-}: { carregando: boolean; erro: string | null; itens: ItemConversa[]; filtro: Filtro; selecionada: string | null; onAbrir: (id: string) => void }) {
+  carregando, erro, itens, fotos, filtro, selecionada, onAbrir,
+}: {
+  carregando: boolean; erro: string | null; itens: ItemConversa[]; fotos: Record<string, string | null>; filtro: Filtro
+  selecionada: string | null; onAbrir: (id: string) => void
+}) {
   if (carregando) {
     return (
       <ul className="flex-1 overflow-hidden" aria-hidden>
@@ -237,7 +265,7 @@ function ListaDeConversas({
               aria-current={ativa ? 'true' : undefined}
               className={`flex w-full items-center gap-3 pl-3 text-left transition-colors ${ativa ? 'bg-[#f0f2f5]' : 'hover:bg-[#f5f6f6]'}`}
             >
-              <Avatar nome={nome} />
+              <Avatar nome={nome} foto={fotos[c.id]} />
               <span className="min-w-0 flex-1 border-b border-[#e9edef] py-3 pr-4">
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="truncate text-[16px] text-[#111b21]">{nome}</span>
@@ -248,7 +276,7 @@ function ListaDeConversas({
                 <span className="mt-0.5 flex items-center gap-2">
                   <span className={`flex min-w-0 flex-1 items-center gap-1 text-sm ${c.nao_lida ? 'text-[#111b21]' : 'text-[#667781]'}`}>
                     {saiu && c.ultima && <Tiques status={c.ultima.status} className="shrink-0" />}
-                    <span className="truncate">{c.ultima?.body ?? 'Sem mensagens'}</span>
+                    <span className="truncate">{c.ultima ? textoDaPrevia(c.ultima.body) : 'Sem mensagens'}</span>
                   </span>
                   {c.nao_lida && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#25d366]" aria-label="Mensagem nova" />}
                 </span>
@@ -264,7 +292,9 @@ function ListaDeConversas({
 
 // ---------------------------------------------------------------------------
 
-function Fio({ id, onVoltar, painel, onPainel }: { id: string; onVoltar: () => void; painel: boolean; onPainel: (v: boolean) => void }) {
+function Fio({ id, foto, onVoltar, painel, onPainel }: {
+  id: string; foto?: string | null; onVoltar: () => void; painel: boolean; onPainel: (v: boolean) => void
+}) {
   const q = useConversa(id)
   const { mutate: marcarLida } = useMarcarLida()
   const marcada = useRef<string | null>(null)
@@ -306,7 +336,7 @@ function Fio({ id, onVoltar, painel, onPainel }: { id: string; onVoltar: () => v
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </button>
           <button type="button" onClick={() => onPainel(!painel)} className="flex min-w-0 flex-1 items-center gap-3 text-left xl:pointer-events-none" aria-label="Ver os dados do cliente">
-            <Avatar nome={nome} pequeno />
+            <Avatar nome={nome} foto={foto} pequeno />
             <span className="min-w-0">
               <span className="block truncate text-[16px] text-[#111b21]">{nome}</span>
               <span className="block truncate text-[13px] text-[#667781]">
@@ -411,7 +441,7 @@ function Mensagens({ mensagens }: { mensagens: Mensagem[] }) {
     )
   }
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-[4%] pb-3 pt-2 lg:px-[7%]" style={fundo}>
+    <div data-rolagem className="min-h-0 flex-1 overflow-y-auto px-[4%] pb-3 pt-2 lg:px-[7%]" style={fundo}>
       <ol className="flex flex-col">
         {mensagens.map((m, i) => {
           const anterior = mensagens[i - 1]
@@ -436,8 +466,13 @@ function Mensagens({ mensagens }: { mensagens: Mensagem[] }) {
                 >
                   {inicio && <Cauda saiu={saiu} />}
                   {rotulo && <p className="px-1 pb-0.5 text-[12px] italic text-[#667781]">{rotulo}</p>}
+                  {m.midia && <Midia m={m} />}
                   <p className="whitespace-pre-wrap break-words px-1">
-                    {m.body || <span className="italic text-[#667781]">Mensagem sem texto</span>}
+                    {m.midia && (marcador(m.body) || ehDocumento(m.midia))
+                      ? null
+                      : marcador(m.body)
+                        ? <span className="italic text-[#667781]">{textoDaPrevia(m.body)}</span>
+                        : m.body || <span className="italic text-[#667781]">Mensagem sem texto</span>}
                     {/* hora e tiques no canto, como no WhatsApp */}
                     <span className="relative top-[5px] float-right -mb-1 ml-3 mt-1 flex items-center gap-1 text-[11px] leading-none text-[#667781]">
                       <span className="tabular-nums">{soHora(m.created_at)}</span>
@@ -452,6 +487,96 @@ function Mensagens({ mensagens }: { mensagens: Mensagem[] }) {
         })}
       </ol>
       <div ref={fim} />
+    </div>
+  )
+}
+
+const ehDocumento = (tipo: string) => !/^(image|video|audio)\//.test(tipo)
+
+/** Só pede o arquivo quando o balão chega perto da tela. */
+function useNaTela<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [visto, setVisto] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || visto) return
+    const obs = new IntersectionObserver(([e]) => e.isIntersecting && setVisto(true), { rootMargin: '400px 0px' })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [visto])
+  return [ref, visto] as const
+}
+
+/** A foto chega depois do balão e empurra a conversa: quem estava no fim continua no fim. */
+function seguirNoFim(e: SyntheticEvent<HTMLElement>) {
+  const rolagem = e.currentTarget.closest<HTMLElement>('[data-rolagem]')
+  if (rolagem && rolagem.scrollHeight - rolagem.scrollTop - rolagem.clientHeight < 400) rolagem.scrollTop = rolagem.scrollHeight
+}
+
+/** Foto, figurinha, vídeo, áudio ou documento dentro do balão. */
+function Midia({ m }: { m: Mensagem }) {
+  const tipo = m.midia ?? ''
+  const [ref, visto] = useNaTela<HTMLDivElement>()
+  const q = useMidia(m.id, visto)
+  const url = q.data?.url
+  const figurinha = tipo === 'image/webp' && marcador(m.body) === 'sticker'
+
+  if (q.isError) {
+    return (
+      <div ref={ref} className="mb-1 flex items-center gap-2 rounded-md bg-black/[0.04] px-3 py-2 text-[13px] text-[#667781]">
+        <ImageOff className="h-4 w-4 shrink-0" aria-hidden />
+        <span>{(q.error as Error).message}</span>
+      </div>
+    )
+  }
+  if (tipo.startsWith('image/')) {
+    return (
+      <div ref={ref} className={`mb-1 overflow-hidden rounded-md ${figurinha ? 'h-32 w-32' : 'min-h-[12rem] w-[min(18rem,70vw)] bg-black/[0.06]'}`}>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" aria-label="Abrir a foto em tamanho real">
+            <img
+              src={url}
+              alt=""
+              onLoad={seguirNoFim}
+              className={`block w-full ${figurinha ? 'h-32 object-contain' : 'max-h-80 object-cover object-top'}`}
+            />
+          </a>
+        ) : (
+          <div className="h-48 w-full animate-pulse bg-black/[0.04]" aria-label="Carregando a foto" />
+        )}
+      </div>
+    )
+  }
+  if (tipo.startsWith('video/')) {
+    return (
+      <div ref={ref} className="mb-1 w-[min(18rem,70vw)] overflow-hidden rounded-md bg-black/[0.06]">
+        {url ? <video src={url} controls preload="metadata" onLoadedMetadata={seguirNoFim} className="block max-h-80 w-full" /> : <div className="h-40 animate-pulse" />}
+      </div>
+    )
+  }
+  if (tipo.startsWith('audio/')) {
+    return (
+      <div ref={ref} className="mb-1 w-[min(17rem,65vw)]">
+        {url ? <audio src={url} controls preload="metadata" className="h-10 w-full" /> : <div className="h-10 animate-pulse rounded-full bg-black/[0.04]" />}
+      </div>
+    )
+  }
+  const nome = marcador(m.body) ? 'Documento' : m.body || 'Documento'
+  return (
+    <div ref={ref} className="mb-1">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        aria-disabled={!url}
+        className={`flex min-w-[14rem] items-center gap-3 rounded-md bg-black/[0.04] px-3 py-2.5 ${url ? 'hover:bg-black/[0.07]' : 'pointer-events-none opacity-70'}`}
+      >
+        <FileText className="h-7 w-7 shrink-0 text-[#54656f]" aria-hidden />
+        <span className="min-w-0">
+          <span className="block truncate text-[14px] text-[#111b21]">{nome}</span>
+          <span className="block text-[12px] text-[#667781]">{url ? 'Abrir' : 'Carregando...'}</span>
+        </span>
+      </a>
     </div>
   )
 }
