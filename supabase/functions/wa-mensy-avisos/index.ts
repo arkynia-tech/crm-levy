@@ -7,7 +7,9 @@
 // O que é tratado (no banco, crm_wa_mensy_aviso):
 //   messages.received  conversa e mensagem recebida (wa_conversations /
 //                      wa_messages): é daí que saem o "respondeu", o SAIR/PARAR
-//                      das campanhas e o 1, 2, 3 da primeira mensagem
+//                      das campanhas e o 1, 2, 3 da primeira mensagem. A que a
+//                      loja mandou pelo celular (fromMe) entra na conversa como
+//                      enviada (crm_wa_mensy_enviada, conversas-funil.sql)
 //   connection.status  status do número na tela WhatsApp
 // Responde 200 na hora e trata depois (o Mensy espera até 30 s e tenta de novo).
 
@@ -32,9 +34,16 @@ Deno.serve(async (req) => {
 async function tratar(ev: Json) {
   const d = ev.data ?? {}
   if (ev.event === 'messages.received') {
-    if (d.fromMe || d.isGroup) return
+    if (d.isGroup) return
     const fone = String(d.from ?? d.chat ?? '').replace(/\D/g, '')
     if (fone.length < 10 || fone.length > 13) return // LID ou grupo: sem telefone
+    if (d.fromMe) {
+      await rpc('crm_wa_mensy_enviada', {
+        p_session_id: ev.sessionId,
+        p_dados: { fone: '+' + fone, texto: d.text ?? (d.type ? `[${d.type}]` : null), id: d.id ?? ev.deliveryId },
+      })
+      return
+    }
     await rpc('crm_wa_mensy_aviso', {
       p_session_id: ev.sessionId,
       p_tipo: 'mensagem',

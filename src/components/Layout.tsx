@@ -23,6 +23,8 @@ import {
   FileText,
   Sparkles,
   Plug,
+  MessagesSquare,
+  Columns3,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -36,6 +38,7 @@ import Logo from './Logo'
 import { metaSignupDisponivel } from '../lib/metaSignup'
 import { NovidadePopup } from './NovidadePopup'
 import { useNovidadePopup } from '../hooks/novidades'
+import { useNaoLidas } from '../hooks/conversas'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
@@ -57,6 +60,8 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
   {
     titulo: 'Relacionamento',
     itens: [
+      { to: '/conversas', label: 'Conversas', icon: MessagesSquare, permission: 'conversas' },
+      { to: '/funil', label: 'Funil', icon: Columns3, permission: 'conversas' },
       { to: '/campanhas', label: 'Campanhas', icon: Megaphone, permission: 'campaigns' },
       { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone, end: true, permission: 'waInstances' },
       // Modelos só existem na API oficial: sem o app da Meta ligado, nem aparece
@@ -100,6 +105,7 @@ function SidebarContent({
   const { signOut, session } = useAuth()
   const { clients, activeClient, setActiveClientId } = useCompany()
   const { data: role } = useUserRole()
+  const { data: naoLidas = 0 } = useNaoLidas(can(role, 'conversas'))
   // lançamento que o usuário ainda não viu: acende um ponto no item Novidades
   const { data: novidadePendente } = useNovidadePopup(Boolean(role) && !travado)
 
@@ -180,8 +186,18 @@ function SidebarContent({
           >
             {({ isActive }) => (
               <>
-                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-brand-500' : 'text-slate-400'}`} aria-hidden />
+                <span className="relative shrink-0">
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-brand-500' : 'text-slate-400'}`} aria-hidden />
+                  {collapsed && to === '/conversas' && naoLidas > 0 && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brand-500" aria-label="Mensagem nova" />
+                  )}
+                </span>
                 {!collapsed && label}
+                {!collapsed && to === '/conversas' && naoLidas > 0 && (
+                  <span className="ml-auto rounded-full bg-brand-600 px-1.5 py-px text-[11px] font-semibold tabular-nums text-white">
+                    {naoLidas > 99 ? '99+' : naoLidas}
+                  </span>
+                )}
               </>
             )}
           </NavLink>
