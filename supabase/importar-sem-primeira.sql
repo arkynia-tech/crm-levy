@@ -15,8 +15,10 @@ begin;
 
 do $$
 begin
+  -- af96...: a mesma de venda-whatsapp.sql, gravada sem os comentários
   if not exists (select 1 from pg_proc where oid = 'public.crm_primeira_msg_pendentes(integer,uuid)'::regprocedure
-                 and (md5(prosrc) = '5bc07983430fe916d7af184f2a30427b' or prosrc like '%sem_primeira_mensagem%')) then
+                 and (md5(prosrc) in ('5bc07983430fe916d7af184f2a30427b', 'af961376d43637e4ba9c4ce60659df39')
+                      or prosrc like '%sem_primeira_mensagem%')) then
     raise exception 'crm_primeira_msg_pendentes no banco não é a de venda-whatsapp.sql. Pare e chame o Claude.';
   end if;
 end $$;
