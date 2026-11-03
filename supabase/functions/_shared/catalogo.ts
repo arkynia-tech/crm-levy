@@ -100,7 +100,10 @@ async function paginaMl(con: Conexao, cursor: Json | null): Promise<Pagina> {
   }
   // o scroll vale 5 minutos: se venceu entre uma chamada e outra, começa de novo
   if (r.status === 400 && cursor?.scroll) return { itens: [], proximo: { scroll: null, recomecos: (cursor.recomecos ?? 0) + 1 } }
-  if (r.status === 403) return { erro: `Mercado Livre recusou a lista de anúncios (${erroDoMl(r)})`, fatal: true }
+  if (r.status === 403) {
+    console.error('catalogo mercadolivre 403', con.id, erroDoMl(r))
+    return { erro: 'O Mercado Livre não liberou a lista de anúncios para o Contatta. Conecte a conta de novo em Integrações para dar essa permissão.', fatal: true }
+  }
   if (r.status !== 200 || !Array.isArray(r.json?.results)) return { erro: `Mercado Livre: ${erroDoMl(r)}`, fatal: false }
 
   const ids: string[] = r.json.results.map(String)
@@ -127,7 +130,10 @@ async function paginaBling(con: Conexao, cursor: Json | null): Promise<Pagina> {
   const pagina = Number(cursor?.pagina ?? 1)
   // criterio 5 = todos (ativos e inativos)
   const r = await bling(t.tokens.access_token, `/produtos?pagina=${pagina}&limite=${BLING_POR_PAGINA}&criterio=5`)
-  if (r.status === 401 || r.status === 403) return { erro: `Bling recusou a lista de produtos (${erroDoBling(r.json)})`, fatal: true }
+  if (r.status === 401 || r.status === 403) {
+    console.error('catalogo bling', r.status, con.id, erroDoBling(r.json))
+    return { erro: 'O Bling não liberou a leitura de produtos para o Contatta. Conecte o Bling de novo em Integrações para dar essa permissão.', fatal: true }
+  }
   if (r.status !== 200 || !Array.isArray(r.json?.data)) return { erro: `Bling: ${erroDoBling(r.json)}`, fatal: false }
   const lista: Json[] = r.json.data
   const itens = lista
