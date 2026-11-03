@@ -188,6 +188,7 @@ export default function ImportNfe() {
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [deductStock, setDeductStock] = useState(true)
+  const [enviarPrimeira, setEnviarPrimeira] = useState(true)
 
   const ocupado = progresso !== null
 
@@ -237,7 +238,7 @@ export default function ImportNfe() {
         return
       }
 
-      const r = await importarNotas(notas, activeClient.id, deductStock, setProgresso)
+      const r = await importarNotas(notas, activeClient.id, deductStock, enviarPrimeira, setProgresso)
       await registrarImportacao(activeClient.id, file.name, r)
 
       setProgresso(null)
@@ -318,6 +319,23 @@ export default function ImportNfe() {
               Marcado, cada item da nota baixa o estoque do produto (por SKU). Para importar{' '}
               <strong>notas antigas</strong> só para cadastrar clientes, desmarque, assim o estoque
               não é mexido. Nota já baixada não desconta de novo.
+            </span>
+          </span>
+        </label>
+        <label className="mb-4 flex items-start gap-2.5 rounded-lg border border-gray-200 bg-white px-4 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600"
+            checked={enviarPrimeira}
+            onChange={(e) => setEnviarPrimeira(e.target.checked)}
+            disabled={ocupado}
+          />
+          <span className="text-sm">
+            <span className="font-medium text-gray-800">Enviar a primeira mensagem</span>
+            <span className="block text-gray-500">
+              Marcado, quem comprou nestas notas recebe a primeira mensagem no WhatsApp (se ela estiver ligada).
+              Para <strong>notas antigas</strong>, desmarque: o cliente é cadastrado sem receber mensagem, e só
+              recebe a primeira mensagem se comprar de novo.
             </span>
           </span>
         </label>

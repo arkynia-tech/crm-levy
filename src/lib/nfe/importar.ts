@@ -118,11 +118,16 @@ function lojaDaNota(n: NotaLida, shopeeSemIntermediador: Set<string>): { marketp
  * que fazia a importação levar minutos. O `created_at` que volta de cada
  * upsert diz o que nasceu agora e o que já existia: upsert que atualiza não
  * mexe nesse campo.
+ *
+ * Sem `enviarPrimeira`, os pedidos vão marcados com sem_primeira_mensagem e a
+ * primeira mensagem não sai por eles (importar-sem-primeira.sql): notas
+ * antigas não viram mensagem de "recebemos o seu pedido".
  */
 export async function importarNotas(
   notasLidas: NotaLida[],
   clientId: string,
   descontarEstoque: boolean,
+  enviarPrimeira: boolean,
   aoProgredir: (p: Progresso) => void,
 ): Promise<ResultadoImportacao> {
   let notas = notasLidas
@@ -340,6 +345,8 @@ export async function importarNotas(
       buyer_cpf: n.buyer_cpf, buyer_name: n.buyer_name || null,
       buyer_email: n.buyer_email || null, buyer_phone: n.buyer_phone || null,
       ship_address: n.endereco, ordered_at: n.data_emissao, updated_at: agora,
+      // marcado, nem manda o campo: pedido que já existia fica como estava
+      ...(enviarPrimeira ? {} : { sem_primeira_mensagem: true }),
     })
   }
 
