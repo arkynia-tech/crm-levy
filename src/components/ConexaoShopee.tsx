@@ -9,12 +9,12 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { CartaoDisponivel, Desconectar, Faixa, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Enquanto o app Contatta está em teste na Shopee (sandbox, sem Go-Live), só o
- * master vê o cartão; o admin vê se o master liberar a loja
- * (clients.shopee_liberado). Anda junto com o secret SHOPEE_ABERTO_PARA_LOJAS=1
- * da shopee-conexao: abrir os dois juntos depois do Go-Live.
+ * Aberto para todas as lojas desde o Go-Live da Shopee (27/10/2026). Anda junto
+ * com o secret SHOPEE_ABERTO_PARA_LOJAS=1 da shopee-conexao; com false, só o
+ * master vê o cartão e o admin vê se o master liberar a loja
+ * (clients.shopee_liberado).
  */
-export const SHOPEE_ABERTO_PARA_LOJAS = false
+export const SHOPEE_ABERTO_PARA_LOJAS = true
 
 function useConectarShopee() {
   const { activeClient } = useCompany()
