@@ -9,11 +9,11 @@ import { LojasBling } from './LojasBling'
 import { CartaoDisponivel, Desconectar, Fatos, LinhaConectada, press, resumoDaConexao } from './integracao-ui'
 
 /**
- * Em teste desde 03/11/2026: só o master vê, ou o admin de uma loja que o master
- * liberou (clients.tiny_liberado). Anda junto com o secret TINY_ABERTO_PARA_LOJAS=1
- * da tiny-conexao. Para abrir para todas: true aqui e o secret.
+ * Aberto para todas as lojas desde 03/11/2026 (decisão do Mohamad). Anda junto
+ * com o secret TINY_ABERTO_PARA_LOJAS=1 da tiny-conexao. Para fechar de novo:
+ * false aqui, tirar o secret, e liberar loja a loja em clients.tiny_liberado.
  */
-export const TINY_ABERTO_PARA_LOJAS = false
+export const TINY_ABERTO_PARA_LOJAS = true
 
 /** Link que o app do Tiny precisa ter em "URLs de Redirecionamento". */
 export const TINY_RETORNO_URL = 'https://app.contatta.pro/tiny/retorno'
