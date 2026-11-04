@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Liga o Google Agenda da conta do Contatta (contato@contatta.pro) ao funil.
 //
-// Pede o Client ID e o Client Secret (cliente OAuth do tipo "App para computador"
-// no projeto Contatta do Google Cloud, com a Google Calendar API ativada), abre o
+// Pede o Client ID e o Client Secret (cliente OAuth do projeto Contatta no Google
+// Cloud, com a Google Calendar API ativada; tipo "App para computador" ou
+// "Aplicativo da Web" com o redirecionamento http://localhost:8765), abre o
 // navegador para você entrar com contato@contatta.pro, e grava direto nos secrets
 // do Supabase: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e GOOGLE_REFRESH_TOKEN.
 // Nenhum token aparece na tela nem vai para arquivo.
@@ -24,7 +25,7 @@ const clientSecret = (await rl.question('Client Secret do Google: ')).trim()
 rl.close()
 if (!clientId || !clientSecret) { console.error('Faltou o Client ID ou o Client Secret.'); process.exit(1) }
 
-const redirect = `http://127.0.0.1:${PORTA}`
+const redirect = `http://localhost:${PORTA}`
 const estado = Math.random().toString(36).slice(2)
 const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
   client_id: clientId, redirect_uri: redirect, response_type: 'code', scope: ESCOPO,
@@ -39,7 +40,7 @@ const codigo = await new Promise((resolve, reject) => {
     res.end('<p style="font-family:sans-serif">Pronto. Pode fechar esta aba e voltar ao terminal.</p>')
     srv.close()
     q.get('code') ? resolve(q.get('code')) : reject(new Error(q.get('error') || 'sem código'))
-  }).listen(PORTA, '127.0.0.1', () => {
+  }).listen(PORTA, () => {
     console.log('\nAbrindo o navegador. Entre com contato@contatta.pro e autorize a agenda.')
     spawn('open', [url], { stdio: 'ignore', detached: true })
   })

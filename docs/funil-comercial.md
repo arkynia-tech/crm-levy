@@ -58,7 +58,7 @@ cd ~/projetos/crm-levy-funil && supabase functions deploy funil-publico funil-wh
 Rodar `supabase/funil-comercial-cron.sql` no SQL Editor.
 
 ### 5. Google Agenda (horários reais e Meet)
-1. No Google Cloud, projeto **Contatta**: ativar a **Google Calendar API**; em Credenciais, criar um "ID do cliente OAuth" do tipo **App para computador**. Na tela de consentimento, incluir contato@contatta.pro como usuário de teste (ou publicar o app).
+1. No Google Cloud, projeto **Contatta**: ativar a **Google Calendar API**; em Credenciais, criar um "ID do cliente OAuth" do tipo **App para computador** (ou **Aplicativo da Web** com o URI de redirecionamento `http://localhost:8765`). Na tela de consentimento, incluir contato@contatta.pro como usuário de teste (ou publicar o app).
 2. Rodar e colar o Client ID e o Secret quando pedir (abre o navegador para entrar com contato@contatta.pro):
 
 ```bash
