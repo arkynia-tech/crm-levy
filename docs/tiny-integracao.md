@@ -53,7 +53,7 @@ minuto, cabem umas 10 a 15 notas por minuto. **Estimativa:** 10 notas/min x 60 x
 | Integrações | cartão "Olist Tiny" com o passo a passo e as chaves; linha da conta com as lojas do Tiny (mesma tela do Bling, `LojasBling fonte="tiny"`) |
 | `/tiny/retorno` | página fora do menu com sucesso e erro |
 
-Em teste: só o master vê o cartão, ou o admin de uma loja liberada
+Aberto para todas as lojas desde 03/11/2026. Antes disso, só o master via o cartão, ou o admin de uma loja liberada
 (`clients.tiny_liberado`). Abrir para todas: `TINY_ABERTO_PARA_LOJAS` em
 `src/components/ConexaoTiny.tsx` e o secret `TINY_ABERTO_PARA_LOJAS=1`.
 
