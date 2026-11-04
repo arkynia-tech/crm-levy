@@ -167,3 +167,20 @@ verify_jwt = false
 
 [functions.tiny-pedidos]
 verify_jwt = false
+
+# Funil comercial (04/11/2026), sem a checagem de JWT do gateway:
+# - funil-publico é o site (contatta.pro/demo e /agendar): CORS, limites e token assinado por lead;
+# - funil-whatsapp é chamado pelo n8n com o cabeçalho x-funil-chave;
+# - funil-rotinas é chamado pelo pg_cron com o token do cron;
+# - funil-enviar confere o login de master por dentro (auth.getUser).
+[functions.funil-publico]
+verify_jwt = false
+
+[functions.funil-whatsapp]
+verify_jwt = false
+
+[functions.funil-rotinas]
+verify_jwt = false
+
+[functions.funil-enviar]
+verify_jwt = false
