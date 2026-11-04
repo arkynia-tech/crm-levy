@@ -154,18 +154,6 @@ export interface LojasDoBling {
   lojas_contatta: LojaContatta[]
 }
 
-export function useLojasBling(clientId: string | undefined, enabled: boolean) {
-  return useQuery({
-    queryKey: ['bling-lojas', clientId],
-    enabled: Boolean(clientId) && enabled,
-    queryFn: async (): Promise<LojasDoBling> => {
-      const r = await chamarBling<LojasDoBling>({ action: 'lojas', client_id: clientId })
-      if (!r.ok) throw new Error(r.error)
-      return r as LojasDoBling
-    },
-  })
-}
-
 /** Resultado do teste técnico que o Bling exige para aprovar o app. */
 export interface Homologacao {
   ok: true
