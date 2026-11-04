@@ -35,7 +35,7 @@ Implantação do documento "Contatta: funil comercial completo" (nov/2026): anú
 ## Colocar em produção (na ordem)
 
 ### 1. Banco
-Rodar `supabase/funil-comercial.sql` inteiro no SQL Editor do projeto **lopdvdblwasuowjdokpo** (confira o nome no topo). Tem que aparecer `funil comercial instalado: 24 funções, 6 de 6 tabelas novas`. Pode rodar de novo sem estrago.
+Rodar `supabase/funil-comercial.sql` inteiro no SQL Editor do projeto **lopdvdblwasuowjdokpo** (confira o nome no topo). Tem que aparecer `funil comercial instalado: 25 funções, 6 de 6 tabelas novas` (24 do funil + a `crm_funil_mover`, que já existia, da tela de Conversas e Funil das lojas). Pode rodar de novo sem estrago.
 
 ### 2. Segredos das funções
 Gerar e gravar os dois segredos aleatórios (o da chave do WhatsApp fica numa variável só para o passo 6):
