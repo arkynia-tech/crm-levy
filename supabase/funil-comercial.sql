@@ -94,8 +94,9 @@ create index if not exists aq_leads_route_idx on aq_leads (route);
 create index if not exists aq_leads_created_idx on aq_leads (created_at desc);
 
 -- chave do telefone pra casar com o WhatsApp: DDD + 8 últimos dígitos (o 9º dígito às vezes some)
-create or replace function aq_fone_chave(p text) returns text language plpgsql immutable as $$
-declare d text := aq_digits(p);
+-- (search_path fixo: o Postgres 17 cria índice com caminho de busca restrito)
+create or replace function aq_fone_chave(p text) returns text language plpgsql immutable set search_path = public as $$
+declare d text := public.aq_digits(p);
 begin
   if d is null then return null; end if;
   if left(d, 2) = '55' and length(d) >= 12 then d := substr(d, 3); end if;
