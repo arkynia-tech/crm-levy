@@ -9,6 +9,7 @@ import { useStores, useStoreVolumes } from '../hooks/queries'
 import { useBlingLiberado, useConexaoBling, type ConexaoErp } from '../hooks/bling'
 import { useConexoesNuvemshop, useNuvemshopLiberado } from '../hooks/nuvemshop'
 import { useConexaoShopify, useShopifyPreparado } from '../hooks/shopify'
+import { useConexaoTiny, useTinyLiberado, useTinyPreparado } from '../hooks/tiny'
 import { useConexoesMercadoLivre, useMercadoLivreLiberado } from '../hooks/mercadolivre'
 import { useConexoesTiktok, useTiktokLiberado } from '../hooks/tiktok'
 import { useConexoesShopee, useShopeeLiberado } from '../hooks/shopee'
@@ -16,6 +17,7 @@ import { useConexoesMagalu, useMagaluLiberado } from '../hooks/magalu'
 import { BLING_ABERTO_PARA_LOJAS, CartaoBling, LinhaBling } from '../components/ConexaoBling'
 import { CartaoNuvemshop, LinhaNuvemshop, NUVEMSHOP_ABERTO_PARA_LOJAS, OutraLojaNuvemshop } from '../components/ConexaoNuvemshop'
 import { CartaoShopify, LinhaShopify } from '../components/ConexaoShopify'
+import { CartaoTiny, LinhaTiny, TINY_ABERTO_PARA_LOJAS } from '../components/ConexaoTiny'
 import {
   CartaoMercadoLivre,
   LinhaMercadoLivre,
@@ -57,6 +59,7 @@ function useCanaisVisiveis() {
   const { data: tiktokLiberado = false } = useTiktokLiberado(activeClient?.id, admin && !TIKTOK_ABERTO_PARA_LOJAS)
   const { data: shopeeLiberado = false } = useShopeeLiberado(activeClient?.id, admin && !SHOPEE_ABERTO_PARA_LOJAS)
   const { data: magaluLiberado = false } = useMagaluLiberado(activeClient?.id, admin && !MAGALU_ABERTO_PARA_LOJAS)
+  const { data: tinyLiberado = false } = useTinyLiberado(activeClient?.id, admin && !TINY_ABERTO_PARA_LOJAS)
   return {
     isMaster,
     podeEditar: isMaster || admin,
@@ -72,6 +75,8 @@ function useCanaisVisiveis() {
     shopee: isMaster || (admin && (SHOPEE_ABERTO_PARA_LOJAS || shopeeLiberado)),
     // em teste desde 28/10/2026: master e loja liberada
     magalu: isMaster || (admin && (MAGALU_ABERTO_PARA_LOJAS || magaluLiberado)),
+    // em teste desde 03/11/2026: master e loja liberada
+    tiny: isMaster || (admin && (TINY_ABERTO_PARA_LOJAS || tinyLiberado)),
   }
 }
 
@@ -121,7 +126,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 const ligada = (s: string | undefined) => s === 'conectado' || s === 'reconectar'
 
 const ORIGEM: Record<string, string> = {
-  bling: 'Bling', nuvemshop: 'Nuvemshop', shopify: 'Shopify', mercadolivre: 'Mercado Livre', tiktok: 'TikTok Shop',
+  bling: 'Bling', tiny: 'Tiny', nuvemshop: 'Nuvemshop', shopify: 'Shopify', mercadolivre: 'Mercado Livre', tiktok: 'TikTok Shop',
 }
 
 /**
@@ -306,6 +311,8 @@ export default function Integracoes() {
   const tiktok = useConexoesTiktok(ver.tiktok ? activeClient?.id : undefined)
   const shopee = useConexoesShopee(ver.shopee ? activeClient?.id : undefined)
   const magalu = useConexoesMagalu(ver.magalu ? activeClient?.id : undefined)
+  const tiny = useConexaoTiny(ver.tiny ? activeClient?.id : undefined)
+  const tinyPrep = useTinyPreparado(activeClient?.id, ver.tiny)
 
   const stores = useStores()
   const storeIds = (stores.data ?? []).map((s) => s.id)
@@ -322,7 +329,8 @@ export default function Integracoes() {
     (ver.mercadoLivre && ml.isLoading) ||
     (ver.tiktok && tiktok.isLoading) ||
     (ver.shopee && shopee.isLoading) ||
-    (ver.magalu && magalu.isLoading)
+    (ver.magalu && magalu.isLoading) ||
+    (ver.tiny && (tiny.isLoading || tinyPrep.isLoading))
 
   // Contas ligadas (ou que precisam conectar de novo), por canal
   const mlContas: Conta[] = ver.mercadoLivre
@@ -343,7 +351,8 @@ export default function Integracoes() {
     : []
   const shopConta: Conta[] = ver.shopify && shop.data && ligada(shop.data.status) ? [{ canal: 'shopify', conexao: shop.data }] : []
   const blingConta: Conta[] = ver.bling && bling.data && ligada(bling.data.status) ? [{ canal: 'bling', conexao: bling.data }] : []
-  const contas = [...mlContas, ...shopeeContas, ...magaluContas, ...tiktokContas, ...nuvemConta, ...shopConta, ...blingConta]
+  const tinyConta: Conta[] = ver.tiny && tiny.data && ligada(tiny.data.status) ? [{ canal: 'tiny', conexao: tiny.data }] : []
+  const contas = [...mlContas, ...shopeeContas, ...magaluContas, ...tiktokContas, ...nuvemConta, ...shopConta, ...blingConta, ...tinyConta]
   const canais = [
     { marca: 'mercado_livre', nome: 'Mercado Livre', n: mlContas.length },
     { marca: 'shopee', nome: 'Shopee', n: shopeeContas.length },
@@ -352,12 +361,14 @@ export default function Integracoes() {
     { marca: 'nuvemshop', nome: 'Nuvemshop', n: nuvemConta.length },
     { marca: 'shopify', nome: 'Shopify', n: shopConta.length },
     { marca: 'bling', nome: 'Bling', n: blingConta.length },
+    { marca: 'tiny', nome: 'Olist Tiny', n: tinyConta.length },
   ].filter((c) => c.n > 0)
 
   // Canais que ainda dá para conectar. undefined = falta o SQL daquela integração.
   const nuvemDisponivel = ver.nuvemshop && nuvemConta.length === 0 && nuvem.data !== undefined
   const shopDisponivel = Boolean(ver.shopify && shopConta.length === 0 && shop.data !== undefined && prep.data)
   const blingDisponivel = ver.bling && blingConta.length === 0 && bling.data !== undefined
+  const tinyDisponivel = Boolean(ver.tiny && tinyConta.length === 0 && tiny.data !== undefined && tinyPrep.data)
   // Mercado Livre com conta ligada: "outra conta" fica no grupo dele
   const mlDisponivel = ver.mercadoLivre && ml.data !== undefined && mlContas.length === 0
   const tiktokDisponivel = ver.tiktok && tiktok.data !== undefined && tiktokContas.length === 0
@@ -372,6 +383,7 @@ export default function Integracoes() {
         ver.tiktok && !tiktok.isLoading && tiktok.data === undefined ? 'tiktok.sql' : null,
         ver.shopee && !shopee.isLoading && shopee.data === undefined ? 'shopee.sql' : null,
         ver.magalu && !magalu.isLoading && magalu.data === undefined ? 'magalu.sql' : null,
+        ver.tiny && !tiny.isLoading && tiny.data === undefined ? 'tiny.sql' : null,
       ].filter(Boolean)
     : []
 
@@ -444,11 +456,16 @@ export default function Integracoes() {
                       <LinhaBling conexao={blingConta[0].conexao} isMaster={ver.isMaster} />
                     </GrupoCanal>
                   )}
+                  {tinyConta.length > 0 && (
+                    <GrupoCanal marca="tiny" nome="Olist Tiny" contas={tinyConta}>
+                      <LinhaTiny conexao={tinyConta[0].conexao} />
+                    </GrupoCanal>
+                  )}
                 </div>
               </Secao>
             )}
 
-            {(nuvemDisponivel || shopDisponivel || blingDisponivel || mlDisponivel || tiktokDisponivel || shopeeDisponivel || magaluDisponivel || faltaSql.length > 0) && (
+            {(nuvemDisponivel || shopDisponivel || blingDisponivel || tinyDisponivel || mlDisponivel || tiktokDisponivel || shopeeDisponivel || magaluDisponivel || faltaSql.length > 0) && (
               <Secao
                 id="conectar"
                 titulo={contas.length > 0 ? 'Conectar um canal novo' : 'Conectar um canal'}
@@ -462,6 +479,7 @@ export default function Integracoes() {
                   {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data?.[0] ?? null} />}
                   {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
                   {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
+                  {tinyDisponivel && tinyPrep.data && <CartaoTiny conexao={tiny.data ?? null} preparado={tinyPrep.data} />}
                 </div>
                 {faltaSql.length > 0 && (
                   <p className="mt-3 text-sm text-amber-800">
@@ -494,6 +512,7 @@ export default function Integracoes() {
                   ...(ver.mercadoLivre ? ['mercado_livre'] : []),
                   ...(ver.tiktok ? ['tiktok_shop'] : []),
                   ...(ver.shopee ? ['shopee'] : []),
+                  ...(tinyDisponivel || tinyConta.length > 0 ? ['tiny'] : []),
                 ]}
               />
             </Secao>

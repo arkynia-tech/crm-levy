@@ -158,3 +158,12 @@ verify_jwt = false
 
 [functions.magalu-pedidos]
 verify_jwt = false
+
+# Tiny / Olist ERP (03/11/2026, tiny.sql):
+# - tiny-conexao confere o login por dentro (auth.getUser);
+# - tiny-pedidos é chamado pelo pg_cron com o token do cron.
+[functions.tiny-conexao]
+verify_jwt = false
+
+[functions.tiny-pedidos]
+verify_jwt = false

@@ -1,41 +1,62 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Store } from 'lucide-react'
-import { chamarBling, useLojasBling, type LojaBling, type LojaContatta } from '../hooks/bling'
+import { chamarBling, type LojaBling, type LojaContatta, type LojasDoBling } from '../hooks/bling'
+import { chamarTiny } from '../hooks/tiny'
 import { MARKETPLACE_LABEL, marketplaceLabel } from '../lib/format'
 
 const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
 const NAO_TRAZER = ''
 const CRIAR = '__criar__'
 
+/** De qual ERP são as lojas: o Tiny usa a mesma tela, com a função e os textos dele. */
+export type FonteErp = 'bling' | 'tiny'
+const FONTE = {
+  bling: { nome: 'Bling', chamar: chamarBling, balcao: 'Bling balcão' },
+  tiny: { nome: 'Tiny', chamar: chamarTiny, balcao: 'Tiny balcão' },
+} as const
+
+function useLojasDaFonte(fonte: FonteErp, clientId: string) {
+  return useQuery({
+    queryKey: [`${fonte}-lojas`, clientId],
+    queryFn: async (): Promise<LojasDoBling> => {
+      const r = await FONTE[fonte].chamar<LojasDoBling>({ action: 'lojas', client_id: clientId })
+      if (!r.ok) throw new Error(r.error)
+      return r as LojasDoBling
+    },
+  })
+}
+
 /**
  * Fase 2: cada loja do Bling (canal de venda) entra numa loja do Contatta.
  * Entra a venda com nota fiscal autorizada no Bling. Sem ligar, as vendas da
  * loja ficam esperando e entram quando ligar. Uma loja do Contatta recebe de
- * uma loja do Bling só.
+ * uma loja do Bling só. O Tiny usa a mesma tela (fonte="tiny"): a loja dele é o
+ * e-commerce da nota.
  */
-export function LojasBling({ clientId }: { clientId: string }) {
+export function LojasBling({ clientId, fonte = 'bling' }: { clientId: string; fonte?: FonteErp }) {
   const queryClient = useQueryClient()
-  const { data, isLoading, error, refetch, isFetching } = useLojasBling(clientId, true)
+  const f = FONTE[fonte]
+  const { data, isLoading, error, refetch, isFetching } = useLojasDaFonte(fonte, clientId)
   const [procurando, setProcurando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   const procurar = async () => {
     setProcurando(true)
     setErro(null)
-    const r = await chamarBling({ action: 'lojas', client_id: clientId, procurar: true })
+    const r = await f.chamar({ action: 'lojas', client_id: clientId, procurar: true })
     setProcurando(false)
     if (!r.ok) setErro(r.error)
-    else queryClient.setQueryData(['bling-lojas', clientId], r)
+    else queryClient.setQueryData([`${fonte}-lojas`, clientId], r)
   }
 
   return (
     <div className="border-t border-gray-100 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
-          <p className="text-sm font-medium text-gray-900">Em qual loja do Contatta cada loja do Bling entra</p>
+          <p className="text-sm font-medium text-gray-900">Em qual loja do Contatta cada loja do {f.nome} entra</p>
           <p className="text-sm text-gray-500">
-            Entram as vendas com nota fiscal autorizada no Bling, só das lojas ligadas. O que chegou antes de ligar fica
+            Entram as vendas com nota fiscal autorizada no {f.nome}, só das lojas ligadas. O que chegou antes de ligar fica
             esperando e entra assim que você escolher.
           </p>
         </div>
@@ -46,7 +67,7 @@ export function LojasBling({ clientId }: { clientId: string }) {
           disabled={procurando || isLoading}
         >
           <RefreshCw className={`h-4 w-4 ${procurando ? 'animate-spin' : ''}`} aria-hidden />
-          {procurando ? 'Procurando…' : 'Procurar lojas no Bling'}
+          {procurando ? 'Procurando…' : `Procurar lojas no ${f.nome}`}
         </button>
       </div>
 
@@ -64,7 +85,7 @@ export function LojasBling({ clientId }: { clientId: string }) {
       {data && (
         <ul className={`mt-3 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white ${isFetching ? 'opacity-70' : ''}`}>
           {data.lojas_bling.map((l) => (
-            <LinhaLoja key={l.id} clientId={clientId} loja={l} lojasContatta={data.lojas_contatta} />
+            <LinhaLoja key={l.id} fonte={fonte} clientId={clientId} loja={l} lojasContatta={data.lojas_contatta} />
           ))}
         </ul>
       )}
@@ -72,17 +93,18 @@ export function LojasBling({ clientId }: { clientId: string }) {
   )
 }
 
-function nomeDaLojaBling(l: LojaBling): string {
+function nomeDaLojaBling(l: LojaBling, fonte: FonteErp): string {
   if (l.manual) return 'Vendas sem marketplace'
-  return l.nome || `Loja ${l.id} do Bling`
+  return l.nome || `Loja ${l.id} do ${FONTE[fonte].nome}`
 }
 
-function LinhaLoja({ clientId, loja, lojasContatta }: { clientId: string; loja: LojaBling; lojasContatta: LojaContatta[] }) {
+function LinhaLoja({ fonte, clientId, loja, lojasContatta }: { fonte: FonteErp; clientId: string; loja: LojaBling; lojasContatta: LojaContatta[] }) {
   const queryClient = useQueryClient()
+  const f = FONTE[fonte]
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [criando, setCriando] = useState(false)
-  const [nome, setNome] = useState(loja.manual ? 'Bling balcão' : loja.nome ?? '')
+  const [nome, setNome] = useState(loja.manual ? f.balcao : loja.nome ?? '')
   const [marketplace, setMarketplace] = useState(loja.manual ? 'outro' : loja.marketplace_sugerido)
 
   // livres: as que não recebem de nenhuma outra loja do Bling (e a que já é desta)
@@ -91,14 +113,14 @@ function LinhaLoja({ clientId, loja, lojasContatta }: { clientId: string; loja: 
   const ligar = async (body: Record<string, unknown>) => {
     setSalvando(true)
     setErro(null)
-    const r = await chamarBling({ action: 'ligar', client_id: clientId, external_store_id: loja.id, ...body })
+    const r = await f.chamar({ action: 'ligar', client_id: clientId, external_store_id: loja.id, ...body })
     setSalvando(false)
     if (!r.ok) {
       setErro(r.error)
       return
     }
     setCriando(false)
-    void queryClient.invalidateQueries({ queryKey: ['bling-lojas', clientId] })
+    void queryClient.invalidateQueries({ queryKey: [`${fonte}-lojas`, clientId] })
     void queryClient.invalidateQueries({ queryKey: ['stores'] })
   }
 
@@ -117,13 +139,13 @@ function LinhaLoja({ clientId, loja, lojasContatta }: { clientId: string; loja: 
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
             <Store className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-            {nomeDaLojaBling(loja)}
+            {nomeDaLojaBling(loja, fonte)}
             {loja.canal && <span className="text-xs font-normal text-gray-500">{loja.canal}</span>}
           </p>
           <p className="mt-0.5 text-xs text-gray-500">
             {loja.manual
-              ? 'Nota emitida no Bling sem loja virtual, como venda de balcão ou digitada à mão.'
-              : `Código ${loja.id} no Bling.`}
+              ? `Nota emitida no ${f.nome} sem loja virtual, como venda de balcão ou digitada à mão.`
+              : `Código ${loja.id} no ${f.nome}.`}
             {loja.aguardando > 0 && !loja.store_id && (
               <span className="ml-1 font-medium text-amber-700">
                 {loja.aguardando} {loja.aguardando === 1 ? 'venda esperando' : 'vendas esperando'}.
@@ -132,7 +154,7 @@ function LinhaLoja({ clientId, loja, lojasContatta }: { clientId: string; loja: 
           </p>
         </div>
         <label className="sm:w-64">
-          <span className="sr-only">Loja do Contatta para {nomeDaLojaBling(loja)}</span>
+          <span className="sr-only">Loja do Contatta para {nomeDaLojaBling(loja, fonte)}</span>
           <select
             className="input"
             value={criando ? CRIAR : loja.store_id ?? NAO_TRAZER}
