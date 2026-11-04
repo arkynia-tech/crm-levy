@@ -3,18 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
-import { Marca, press } from './integracao-ui'
+import { Marca, press, type GrupoCanal } from './integracao-ui'
 import { temLogo } from './MarcaLogo'
 
 type Integracao = { id: string; nome: string; descricao: string }
 
-export type GrupoIntegracao = 'erp' | 'marketplace' | 'ecommerce'
-
-const ROTULO_GRUPO: Record<GrupoIntegracao, string> = {
-  erp: 'ERP',
-  marketplace: 'Marketplace',
-  ecommerce: 'Loja virtual',
-}
+export type GrupoIntegracao = GrupoCanal
 
 const GRUPOS: Record<GrupoIntegracao, Integracao[]> = {
   erp: [
@@ -59,18 +53,24 @@ function useInteresse() {
   })
 }
 
-type Filtro = 'todos' | GrupoIntegracao
+export type FiltroCanal = 'todos' | GrupoIntegracao
+
+/** Os que ainda vêm pela frente, sem os que já têm cartão ou linha própria (`sem`). */
+export function emBreve(sem: string[]) {
+  return (Object.keys(GRUPOS) as GrupoIntegracao[]).flatMap((g) =>
+    GRUPOS[g].filter((i) => !sem.includes(i.id)).map((i) => ({ ...i, grupo: g })),
+  )
+}
 
 /**
- * Tudo o que ainda vem pela frente, numa lista só, com filtro por tipo.
- * `sem`: integrações que já têm cartão ou linha própria e saem daqui.
+ * Tudo o que ainda vem pela frente, numa lista compacta. O filtro por tipo é o
+ * mesmo dos canais para conectar (fica no cabeçalho da seção).
  */
-export function IntegracoesEmBreve({ sem = [] }: { sem?: string[] }) {
+export function IntegracoesEmBreve({ sem = [], filtro = 'todos' }: { sem?: string[]; filtro?: FiltroCanal }) {
   const { activeClient } = useCompany()
   const queryClient = useQueryClient()
   const { data: pedidos = [] } = useInteresse()
   const [salvando, setSalvando] = useState<string | null>(null)
-  const [filtro, setFiltro] = useState<Filtro>('todos')
 
   const alternar = async (id: string) => {
     if (!activeClient) return
@@ -89,39 +89,13 @@ export function IntegracoesEmBreve({ sem = [] }: { sem?: string[] }) {
     void queryClient.invalidateQueries({ queryKey: ['settings', CHAVE] })
   }
 
-  const todos = (Object.keys(GRUPOS) as GrupoIntegracao[]).flatMap((g) =>
-    GRUPOS[g].filter((i) => !sem.includes(i.id)).map((i) => ({ ...i, grupo: g })),
-  )
-  if (todos.length === 0) return null
-  const grupos = (Object.keys(GRUPOS) as GrupoIntegracao[]).filter((g) => todos.some((i) => i.grupo === g))
+  const todos = emBreve(sem)
   const itens = filtro === 'todos' ? todos : todos.filter((i) => i.grupo === filtro)
-
-  const filtros: { id: Filtro; rotulo: string }[] = [
-    { id: 'todos', rotulo: 'Todas' },
-    ...grupos.map((g) => ({ id: g as Filtro, rotulo: ROTULO_GRUPO[g] })),
-  ]
+  if (itens.length === 0) return null
 
   return (
     <div>
-      <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap gap-1.5">
-        {filtros.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            aria-pressed={filtro === f.id}
-            onClick={() => setFiltro(f.id)}
-            className={`rounded-full border px-3 py-1 text-sm transition-[background-color,border-color,color] duration-150 ease-out ${press} ${
-              filtro === f.id
-                ? 'border-gray-900 bg-gray-900 text-white'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
-            }`}
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
-
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {itens.map((i) => {
           const marcado = pedidos.includes(i.id)
           return (

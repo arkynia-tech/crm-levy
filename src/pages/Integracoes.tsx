@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, FileText, Plus } from 'lucide-react'
+import { AlertTriangle, FileText, Plus, Upload } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 import { useUserRole } from '../hooks/settings'
@@ -27,10 +27,10 @@ import {
 import { CartaoTiktok, LinhaTiktok, OutraLojaTiktok, TIKTOK_ABERTO_PARA_LOJAS } from '../components/ConexaoTiktok'
 import { CartaoShopee, LinhaShopee, OutraLojaShopee, SHOPEE_ABERTO_PARA_LOJAS } from '../components/ConexaoShopee'
 import { CartaoMagalu, LinhaMagalu, MAGALU_ABERTO_PARA_LOJAS } from '../components/ConexaoMagalu'
-import { IntegracoesEmBreve } from '../components/IntegracoesEmBreve'
+import { emBreve, IntegracoesEmBreve, type FiltroCanal } from '../components/IntegracoesEmBreve'
 import { CnpjDaLoja } from '../components/CnpjDaLoja'
 import { LojasDasConexoesProvider } from '../components/lojas-da-conexao'
-import { Marca, haQuanto, press, Secao } from '../components/integracao-ui'
+import { Marca, haQuanto, press, Secao, type GrupoCanal } from '../components/integracao-ui'
 import { temLogo } from '../components/MarcaLogo'
 import { ErrorState, PageHeader } from '../components/ui'
 import { marketplaceLabel } from '../lib/format'
@@ -206,7 +206,10 @@ function Resumo({ contas, canais, vendasHoje }: { contas: Conta[]; canais: { mar
   )
 }
 
-/** Um canal em "Suas contas": o cabeçalho com o logo e, embaixo, uma linha por conta. */
+/**
+ * Um canal dentro da lista "Suas contas": uma faixa com o logo e quantas contas,
+ * e embaixo uma linha por conta. Todos os canais ficam no mesmo quadro.
+ */
 function GrupoCanal({
   marca,
   nome,
@@ -230,35 +233,47 @@ function GrupoCanal({
   const idOutra = useId()
   const paradas = contas.filter((c) => c.conexao.status === 'reconectar').length
   return (
-    <div className="card overflow-hidden">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 sm:px-5">
-        <Marca id={marca} nome={nome} />
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display text-sm font-semibold text-gray-900">{nome}</h3>
-          <p className="text-xs text-gray-500">
+    <section aria-label={nome}>
+      <CabecalhoGrupo
+        icone={<Marca id={marca} nome={nome} />}
+        texto={
+          <>
             {plural(contas.length, unidade[0], unidade[1])}
             {paradas > 0 && <span className="text-amber-700">, {plural(paradas, 'parada', 'paradas')}</span>}
-          </p>
-        </div>
-        {outra && (
-          <button
-            type="button"
-            className={`btn-secondary ${press}`}
-            onClick={() => setAbrirOutra((a) => !a)}
-            aria-expanded={abrirOutra}
-            aria-controls={idOutra}
-          >
-            <Plus className={`h-4 w-4 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] ${abrirOutra ? 'rotate-45' : ''}`} aria-hidden />
-            {abrirOutra ? 'Fechar' : rotuloOutra}
-          </button>
-        )}
-      </div>
+          </>
+        }
+        acao={
+          outra && (
+            <button
+              type="button"
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 ${press}`}
+              onClick={() => setAbrirOutra((a) => !a)}
+              aria-expanded={abrirOutra}
+              aria-controls={idOutra}
+            >
+              <Plus className={`h-4 w-4 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] ${abrirOutra ? 'rotate-45' : ''}`} aria-hidden />
+              {abrirOutra ? 'Fechar' : rotuloOutra}
+            </button>
+          )
+        }
+      />
       {outra && abrirOutra && (
         <div id={idOutra} className="revelar border-t border-gray-100 bg-brand-50/40 px-4 py-4 sm:px-5">
           {outra}
         </div>
       )}
       <ul className="divide-y divide-gray-100 border-t border-gray-100">{children}</ul>
+    </section>
+  )
+}
+
+/** A faixa de cima de cada bloco da lista: placa do canal, o que tem nele e uma ação. */
+function CabecalhoGrupo({ icone, texto, acao }: { icone: ReactNode; texto: ReactNode; acao?: ReactNode }) {
+  return (
+    <div className="flex min-h-[3.75rem] flex-wrap items-center gap-x-3 gap-y-2 bg-gray-50/80 px-4 py-3 sm:px-5">
+      {icone}
+      <p className="min-w-0 flex-1 text-sm text-gray-500">{texto}</p>
+      {acao}
     </div>
   )
 }
@@ -266,26 +281,42 @@ function GrupoCanal({
 /** Lojas que não vêm de conta nenhuma: em geral, as das notas fiscais importadas. */
 function LojasAvulsas({ lojas, volumes, podeEditar }: { lojas: Store[]; volumes: Record<string, number> | undefined; podeEditar: boolean }) {
   return (
-    <div className="card overflow-hidden">
-      <ul className="divide-y divide-gray-100">
+    <section aria-label="Lojas sem conta conectada">
+      <CabecalhoGrupo
+        icone={
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500">
+            <FileText className="h-4 w-4" aria-hidden />
+          </span>
+        }
+        texto={
+          <>
+            <span className="font-medium text-gray-900">Sem conta conectada</span>. {plural(lojas.length, 'loja', 'lojas')} pela
+            importação de notas ou de uma conta desconectada
+          </>
+        }
+        acao={
+          <Link to="/importar" className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 ${press}`}>
+            <Upload className="h-4 w-4" aria-hidden />
+            Importar NF-e
+          </Link>
+        }
+      />
+      <ul className="divide-y divide-gray-100 border-t border-gray-100">
         {lojas.map((s) => {
           const prefixo = (s.external_shop_id ?? '').split(':')[0]
           const origem = ORIGEM[prefixo] ? `${ORIGEM[prefixo]}, conta desconectada` : 'Importação de NF-e'
           const n = volumes?.[s.id]
           return (
-            <li key={s.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-              <div className="flex min-w-0 items-center gap-3">
-                {temLogo(s.marketplace) ? (
-                  <Marca id={s.marketplace} nome={marketplaceLabel(s.marketplace)} />
-                ) : (
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-400">
-                    <FileText className="h-4 w-4" aria-hidden />
-                  </span>
-                )}
+            <li key={s.id} className="flex items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gray-300" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">{s.name || 'Loja sem nome'}</p>
+                  <p className="truncate text-sm font-semibold text-gray-900">{s.name || 'Loja sem nome'}</p>
                   <CnpjDaLoja loja={s} podeEditar={podeEditar} />
-                  <p className="truncate text-xs text-gray-400">{origem}</p>
+                  <p className="mt-0.5 truncate text-sm text-gray-500">
+                    {temLogo(s.marketplace) ? `${marketplaceLabel(s.marketplace)}. ` : ''}
+                    {origem}
+                  </p>
                 </div>
               </div>
               <p className="shrink-0 text-right text-xs text-gray-500">
@@ -296,8 +327,40 @@ function LojasAvulsas({ lojas, volumes, podeEditar }: { lojas: Store[]; volumes:
           )
         })}
       </ul>
+    </section>
+  )
+}
+
+/** Filtro por tipo de canal, no cabeçalho de "Conectar um canal". */
+function FiltroTipo({ grupos, valor, onMudar }: { grupos: GrupoCanal[]; valor: FiltroCanal; onMudar: (f: FiltroCanal) => void }) {
+  if (grupos.length < 2) return null
+  const opcoes: { id: FiltroCanal; rotulo: string }[] = [
+    { id: 'todos', rotulo: 'Todos' },
+    ...grupos.map((g) => ({ id: g as FiltroCanal, rotulo: ROTULO_GRUPO_PLURAL[g] })),
+  ]
+  return (
+    <div role="group" aria-label="Filtrar por tipo" className="inline-flex max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-0.5">
+      {opcoes.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-pressed={valor === o.id}
+          onClick={() => onMudar(o.id)}
+          className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm transition-[background-color,color] duration-150 ease-out sm:px-3 ${press} ${
+            valor === o.id ? 'bg-gray-900 font-medium text-white' : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          {o.rotulo}
+        </button>
+      ))}
     </div>
   )
+}
+
+const ROTULO_GRUPO_PLURAL: Record<GrupoCanal, string> = {
+  marketplace: 'Marketplaces',
+  ecommerce: 'Lojas virtuais',
+  erp: 'ERPs',
 }
 
 export default function Integracoes() {
@@ -313,6 +376,7 @@ export default function Integracoes() {
   const magalu = useConexoesMagalu(ver.magalu ? activeClient?.id : undefined)
   const tiny = useConexaoTiny(ver.tiny ? activeClient?.id : undefined)
   const tinyPrep = useTinyPreparado(activeClient?.id, ver.tiny)
+  const [filtro, setFiltro] = useState<FiltroCanal>('todos')
 
   const stores = useStores()
   const storeIds = (stores.data ?? []).map((s) => s.id)
@@ -387,6 +451,34 @@ export default function Integracoes() {
       ].filter(Boolean)
     : []
 
+  // Canais para conectar, cada um com o tipo (é por ele que a seção filtra)
+  const disponiveis: { id: string; grupo: GrupoCanal; el: ReactNode }[] = [
+    mlDisponivel && { id: 'mercado_livre', grupo: 'marketplace' as const, el: <CartaoMercadoLivre ligadas={0} desconectadas={mlDesligadas} /> },
+    shopeeDisponivel && { id: 'shopee', grupo: 'marketplace' as const, el: <CartaoShopee conexao={shopee.data?.[0] ?? null} /> },
+    magaluDisponivel && { id: 'magalu', grupo: 'marketplace' as const, el: <CartaoMagalu conexao={magalu.data?.[0] ?? null} /> },
+    tiktokDisponivel && { id: 'tiktok_shop', grupo: 'marketplace' as const, el: <CartaoTiktok conexao={tiktok.data?.[0] ?? null} /> },
+    nuvemDisponivel && { id: 'nuvemshop', grupo: 'ecommerce' as const, el: <CartaoNuvemshop conexao={nuvem.data?.[0] ?? null} /> },
+    shopDisponivel && prep.data && { id: 'shopify', grupo: 'ecommerce' as const, el: <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} /> },
+    blingDisponivel && { id: 'bling', grupo: 'erp' as const, el: <CartaoBling conexao={bling.data ?? null} /> },
+    tinyDisponivel && tinyPrep.data && { id: 'tiny', grupo: 'erp' as const, el: <CartaoTiny conexao={tiny.data ?? null} preparado={tinyPrep.data} /> },
+  ].filter((d): d is { id: string; grupo: GrupoCanal; el: JSX.Element } => Boolean(d))
+  // Em breve: sai quem já tem cartão ou conta ligada
+  const semEmBreve = [
+    ...(ver.bling ? ['bling'] : []),
+    ...(ver.nuvemshop ? ['nuvemshop'] : []),
+    ...(shopDisponivel || shopConta.length > 0 ? ['shopify'] : []),
+    ...(ver.mercadoLivre ? ['mercado_livre'] : []),
+    ...(ver.tiktok ? ['tiktok_shop'] : []),
+    ...(ver.shopee ? ['shopee'] : []),
+    ...(tinyDisponivel || tinyConta.length > 0 ? ['tiny'] : []),
+  ]
+  const breve = emBreve(semEmBreve)
+  const gruposNoFiltro = (['marketplace', 'ecommerce', 'erp'] as GrupoCanal[]).filter(
+    (g) => disponiveis.some((d) => d.grupo === g) || breve.some((b) => b.grupo === g),
+  )
+  const visiveis = filtro === 'todos' ? disponiveis : disponiveis.filter((d) => d.grupo === filtro)
+  const breveVisiveis = filtro === 'todos' ? breve.length : breve.filter((b) => b.grupo === filtro).length
+
   // Lojas por conexão (o CNPJ de cada conta) e as que não vêm de conta nenhuma
   const porConexao: Record<string, Store[]> = {}
   const avulsas: Store[] = []
@@ -416,9 +508,9 @@ export default function Integracoes() {
           <div className="space-y-10">
             <Resumo contas={contas} canais={canais} vendasHoje={lojasLigadas.length ? vendasHoje : 0} />
 
-            {contas.length > 0 && (
-              <Secao titulo="Suas contas" texto="Cada conta deixa as vendas numa loja do Contatta, com o CNPJ dela. Abra uma conta para ver as datas, a loja e para desconectar.">
-                <div className="space-y-4">
+            {(contas.length > 0 || avulsas.length > 0) && (
+              <Secao titulo="Suas contas" texto="Cada conta deixa as vendas numa loja do Contatta, com o CNPJ dela. Clique em Gerenciar para ver as datas, a loja e desconectar.">
+                <div className="card divide-y divide-gray-200 overflow-hidden">
                   {mlContas.length > 0 && (
                     <GrupoCanal marca="mercado_livre" nome="Mercado Livre" contas={mlContas} outra={<OutraContaMercadoLivre />}>
                       {mlContas.map((c) => <LinhaMercadoLivre key={c.conexao.id} conexao={c.conexao} isMaster={ver.isMaster} />)}
@@ -461,61 +553,46 @@ export default function Integracoes() {
                       <LinhaTiny conexao={tinyConta[0].conexao} />
                     </GrupoCanal>
                   )}
+                  {avulsas.length > 0 && <LojasAvulsas lojas={avulsas} volumes={volumes} podeEditar={ver.podeEditar} />}
                 </div>
               </Secao>
             )}
 
-            {(nuvemDisponivel || shopDisponivel || blingDisponivel || tinyDisponivel || mlDisponivel || tiktokDisponivel || shopeeDisponivel || magaluDisponivel || faltaSql.length > 0) && (
+            {(disponiveis.length > 0 || breve.length > 0 || faltaSql.length > 0) && (
               <Secao
                 id="conectar"
                 titulo={contas.length > 0 ? 'Conectar um canal novo' : 'Conectar um canal'}
                 texto="Ligue o sistema de onde vêm as suas vendas. O Contatta só lê: nada muda do outro lado."
+                acao={<FiltroTipo grupos={gruposNoFiltro} valor={filtro} onMudar={setFiltro} />}
               >
-                <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {mlDisponivel && <CartaoMercadoLivre ligadas={0} desconectadas={mlDesligadas} />}
-                  {shopeeDisponivel && <CartaoShopee conexao={shopee.data?.[0] ?? null} />}
-                  {magaluDisponivel && <CartaoMagalu conexao={magalu.data?.[0] ?? null} />}
-                  {tiktokDisponivel && <CartaoTiktok conexao={tiktok.data?.[0] ?? null} />}
-                  {nuvemDisponivel && <CartaoNuvemshop conexao={nuvem.data?.[0] ?? null} />}
-                  {shopDisponivel && prep.data && <CartaoShopify conexao={shop.data ?? null} preparado={prep.data} />}
-                  {blingDisponivel && <CartaoBling conexao={bling.data ?? null} />}
-                  {tinyDisponivel && tinyPrep.data && <CartaoTiny conexao={tiny.data ?? null} preparado={tinyPrep.data} />}
-                </div>
+                {visiveis.length > 0 ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {visiveis.map((d) => (
+                      <div key={d.id} className="min-w-0">{d.el}</div>
+                    ))}
+                  </div>
+                ) : (
+                  disponiveis.length > 0 && (
+                    <p className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+                      Nenhum canal desse tipo para conectar agora. Os que vêm por aí estão logo abaixo.
+                    </p>
+                  )
+                )}
                 {faltaSql.length > 0 && (
                   <p className="mt-3 text-sm text-amber-800">
                     Falta rodar no Supabase o SQL de {faltaSql.join(' e ')} para ligar essa integração.
                   </p>
                 )}
+
+                {breveVisiveis > 0 && (
+                  <div className="mt-8">
+                    <h3 className="font-display text-sm font-semibold text-gray-900">Em breve</h3>
+                    <p className="mb-3 mt-0.5 text-sm text-gray-500">Marque o que você usa. É por essas que a gente começa.</p>
+                    <IntegracoesEmBreve sem={semEmBreve} filtro={filtro} />
+                  </div>
+                )}
               </Secao>
             )}
-
-            {avulsas.length > 0 && (
-              <Secao
-                titulo="Lojas sem conta conectada"
-                texto="Lojas que recebem vendas pela importação de notas fiscais, ou de uma conta que foi desconectada."
-                acao={
-                  <Link to="/importar" className="text-sm font-medium text-brand-700 hover:underline">
-                    Importar NF-e
-                  </Link>
-                }
-              >
-                <LojasAvulsas lojas={avulsas} volumes={volumes} podeEditar={ver.podeEditar} />
-              </Secao>
-            )}
-
-            <Secao titulo="Em breve" texto="Marque o que você usa. É por essas que a gente começa.">
-              <IntegracoesEmBreve
-                sem={[
-                  ...(ver.bling ? ['bling'] : []),
-                  ...(ver.nuvemshop ? ['nuvemshop'] : []),
-                  ...(shopDisponivel || shopConta.length > 0 ? ['shopify'] : []),
-                  ...(ver.mercadoLivre ? ['mercado_livre'] : []),
-                  ...(ver.tiktok ? ['tiktok_shop'] : []),
-                  ...(ver.shopee ? ['shopee'] : []),
-                  ...(tinyDisponivel || tinyConta.length > 0 ? ['tiny'] : []),
-                ]}
-              />
-            </Secao>
           </div>
         </LojasDasConexoesProvider>
       )}

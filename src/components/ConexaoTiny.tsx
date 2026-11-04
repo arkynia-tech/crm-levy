@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Link2 } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
+import { Dialogo } from './Dialogo'
 import type { ConexaoErp } from '../hooks/bling'
 import { chamarTiny, type TinyPreparado } from '../hooks/tiny'
 import { formatDate, formatDateTime } from '../lib/format'
@@ -41,44 +42,51 @@ function useConectarTiny() {
   return { conectar, abrindo, erro }
 }
 
-/** Tiny não ligado (ou desconectado): cartão com o passo a passo e as chaves do app. */
+/** Tiny não ligado (ou desconectado): cartão do mesmo tamanho dos outros; as chaves abrem numa janela. */
 export function CartaoTiny({ conexao, preparado }: { conexao: ConexaoErp | null; preparado: TinyPreparado }) {
   const { conectar, abrindo, erro } = useConectarTiny()
-  const [editando, setEditando] = useState(!preparado.preparado)
+  const [chaves, setChaves] = useState(false)
 
   return (
-    <CartaoDisponivel
-      marca="tiny"
-      nome="Olist Tiny"
-      categoria="ERP"
-      texto="As vendas com nota fiscal e os clientes de todos os canais que o seu Tiny recebe entram sozinhos. Para conectar, você cria um app no Tiny e cola as chaves aqui. Leva uns 5 minutos."
-      nota={
-        conexao?.status === 'desconectado' && conexao.disconnected_at
-          ? `Desconectado em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
-          : undefined
-      }
-      erro={erro}
-      botao={
-        <div className="space-y-3">
-          {!editando && (
-            <>
-              <p className="text-xs text-gray-600">
-                Chaves do app {preparado.client_id_final} guardadas. Deixe o Tiny aberto neste mesmo navegador e clique para
-                autorizar.
-              </p>
-              <button type="button" className={`btn-primary w-full ${press}`} onClick={() => void conectar()} disabled={abrindo}>
+    <>
+      <CartaoDisponivel
+        marca="tiny"
+        nome="Olist Tiny"
+        categoria="ERP"
+        texto="As vendas com nota fiscal e os clientes de todos os canais que o seu Tiny recebe entram sozinhos."
+        nota={
+          conexao?.status === 'desconectado' && conexao.disconnected_at
+            ? `Desconectado em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
+            : preparado.preparado
+              ? `Chaves do app ${preparado.client_id_final} guardadas. Deixe o Tiny aberto neste mesmo navegador e clique para autorizar.`
+              : 'Você cria um app no Tiny e cola as chaves aqui. Leva uns 5 minutos.'
+        }
+        erro={erro}
+        botao={
+          preparado.preparado ? (
+            <div className="flex gap-2">
+              <button type="button" className={`btn-primary flex-1 ${press}`} onClick={() => void conectar()} disabled={abrindo}>
                 <Link2 className="h-4 w-4" aria-hidden />
                 {abrindo ? 'Abrindo o Tiny…' : conexao?.status === 'desconectado' ? 'Conectar de novo' : 'Conectar Tiny'}
               </button>
-              <button type="button" className={`btn-secondary w-full ${press}`} onClick={() => setEditando(true)}>
-                <KeyRound className="h-4 w-4" aria-hidden /> Trocar as chaves do app
+              <button type="button" className={`btn-secondary ${press}`} onClick={() => setChaves(true)} aria-label="Trocar as chaves do app" title="Trocar as chaves do app">
+                <KeyRound className="h-4 w-4" aria-hidden />
               </button>
-            </>
-          )}
-          {editando && <ChavesTiny preparado={preparado} onCancelar={preparado.preparado ? () => setEditando(false) : undefined} />}
-        </div>
-      }
-    />
+            </div>
+          ) : (
+            <button type="button" className={`btn-primary w-full ${press}`} onClick={() => setChaves(true)}>
+              <Link2 className="h-4 w-4" aria-hidden />
+              Conectar Tiny
+            </button>
+          )
+        }
+      />
+      {chaves && (
+        <Dialogo titulo="Conectar o Tiny" onFechar={() => setChaves(false)}>
+          <ChavesTiny preparado={preparado} onCancelar={() => setChaves(false)} />
+        </Dialogo>
+      )}
+    </>
   )
 }
 

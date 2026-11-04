@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, KeyRound, Link2, RefreshCw } from 'lucide-react'
 import { useCompany } from '../context/CompanyContext'
+import { Dialogo } from './Dialogo'
 import type { ConexaoErp } from '../hooks/bling'
 import { chamarShopify, SHOPIFY_GUIA_URL, type ShopifyPreparado, type StatusShopify } from '../hooks/shopify'
 import { formatDate, formatDateTime } from '../lib/format'
@@ -36,54 +37,61 @@ function useConectarShopify() {
   return { conectar, abrindo, erro }
 }
 
-/** Shopify não ligada: cartão com o passo a passo e as chaves do app. */
+/** Shopify não ligada: cartão do mesmo tamanho dos outros; as chaves do app abrem numa janela. */
 export function CartaoShopify({ conexao, preparado }: { conexao: ConexaoErp | null; preparado: ShopifyPreparado }) {
   const { conectar, abrindo, erro } = useConectarShopify()
   // chaves guardadas que não conectam sozinhas: a loja autoriza pelo botão
   const [autorizar, setAutorizar] = useState(preparado.preparado)
-  const [editando, setEditando] = useState(!preparado.preparado)
+  const [chaves, setChaves] = useState(false)
 
   return (
-    <CartaoDisponivel
-      marca="shopify"
-      nome="Shopify"
-      categoria="Loja virtual"
-      texto="Os pedidos pagos e os clientes da sua loja Shopify entram sozinhos no Contatta. Para conectar, você cria um app na sua loja e cola as chaves aqui. Leva uns 5 minutos."
-      nota={
-        conexao?.status === 'desconectado' && conexao.disconnected_at
-          ? `Desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
-          : undefined
-      }
-      erro={erro}
-      botao={
-        <div className="space-y-3">
-          {autorizar && !editando && (
-            <>
-              <p className="text-xs text-gray-600">
-                Loja {preparado.shop_domain}. Deixe o painel dela aberto neste mesmo navegador e clique para autorizar.
-              </p>
-              <button type="button" className={`btn-primary w-full ${press}`} onClick={() => void conectar()} disabled={abrindo}>
+    <>
+      <CartaoDisponivel
+        marca="shopify"
+        nome="Shopify"
+        categoria="Loja virtual"
+        texto="Os pedidos pagos e os clientes da sua loja Shopify entram sozinhos no Contatta."
+        nota={
+          conexao?.status === 'desconectado' && conexao.disconnected_at
+            ? `Desconectada em ${formatDate(conexao.disconnected_at)}. O que já entrou continua aqui, e a data de corte fica a mesma.`
+            : autorizar
+              ? `Loja ${preparado.shop_domain}. Deixe o painel dela aberto neste mesmo navegador e clique para autorizar.`
+              : 'Você cria um app na sua loja e cola as chaves aqui. Leva uns 5 minutos.'
+        }
+        erro={erro}
+        botao={
+          autorizar ? (
+            <div className="flex gap-2">
+              <button type="button" className={`btn-primary flex-1 ${press}`} onClick={() => void conectar()} disabled={abrindo}>
                 <Link2 className="h-4 w-4" aria-hidden />
                 {abrindo ? 'Abrindo a Shopify…' : conexao?.status === 'desconectado' ? 'Conectar de novo' : 'Conectar Shopify'}
               </button>
-              <button type="button" className={`btn-secondary w-full ${press}`} onClick={() => setEditando(true)}>
-                <KeyRound className="h-4 w-4" aria-hidden /> Trocar as chaves do app
+              <button type="button" className={`btn-secondary ${press}`} onClick={() => setChaves(true)} aria-label="Trocar as chaves do app" title="Trocar as chaves do app">
+                <KeyRound className="h-4 w-4" aria-hidden />
               </button>
-            </>
-          )}
-          {editando && (
-            <ChavesShopify
-              preparado={preparado}
-              onPrecisaAutorizar={() => {
-                setAutorizar(true)
-                setEditando(false)
-              }}
-              onCancelar={preparado.preparado ? () => setEditando(false) : undefined}
-            />
-          )}
-        </div>
-      }
-    />
+            </div>
+          ) : (
+            <button type="button" className={`btn-primary w-full ${press}`} onClick={() => setChaves(true)}>
+              <Link2 className="h-4 w-4" aria-hidden />
+              Conectar Shopify
+            </button>
+          )
+        }
+      />
+      {chaves && (
+        <Dialogo titulo="Conectar a Shopify" onFechar={() => setChaves(false)}>
+          <ChavesShopify
+            preparado={preparado}
+            onPrecisaAutorizar={() => {
+              setAutorizar(true)
+              setChaves(false)
+            }}
+            onConectado={() => setChaves(false)}
+            onCancelar={() => setChaves(false)}
+          />
+        </Dialogo>
+      )}
+    </>
   )
 }
 
@@ -112,10 +120,12 @@ function PassoAPassoShopify() {
 function ChavesShopify({
   preparado,
   onPrecisaAutorizar,
+  onConectado,
   onCancelar,
 }: {
   preparado: ShopifyPreparado
   onPrecisaAutorizar: () => void
+  onConectado: () => void
   onCancelar?: () => void
 }) {
   const { activeClient } = useCompany()
@@ -145,6 +155,7 @@ function ChavesShopify({
     if (r.conectado) {
       void queryClient.invalidateQueries({ queryKey: ['erp-connection', 'shopify'] })
       void queryClient.invalidateQueries({ queryKey: ['stores'] })
+      onConectado()
       return
     }
     if (r.precisa_autorizar) {
