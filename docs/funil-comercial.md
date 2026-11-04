@@ -44,17 +44,9 @@ Gerar e gravar os dois segredos aleatórios (o da chave do WhatsApp fica numa va
 supabase secrets set --project-ref lopdvdblwasuowjdokpo FUNIL_TOKEN_SEGREDO="$(openssl rand -hex 32)" FUNIL_WHATSAPP_CHAVE="$(openssl rand -hex 24 | tee ~/.config/arkynia/funil-whatsapp-chave.txt)"
 ```
 
-Chave da Anthropic (paga pelo Contatta) e chave da conta arkynia no Mensy (a mesma da credencial "Mensy - Chave Arkynia" do n8n). O terminal pergunta cada uma sem mostrar:
+A chave da Anthropic (`ANTHROPIC_API_KEY`) e a do Mensy (`MENSY_API_KEY`) são as que o Contatta já usa: o funil reaproveita as duas (decisão de 04/11/2026). A do Mensy enxerga a conexão `contatta` (0337); para conferir, POST na `funil-whatsapp` com `{"diagnostico": true}` e o cabeçalho `x-funil-chave`.
 
-```bash
-read -s "K?Chave da Anthropic: " && echo && supabase secrets set --project-ref lopdvdblwasuowjdokpo ANTHROPIC_API_KEY="$K" && unset K
-```
-
-```bash
-read -s "K?Chave da conta arkynia no Mensy: " && echo && supabase secrets set --project-ref lopdvdblwasuowjdokpo FUNIL_MENSY_API_KEY="$K" && unset K
-```
-
-Opcionais: `FUNIL_IA_MODELO` (padrão `claude-opus-5-5`), `FUNIL_MENSY_SESSAO` (padrão `contatta`), `FUNIL_ORIGENS` (padrão `https://contatta.pro,https://www.contatta.pro`).
+Opcionais: `FUNIL_IA_MODELO` (padrão `claude-opus-5-5`), `FUNIL_MENSY_API_KEY` (só para usar outra conta do Mensy), `FUNIL_MENSY_SESSAO` (padrão `contatta`), `FUNIL_ORIGENS` (padrão `https://contatta.pro,https://www.contatta.pro`).
 
 ### 3. Publicar as funções
 

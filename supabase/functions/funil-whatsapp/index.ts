@@ -23,7 +23,7 @@ import { formatarHorario, poucosHorarios, type Intervalo } from '../_shared/funi
 import { iaConfigurada, limpar, pensar, PERGUNTAS, type Turno } from '../_shared/funil/ia.ts'
 import { agendarReuniao, alertar, linkAgendar, livresAgora } from '../_shared/funil/operacoes.ts'
 import { iguais } from '../_shared/funil/seguranca.ts'
-import { digitandoPara, enviarWhatsapp } from '../_shared/funil/whatsapp.ts'
+import { conferirConexao, digitandoPara, enviarWhatsapp } from '../_shared/funil/whatsapp.ts'
 
 const ESPERA_MS = 7000 // junta mensagens picadas: só a última responde
 const SAIR = /^\s*(sair|parar|pare|stop|cancelar|descadastrar|remover)\s*[.!]*\s*$|n[aã]o\s+(quero|desejo)\s+(mais\s+)?(receber|mensage)|para\s+de\s+(me\s+)?mand/i
@@ -285,7 +285,10 @@ Deno.serve(async (req) => {
   if (chave.length < 24 || !iguais(req.headers.get('x-funil-chave') ?? '', chave)) {
     return responder(401, { handled: false, error: 'chave inválida' })
   }
-  const aviso = lerAviso(await req.json().catch(() => ({})))
+  const corpo = await req.json().catch(() => ({}))
+  // conferência da conexão do 0337 (status e telefone, sem segredo)
+  if (corpo?.diagnostico === true) return responder(200, { handled: false, conexao: await conferirConexao() })
+  const aviso = lerAviso(corpo)
   if (!aviso) return responder(200, { handled: false })
 
   try {

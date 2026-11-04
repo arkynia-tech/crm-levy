@@ -12,7 +12,7 @@ import { agendaConfigurada, formatarHorario } from '../_shared/funil/agenda.ts'
 import { iaConfigurada, limpar } from '../_shared/funil/ia.ts'
 import { capiConfigurada, insightsConfigurado, puxarInsights } from '../_shared/funil/meta.ts'
 import { enviarDaFila, livresAgora, removerEvento } from '../_shared/funil/operacoes.ts'
-import { digitandoPara, enviarWhatsapp, whatsappConfigurado } from '../_shared/funil/whatsapp.ts'
+import { conferirConexao, digitandoPara, enviarWhatsapp, whatsappConfigurado } from '../_shared/funil/whatsapp.ts'
 
 const H = cors(null, '*')
 const ok = (c: Json) => responder(200, { ok: true, ...c }, H)
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
         if (!m || m.status !== 'sugerida') return falha(404, 'Sugestão não encontrada (já foi enviada ou descartada).')
         const cfg = (await rpc('aq_funil_agenda_dados')).config
         if (!cfg?.whatsapp_envio) return falha(400, 'O envio pelo WhatsApp está desligado (Configuração).')
-        if (!whatsappConfigurado()) return falha(400, 'Falta a chave do Mensy (FUNIL_MENSY_API_KEY).')
+        if (!whatsappConfigurado()) return falha(400, 'Falta a chave do Mensy (MENSY_API_KEY).')
         const lead = await rpc('aq_funil_lead_resumo', { p_lead: m.lead_id })
         if (lead.opt_out || !lead.whatsapp_optin) return falha(400, 'Este contato não autorizou WhatsApp ou pediu para sair.')
         const texto = limpar(typeof b.texto === 'string' && b.texto.trim() ? b.texto : m.text, 2000)
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
       case 'status':
         return ok({
-          whatsapp: whatsappConfigurado(), ia: iaConfigurada(), agenda: agendaConfigurada(),
+          whatsapp: whatsappConfigurado(), conexao: await conferirConexao(), ia: iaConfigurada(), agenda: agendaConfigurada(),
           capi: capiConfigurada(), insights: insightsConfigurado(),
           turnstile: Boolean(Deno.env.get('TURNSTILE_SECRET')),
           modelo: Deno.env.get('FUNIL_IA_MODELO') || 'claude-opus-5-5',

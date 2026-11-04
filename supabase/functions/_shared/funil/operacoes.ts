@@ -135,7 +135,7 @@ export async function enviarDaFila(id: string): Promise<{ ok: boolean; error?: s
   if (!d?.followup) return { ok: false, error: 'Mensagem não encontrada.' }
   if (d.followup.status !== 'aprovado') return { ok: false, error: 'A mensagem precisa estar aprovada.' }
   if (!d.config?.whatsapp_envio) return { ok: false, error: 'O envio pelo WhatsApp está desligado (Configuração).' }
-  if (!whatsappConfigurado()) return { ok: false, error: 'Falta a chave do Mensy (FUNIL_MENSY_API_KEY).' }
+  if (!whatsappConfigurado()) return { ok: false, error: 'Falta a chave do Mensy (MENSY_API_KEY).' }
   if (d.lead.opt_out_at || !d.lead.whatsapp_optin) {
     await rpc('aq_funil_followup_resultado', { p_id: id, p_ok: false, p_texto: null, p_provider: null, p_erro: 'sem consentimento de WhatsApp ou pediu para sair' })
     return { ok: false, error: 'Este contato não autorizou WhatsApp ou pediu para sair.' }
