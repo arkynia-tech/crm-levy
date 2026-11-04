@@ -36,11 +36,15 @@ export function resumoDaConexao(ultimaVenda: string | null): string {
 
 export type EstadoConexao = 'conectado' | 'reconectar'
 
-export function Marca({ id, nome }: { id: string; nome: string }) {
+export function Marca({ id, nome, pequena = true }: { id: string; nome: string; pequena?: boolean }) {
   return temLogo(id) ? (
-    <MarcaLogo id={id} pequena />
+    <MarcaLogo id={id} pequena={pequena} />
   ) : (
-    <span className="inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600">
+    <span
+      className={`inline-flex shrink-0 items-center rounded-md border border-gray-200 bg-white text-sm font-semibold text-gray-800 ${
+        pequena ? 'h-9 px-2.5' : 'h-12 px-3.5'
+      }`}
+    >
       {nome}
     </span>
   )
@@ -213,6 +217,20 @@ export function Desconectar({
   )
 }
 
+/** Tipo de canal: é por ele que a tela filtra (marketplace, loja virtual, ERP). */
+export type GrupoCanal = 'marketplace' | 'ecommerce' | 'erp'
+
+export const ROTULO_GRUPO: Record<GrupoCanal, string> = {
+  marketplace: 'Marketplace',
+  ecommerce: 'Loja virtual',
+  erp: 'ERP',
+}
+
+/**
+ * Um canal que ainda não está ligado. Todos têm o mesmo desenho: logo e tipo em
+ * cima, o que entra e o que fazer antes no meio, e o botão sempre no pé. Canal que
+ * pede chaves (Shopify, Tiny) abre o formulário numa janela, não dentro do cartão.
+ */
 export function CartaoDisponivel({
   marca,
   nome,
@@ -231,16 +249,16 @@ export function CartaoDisponivel({
   erro?: string | null
 }) {
   return (
-    <div className="card flex flex-col p-5">
-      <div className="flex items-start justify-between gap-3">
-        <Marca id={marca} nome={nome} />
+    <article className="card flex h-full flex-col p-5" aria-label={nome}>
+      <div className="flex h-12 items-center justify-between gap-3">
+        <Marca id={marca} nome={nome} pequena={false} />
         <span className="text-xs text-gray-500">{categoria}</span>
       </div>
-      <p className="mt-4 flex-1 text-sm text-gray-600">{texto}</p>
-      {nota && <p className="mt-2 text-xs text-gray-500">{nota}</p>}
-      {erro && <p className="mt-2 text-sm text-red-700">{erro}</p>}
-      <div className="mt-4">{botao}</div>
-    </div>
+      <p className="mt-4 text-sm leading-relaxed text-gray-700">{texto}</p>
+      {nota && <p className="mt-2 text-xs leading-relaxed text-gray-500">{nota}</p>}
+      {erro && <p className="mt-3 text-sm text-red-700">{erro}</p>}
+      <div className="mt-auto pt-5">{botao}</div>
+    </article>
   )
 }
 
