@@ -22,6 +22,7 @@ import { depoisDeResponder, responder, rpc } from '../_shared/comum.ts'
 import { formatarHorario, poucosHorarios, type Intervalo } from '../_shared/funil/agenda.ts'
 import { iaConfigurada, limpar, pensar, PERGUNTAS, type Turno } from '../_shared/funil/ia.ts'
 import { agendarReuniao, alertar, linkAgendar, livresAgora } from '../_shared/funil/operacoes.ts'
+import { agendaConfigurada } from '../_shared/funil/agenda.ts'
 import { iguais } from '../_shared/funil/seguranca.ts'
 import { conferirConexao, digitandoPara, enviarWhatsapp } from '../_shared/funil/whatsapp.ts'
 
@@ -287,7 +288,15 @@ Deno.serve(async (req) => {
   }
   const corpo = await req.json().catch(() => ({}))
   // conferência da conexão do 0337 (status e telefone, sem segredo)
-  if (corpo?.diagnostico === true) return responder(200, { handled: false, conexao: await conferirConexao() })
+  if (corpo?.diagnostico === true) {
+    let agenda: unknown = { configurada: agendaConfigurada() }
+    if (agendaConfigurada()) {
+      agenda = await livresAgora(5)
+        .then(({ livres }) => ({ configurada: true, ok: true, proximos: livres.map((l) => formatarHorario(l.inicio)) }))
+        .catch((e) => ({ configurada: true, ok: false, erro: String((e as Error).message).slice(0, 200) }))
+    }
+    return responder(200, { handled: false, conexao: await conferirConexao(), agenda })
+  }
   const aviso = lerAviso(corpo)
   if (!aviso) return responder(200, { handled: false })
 
