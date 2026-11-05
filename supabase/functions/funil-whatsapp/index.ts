@@ -48,10 +48,12 @@ function lerAviso(b: Json): Recebida | null {
   if (b?.sessionId && b.sessionId !== sessaoFunil()) return null // só a conexão do Contatta
   const d = b?.data ?? b
   if (d?.isGroup) return null
-  const fone = String(d.from ?? d.chat ?? d.phone ?? '').replace(/\D/g, '')
+  const deMim = Boolean(d.fromMe ?? d.from_me)
+  // mensagem que saiu do 0337: "from" é o próprio 0337, o contato é o "chat"
+  const fone = String((deMim ? d.chat ?? d.to : d.from ?? d.chat) ?? d.phone ?? '').replace(/\D/g, '')
   if (fone.length < 10 || fone.length > 13) return null
   const texto = String(d.text ?? d.body ?? (d.type ? `[${d.type}]` : '')).slice(0, 4000)
-  return { fone, texto, id: String(d.id ?? d.message_id ?? b.deliveryId ?? crypto.randomUUID()), deMim: Boolean(d.fromMe ?? d.from_me), nome: d.pushName ?? d.push_name ?? null }
+  return { fone, texto, id: String(d.id ?? d.message_id ?? b.deliveryId ?? crypto.randomUUID()), deMim, nome: d.pushName ?? d.push_name ?? null }
 }
 
 // formato antigo (formulário do Make: "até_1000_pedidos", "sim, em marketplace") não conta como respondido
@@ -87,7 +89,7 @@ async function entregar(ctx: Json, bolhas: string[], meta: Json = {}): Promise<v
       },
     })
     if ('erro' in r) {
-      await alertar(cfg, `Não consegui responder ${lead.name} no WhatsApp: ${r.erro}`)
+      console.error('IA não conseguiu responder no WhatsApp:', r.erro)
       return
     }
   }
@@ -96,7 +98,8 @@ async function entregar(ctx: Json, bolhas: string[], meta: Json = {}): Promise<v
 async function passarParaHumano(ctx: Json, motivo: string, bolha: string | null) {
   await rpc('aq_funil_bot_status', { p_lead: ctx.lead.id, p_status: 'humano', p_horas: null })
   if (bolha) await entregar(ctx, [bolha], { etapa: 'humano' })
-  await alertar(ctx.config, `${ctx.lead.name}${ctx.lead.company ? ` (${ctx.lead.company})` : ''} precisa de você no WhatsApp do Contatta: ${motivo}. Telefone +${ctx.lead.phone_norm}.`)
+  // sem aviso no pessoal (pedido do Mohamad em 05/11: só lead novo e reunião marcada); aparece no CRM como "humano"
+  console.log('passou pra humano:', ctx.lead.id, motivo)
 }
 
 /** Oferece até 3 horários reais (documento: "buscar horários no calendário em tempo real"). */
@@ -251,7 +254,6 @@ async function turnoDaConversa(fone: string, idDaMensagem: string): Promise<void
     case 'sem_interesse':
       await entregar(ctx, [turno.comentario || 'Tranquilo. Se mudar de ideia, é só chamar por aqui.'], { etapa: 'sem_interesse' })
       await rpc('aq_funil_bot_status', { p_lead: lead.id, p_status: 'encerrado', p_horas: null })
-      await alertar(cfg, `${lead.name} disse que não tem interesse agora (WhatsApp). Revise no CRM.`)
       return
     case 'escolheu_horario': {
       if (horarios.includes(turno.horario_escolhido)) {
@@ -355,10 +357,10 @@ Deno.serve(async (req) => {
 
     const assume = cfg.bot_mode === 'ativo' && Boolean(cfg.whatsapp_envio)
     if (cfg.bot_mode !== 'desligado') depoisDeResponder(turnoDaConversa(aviso.fone, aviso.id))
-    // aviso no pessoal: primeira mensagem do lead ou voltou a falar depois de 2 h quieto (sem avisar mensagem por mensagem)
-    if (!respondeuAntes || Date.now() - respondeuAntes > 2 * 3600_000) {
-      const quem = `${lead.name}${lead.company ? ` (${lead.company})` : ''}`
-      depoisDeResponder(alertar(cfg, `${respondeuAntes ? 'Lead voltou a falar' : 'Lead novo no WhatsApp'}: ${quem}, +${lead.phone_norm}. ` +
+    // aviso no pessoal só quando o lead chega (pedido do Mohamad em 05/11: lead novo e reunião marcada, nada mais).
+    // Quem veio do formulário da página nova já foi avisado lá.
+    if (!respondeuAntes && lead.source !== 'landing_demo') {
+      depoisDeResponder(alertar(cfg, `Lead novo no WhatsApp: ${lead.name}${lead.company ? ` (${lead.company})` : ''}, +${lead.phone_norm}. ` +
         `Disse: "${aviso.texto.replace(/\s+/g, ' ').slice(0, 180)}". Conversa: https://wa.me/${lead.phone_norm}`))
     }
     // pediu pra sair: vale mesmo com a IA desligada ou em sombra
