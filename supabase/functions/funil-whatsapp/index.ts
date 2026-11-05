@@ -118,7 +118,8 @@ async function oferecerHorarios(ctx: Json, prefixo: string | null): Promise<void
   }
   const lista = escolhidos.map((s, i) => `${i + 1}) ${formatarHorario(s.inicio, tz)}`).join('\n')
   const link = await linkAgendar(cfg.link_agendar, ctx.lead.id)
-  const texto = `${prefixo ? prefixo + '\n\n' : ''}A apresentação dura cerca de 20 minutos. Tenho estes horários:\n${lista}\n\nQual fica melhor? Se nenhum servir, escolha outro aqui: ${link}`
+  const jaDisse = /20 ?min/i.test(prefixo ?? '')
+  const texto = `${prefixo ? prefixo + '\n\n' : ''}${jaDisse ? 'Tenho estes horários:' : 'Tenho estes horários para a conversa de 20 minutos:'}\n${lista}\n\nQual fica melhor? Se nenhum servir, escolha outro aqui: ${link}`
   await entregar(ctx, [texto], { etapa: 'oferta_horarios', horarios: escolhidos.map((s) => s.inicio) })
 }
 
@@ -133,7 +134,7 @@ async function caminhoDaRota(ctx: Json, turno: Turno | null): Promise<void> {
     return
   }
   if (lead.route === 'consultiva' || turno?.intencao === 'quer_agendar') {
-    await oferecerHorarios(ctx, anterior === 'oferta_horarios' ? comentario : (comentario ? comentario + '\n\n' : '') + 'Faz sentido te mostrar isso em cima do seu fluxo.')
+    await oferecerHorarios(ctx, anterior === 'oferta_horarios' ? comentario : (comentario || 'Faz sentido te mostrar isso em cima do seu fluxo.'))
     return
   }
   if (lead.route === 'entrada' || turno?.intencao === 'quer_planos') {
@@ -337,6 +338,7 @@ Deno.serve(async (req) => {
     }
 
     // quem é do funil
+    const respondeuAntes = lead?.last_reply_at ? new Date(lead.last_reply_at).getTime() : 0
     if (!lead && DO_SITE.test(aviso.texto) && cfg.bot_mode !== 'desligado') {
       const criado = await rpc('aq_funil_contexto_whatsapp', { p_fone: aviso.fone, p_nome: aviso.nome, p_criar: true })
       lead = criado?.lead
@@ -351,6 +353,12 @@ Deno.serve(async (req) => {
 
     const assume = cfg.bot_mode === 'ativo' && Boolean(cfg.whatsapp_envio)
     if (cfg.bot_mode !== 'desligado') depoisDeResponder(turnoDaConversa(aviso.fone, aviso.id))
+    // aviso no pessoal: primeira mensagem do lead ou voltou a falar depois de 2 h quieto (sem avisar mensagem por mensagem)
+    if (!respondeuAntes || Date.now() - respondeuAntes > 2 * 3600_000) {
+      const quem = `${lead.name}${lead.company ? ` (${lead.company})` : ''}`
+      depoisDeResponder(alertar(cfg, `${respondeuAntes ? 'Lead voltou a falar' : 'Lead novo no WhatsApp'}: ${quem}, +${lead.phone_norm}. ` +
+        `Disse: "${aviso.texto.replace(/\s+/g, ' ').slice(0, 180)}". Conversa: https://wa.me/${lead.phone_norm}`))
+    }
     // pediu pra sair: vale mesmo com a IA desligada ou em sombra
     if (SAIR.test(aviso.texto) && cfg.bot_mode === 'desligado') await rpc('aq_funil_optout', { p_lead: lead.id, p_origem: 'whatsapp' })
     return responder(200, { handled: assume, lead_id: lead.id, modo: cfg.bot_mode })
