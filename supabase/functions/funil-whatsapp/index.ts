@@ -280,6 +280,24 @@ async function turnoDaConversa(fone: string, idDaMensagem: string): Promise<void
   await caminhoDaRota(ctx, turno)
 }
 
+/** Mensagem que saiu do 0337: eco da IA (ignora) ou alguém digitou no celular (registra e pausa a IA 12 h). */
+async function registrarDeMim(aviso: Recebida): Promise<void> {
+  await new Promise((r) => setTimeout(r, 6000))
+  const ctx = await rpc('aq_funil_contexto_whatsapp', { p_fone: aviso.fone, p_nome: null, p_criar: false })
+  const lead = ctx?.lead
+  if (!lead) return
+  const igual = (t: string) => String(t ?? '').replace(/\s+/g, ' ').trim()
+  const eco = (ctx.mensagens ?? []).some((m: Json) =>
+    m.direction === 'out' && (m.author === 'ia' || m.author === 'sistema') && m.status === 'enviada' && igual(m.text) === igual(aviso.texto) &&
+    Date.now() - new Date(m.at).getTime() < 10 * 60_000)
+  if (eco) return
+  const r = await rpc('aq_funil_mensagem', {
+    p: { lead_id: lead.id, direction: 'out', author: 'humano', status: 'enviada', text: aviso.texto, provider_message_id: aviso.id },
+  })
+  // não era eco da IA: gente assumiu, a IA pausa 12 h nesse contato (no modo sombra só registra)
+  if (!r.duplicate && ctx.config?.bot_mode === 'ativo') await rpc('aq_funil_bot_status', { p_lead: lead.id, p_status: 'pausado', p_horas: 12 })
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { handled: false })
   const chave = Deno.env.get('FUNIL_WHATSAPP_CHAVE') ?? ''
@@ -309,13 +327,8 @@ Deno.serve(async (req) => {
 
     // mensagem digitada no celular do Contatta (ou eco do que a IA mandou)
     if (aviso.deMim) {
-      if (lead) {
-        const r = await rpc('aq_funil_mensagem', {
-          p: { lead_id: lead.id, direction: 'out', author: 'humano', status: 'enviada', text: aviso.texto, provider_message_id: aviso.id },
-        })
-        // não era eco da IA: gente assumiu, a IA pausa 12 h nesse contato (no modo sombra só registra)
-        if (!r.duplicate && cfg.bot_mode === 'ativo') await rpc('aq_funil_bot_status', { p_lead: lead.id, p_status: 'pausado', p_horas: 12 })
-      }
+      // em segundo plano: o eco do que a IA mandou pode chegar antes de a IA gravar o envio
+      if (lead) depoisDeResponder(registrarDeMim(aviso))
       return responder(200, { handled: false })
     }
 
