@@ -287,6 +287,8 @@ async function turnoDaConversa(fone: string, idDaMensagem: string): Promise<void
 
 /** Mensagem que saiu do 0337: eco da IA (ignora) ou alguém digitou no celular (registra e pausa a IA 12 h). */
 async function registrarDeMim(aviso: Recebida): Promise<void> {
+  // aviso interno que sai do 0337 pro pessoal do Mohamad não é "gente assumindo a conversa"
+  if (/^\s*(\[Funil Contatta\]|Lead do Contatta)/.test(aviso.texto)) return
   await new Promise((r) => setTimeout(r, 6000))
   const ctx = await rpc('aq_funil_contexto_whatsapp', { p_fone: aviso.fone, p_nome: null, p_criar: false })
   const lead = ctx?.lead
