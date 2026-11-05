@@ -88,7 +88,8 @@ alter table aq_leads
   add column if not exists bot_paused_until    timestamptz,
   add column if not exists fluxo_recomendado   text,          -- [fluxo] do follow-up D0
   add column if not exists recurso_relevante   text,          -- [recurso relevante] do D+3
-  add column if not exists max_stage_ord       int not null default 0;
+  add column if not exists max_stage_ord       int not null default 0,
+  add column if not exists arquivado_em        timestamptz;   -- fora da lista do funil (volta sozinho se o lead interagir)
 
 create index if not exists aq_leads_route_idx on aq_leads (route);
 create index if not exists aq_leads_created_idx on aq_leads (created_at desc);
@@ -120,6 +121,12 @@ create index if not exists aq_stage_history_lead_idx on aq_stage_history (lead_i
 create or replace function aq_leads_etapa_trg() returns trigger language plpgsql as $$
 begin
   new.max_stage_ord := greatest(coalesce(case when tg_op = 'UPDATE' then old.max_stage_ord end, 0), aq_stage_ord(new.stage));
+  -- arquivado volta pra lista quando interage: respondeu, preencheu o formulário de novo ou mudou de etapa
+  if tg_op = 'UPDATE' and old.arquivado_em is not null and new.arquivado_em is not null
+     and (new.last_reply_at is distinct from old.last_reply_at or new.consent_timestamp is distinct from old.consent_timestamp
+          or new.stage is distinct from old.stage) then
+    new.arquivado_em := null;
+  end if;
   if tg_op = 'UPDATE' and new.stage is distinct from old.stage then
     new.updated_at := now();
     if new.stage = 'won' and new.won_at is null then new.won_at := now(); end if;
@@ -738,7 +745,7 @@ begin
   for r in
     select l.* from aq_leads l
      where l.stage in ('proposal_sent','negotiation') and l.proposal_sent_at is not null
-       and l.opt_out_at is null and l.whatsapp_optin
+       and l.opt_out_at is null and l.whatsapp_optin and l.arquivado_em is null
        and (l.last_reply_at is null or l.last_reply_at < coalesce(l.last_touch_at, l.proposal_sent_at))
   loop
     for passo, quando in
@@ -837,7 +844,7 @@ begin
          count(distinct visit_id) filter (where event in ('demo_completed','video_complete'))
     into v_sessoes, v_dstart, v_dfim from aq_web_events where occurred_at >= desde;
   select count(*), count(*) filter (where max_stage_ord >= 4), count(*) filter (where proposal_sent_at is not null)
-    into v_leads, v_qual, v_propostas from aq_leads where created_at >= desde;
+    into v_leads, v_qual, v_propostas from aq_leads where created_at >= desde and arquivado_em is null;
   select count(*) into v_agend from aq_demos where created_at >= desde and coalesce(cancel_reason, '') <> 'remarcada';
   select count(*) into v_feitas from aq_demos where status = 'done' and completed_at >= desde;
   select count(*), sum(mrr) into v_ganhos, v_mrr_novo from aq_subscriptions where activated_at >= desde;
@@ -879,7 +886,7 @@ begin
         select coalesce(nullif(l.ad_id, ''), x.utm_content, '(sem anúncio)') criativo, l.*
           from aq_leads l
           left join lateral (select utm_content from aq_lead_attribution where lead_id = l.id order by created_at limit 1) x on true
-         where l.created_at >= desde)
+         where l.created_at >= desde and l.arquivado_em is null)
       select coalesce(jsonb_agg(jsonb_build_object('criativo', q.criativo, 'leads', q.leads, 'qualificados', q.qual,
                'reunioes', q.reun, 'ganhos', q.ganhos, 'gasto', s.gasto, 'cliques', s.cliques, 'impressoes', s.impr,
                'cpl', case when s.gasto > 0 and q.leads > 0 then round(s.gasto / q.leads, 2) end,
@@ -897,17 +904,17 @@ begin
         from (select coalesce(plan_sold, plan_interest, '(sem plano)') plano,
                      count(*) filter (where max_stage_ord >= 6) reun, count(*) filter (where max_stage_ord >= 9) ganhos,
                      sum(mrr) filter (where max_stage_ord >= 9) mrr
-                from aq_leads where created_at >= desde group by 1) t),
+                from aq_leads where created_at >= desde and arquivado_em is null group by 1) t),
     'por_rota', (
       select coalesce(jsonb_object_agg(coalesce(route, 'sem_rota'), n), '{}'::jsonb)
-        from (select route, count(*) n from aq_leads where created_at >= desde group by route) t),
+        from (select route, count(*) n from aq_leads where created_at >= desde and arquivado_em is null group by route) t),
     'semanas', (
       select coalesce(jsonb_agg(jsonb_build_object('semana', s.semana, 'leads', s.leads, 'qualificados', s.qual,
                'reunioes', s.reun, 'ganhos', s.ganhos) order by s.semana), '[]'::jsonb)
         from (select date_trunc('week', created_at)::date semana, count(*) leads,
                      count(*) filter (where max_stage_ord >= 4) qual, count(*) filter (where max_stage_ord >= 5) reun,
                      count(*) filter (where max_stage_ord >= 9) ganhos
-                from aq_leads where created_at >= now() - interval '8 weeks' group by 1) s),
+                from aq_leads where created_at >= now() - interval '8 weeks' and arquivado_em is null group by 1) s),
     -- cenário de planejamento do documento: hipóteses, não previsão
     'hipotese', jsonb_build_object('investimento', 1800, 'cpl', 45, 'leads', 40, 'qualificacao', 40,
       'agendamento', 50, 'comparecimento', 75, 'fechamento', 20, 'cac_midia', 1500));
@@ -941,18 +948,18 @@ begin
                 'mrr', l.mrr, 'ad_id', l.ad_id,
                 'sugestoes', (select count(*) from aq_bot_messages m where m.lead_id = l.id and m.status = 'sugerida'))
               order by l.updated_at desc), '[]'::jsonb)
-              from (select * from aq_leads order by updated_at desc limit 400) l),
+              from (select * from aq_leads where arquivado_em is null order by updated_at desc limit 400) l),
     'agenda', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'lead_id', d.lead_id, 'lead', l.name, 'company', l.company,
                  'inicio', d.scheduled_at, 'status', d.status, 'meet_url', d.meet_url, 'booked_by', d.booked_by) order by d.scheduled_at), '[]'::jsonb)
                from aq_demos d join aq_leads l on l.id = d.lead_id
-               where d.scheduled_at > now() - interval '2 days' and d.status in ('scheduled','done','no_show')),
+               where d.scheduled_at > now() - interval '2 days' and d.status in ('scheduled','done','no_show') and l.arquivado_em is null),
     'fila', (select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'lead_id', f.lead_id, 'lead', l.name, 'step', f.step,
                'due_at', f.due_at, 'status', f.status, 'text', f.text, 'reason', f.reason, 'error', f.error) order by f.due_at), '[]'::jsonb)
              from aq_followups f join aq_leads l on l.id = f.lead_id
-             where f.status in ('pendente','aprovado','falhou') and f.step not in ('confirmacao','lembrete_24h','lembrete_1h')),
+             where f.status in ('pendente','aprovado','falhou') and f.step not in ('confirmacao','lembrete_24h','lembrete_1h') and l.arquivado_em is null),
     'tarefas', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'lead_id', a.lead_id, 'lead', l.name, 'type', a.type,
                   'due_at', a.due_at, 'meta', a.metadata_json) order by a.due_at), '[]'::jsonb)
-                from aq_activities a join aq_leads l on l.id = a.lead_id where a.status = 'open'),
+                from aq_activities a join aq_leads l on l.id = a.lead_id where a.status = 'open' and l.arquivado_em is null),
     'anuncios', (select coalesce(jsonb_agg(to_jsonb(s) order by s.day desc, s.ad_key), '[]'::jsonb)
                  from aq_ad_stats s where s.day >= current_date - greatest(p_dias, 1)));
 end $$;
@@ -989,7 +996,7 @@ begin
   if lid is not null then
     select * into l from aq_leads where id = lid for update;
   end if;
-  if a in ('mover','editar','nota','comparecimento','proposta','ganho','optout','bot','followup_novo') and l.id is null then
+  if a in ('mover','editar','nota','comparecimento','proposta','ganho','optout','bot','followup_novo','arquivar','desarquivar') and l.id is null then
     return jsonb_build_object('ok', false, 'error', 'lead não encontrado');
   end if;
 
@@ -1064,6 +1071,14 @@ begin
 
   elsif a = 'optout' then
     perform aq_funil_optout(lid, 'crm');
+
+  elsif a = 'arquivar' then                -- tira da lista (volta sozinho se o lead interagir)
+    update aq_leads set arquivado_em = now() where id = lid;
+    update aq_followups set status = 'cancelado', reason = 'lead arquivado' where lead_id = lid and status in ('pendente','aprovado');
+    update aq_activities set status = 'canceled', completed_at = now() where lead_id = lid and status = 'open';
+
+  elsif a = 'desarquivar' then
+    update aq_leads set arquivado_em = null where id = lid;
 
   elsif a = 'bot' then                     -- {id, status: ativo|pausado|humano|encerrado, horas?}
     perform aq_funil_bot_status(lid, req->>'status', nullif(req->>'horas', '')::int);
