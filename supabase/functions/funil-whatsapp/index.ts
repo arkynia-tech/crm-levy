@@ -48,10 +48,12 @@ function lerAviso(b: Json): Recebida | null {
   if (b?.sessionId && b.sessionId !== sessaoFunil()) return null // só a conexão do Contatta
   const d = b?.data ?? b
   if (d?.isGroup) return null
-  const fone = String(d.from ?? d.chat ?? d.phone ?? '').replace(/\D/g, '')
+  const deMim = Boolean(d.fromMe ?? d.from_me)
+  // mensagem que saiu do 0337: "from" é o próprio 0337, o contato é o "chat"
+  const fone = String((deMim ? d.chat ?? d.to : d.from ?? d.chat) ?? d.phone ?? '').replace(/\D/g, '')
   if (fone.length < 10 || fone.length > 13) return null
   const texto = String(d.text ?? d.body ?? (d.type ? `[${d.type}]` : '')).slice(0, 4000)
-  return { fone, texto, id: String(d.id ?? d.message_id ?? b.deliveryId ?? crypto.randomUUID()), deMim: Boolean(d.fromMe ?? d.from_me), nome: d.pushName ?? d.push_name ?? null }
+  return { fone, texto, id: String(d.id ?? d.message_id ?? b.deliveryId ?? crypto.randomUUID()), deMim, nome: d.pushName ?? d.push_name ?? null }
 }
 
 // formato antigo (formulário do Make: "até_1000_pedidos", "sim, em marketplace") não conta como respondido
