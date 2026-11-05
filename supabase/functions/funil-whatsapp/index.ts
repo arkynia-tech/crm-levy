@@ -1,8 +1,8 @@
 // IA do funil no WhatsApp do Contatta (0337).
 //
 // Quem chama: o roteador n8n "[Mensy] Avisos do Contatta" (Y6xZOPOpNyP3Ks1h),
-// com o aviso do Mensy do jeito que chega, no cabeçalho x-funil-chave =
-// FUNIL_WHATSAPP_CHAVE. A função responde na hora {handled}:
+// com o aviso do Mensy do jeito que chega e a chave FUNIL_WHATSAPP_CHAVE (no
+// cabeçalho x-funil-chave ou no endereço ?k=). A função responde na hora {handled}:
 //   handled = true  → o funil assumiu a conversa: o n8n NÃO repassa pro
 //                     Atendimento nem pro fluxo 3;
 //   handled = false → segue o caminho de hoje (nada muda pra quem não é do funil).
@@ -283,7 +283,9 @@ async function turnoDaConversa(fone: string, idDaMensagem: string): Promise<void
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { handled: false })
   const chave = Deno.env.get('FUNIL_WHATSAPP_CHAVE') ?? ''
-  if (chave.length < 24 || !iguais(req.headers.get('x-funil-chave') ?? '', chave)) {
+  // chave no cabeçalho x-funil-chave ou no endereço (?k=), como os avisos do Mensy do Contatta
+  const recebida = req.headers.get('x-funil-chave') ?? new URL(req.url).searchParams.get('k') ?? ''
+  if (chave.length < 24 || !iguais(recebida, chave)) {
     return responder(401, { handled: false, error: 'chave inválida' })
   }
   const corpo = await req.json().catch(() => ({}))
