@@ -518,6 +518,14 @@ declare ch text := aq_fone_chave(p_fone); l aq_leads; c aq_funil_config; criado 
 begin
   if ch is null then return jsonb_build_object('ok', false, 'error', 'telefone inválido'); end if;
   select * into l from aq_leads where aq_fone_chave(phone_norm) = ch order by created_at limit 1;
+  -- arquivado (lista antiga) não é do funil: a IA não fala com ele. Volta só se mandar a frase do site (p_criar).
+  if l.id is not null and l.arquivado_em is not null then
+    if p_criar then
+      update aq_leads set arquivado_em = null where id = l.id returning * into l;
+    else
+      l := null;
+    end if;
+  end if;
   if l.id is null and p_criar and ph is not null then
     insert into aq_leads (name, phone, phone_norm, source, whatsapp_optin, consent_status, consent_source, consent_timestamp, consent_text_version)
     values (coalesce(nullif(left(trim(p_nome), 120), ''), 'Contato do WhatsApp'), ph, ph, 'whatsapp', true, 'granted',

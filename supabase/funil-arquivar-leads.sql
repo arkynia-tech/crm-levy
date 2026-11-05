@@ -406,10 +406,49 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- WhatsApp: contato arquivado não conversa com a IA (só volta se mandar a frase do site)
+create or replace function aq_funil_contexto_whatsapp(p_fone text, p_nome text default null, p_criar boolean default false)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare ch text := aq_fone_chave(p_fone); l aq_leads; c aq_funil_config; criado boolean := false; ph text := aq_phone_norm(p_fone);
+begin
+  if ch is null then return jsonb_build_object('ok', false, 'error', 'telefone inválido'); end if;
+  select * into l from aq_leads where aq_fone_chave(phone_norm) = ch order by created_at limit 1;
+  -- arquivado (lista antiga) não é do funil: a IA não fala com ele. Volta só se mandar a frase do site (p_criar).
+  if l.id is not null and l.arquivado_em is not null then
+    if p_criar then
+      update aq_leads set arquivado_em = null where id = l.id returning * into l;
+    else
+      l := null;
+    end if;
+  end if;
+  if l.id is null and p_criar and ph is not null then
+    insert into aq_leads (name, phone, phone_norm, source, whatsapp_optin, consent_status, consent_source, consent_timestamp, consent_text_version)
+    values (coalesce(nullif(left(trim(p_nome), 120), ''), 'Contato do WhatsApp'), ph, ph, 'whatsapp', true, 'granted',
+            'whatsapp_inbound', now(), 'iniciou-conversa-2026-11')
+    returning * into l;
+    insert into aq_lead_attribution (lead_id, source) values (l.id, 'whatsapp');
+    criado := true;
+  end if;
+  select * into c from aq_funil_config where id = 1;
+  if l.id is null then return jsonb_build_object('ok', true, 'lead', null, 'config', to_jsonb(c) - 'base_conhecimento'); end if;
+
+  return jsonb_build_object('ok', true, 'criado', criado,
+    'lead', to_jsonb(l) - 'email' - 'email_norm',
+    'config', to_jsonb(c),
+    'demo', (select to_jsonb(d) from aq_demos d where d.lead_id = l.id and d.status = 'scheduled' order by scheduled_at limit 1),
+    'mensagens', (select coalesce(jsonb_agg(jsonb_build_object('direction', m.direction, 'author', m.author, 'status', m.status,
+                    'text', m.text, 'meta', m.meta, 'at', m.created_at) order by m.created_at), '[]'::jsonb)
+                  from (select * from aq_bot_messages where lead_id = l.id and status in ('registrada','enviada')
+                        order by created_at desc limit 24) m));
+end $$;
+
 -- ---------------------------------------------------------------- arquivar o que já existe
 
 with arq as (
-  update aq_leads set arquivado_em = now() where arquivado_em is null returning id
+  -- só a lista antiga: quem veio da página nova (landing_demo), do WhatsApp do funil ou do CRM fica
+  update aq_leads set arquivado_em = now()
+   where arquivado_em is null and coalesce(source, '') not in ('landing_demo', 'whatsapp', 'manual')
+  returning id
 ), f as (
   update aq_followups set status = 'cancelado', reason = 'lead arquivado'
    where lead_id in (select id from arq) and status in ('pendente','aprovado') returning 1
