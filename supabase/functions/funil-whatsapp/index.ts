@@ -54,10 +54,14 @@ function lerAviso(b: Json): Recebida | null {
   return { fone, texto, id: String(d.id ?? d.message_id ?? b.deliveryId ?? crypto.randomUUID()), deMim: Boolean(d.fromMe ?? d.from_me), nome: d.pushName ?? d.push_name ?? null }
 }
 
+// formato antigo (formulário do Make: "até_1000_pedidos", "sim, em marketplace") não conta como respondido
+const FAIXAS = ['ate_100', '101_500', '501_2000', '2000_mais', 'nao_informado']
+const canaisDe = (l: Json) => (Array.isArray(l.marketplaces) && l.marketplaces.length ? l.marketplaces : null)
+const volumeDe = (l: Json) => (FAIXAS.includes(l.monthly_orders_range) ? l.monthly_orders_range : null)
+
 const proximaPergunta = (l: Json): string | null => {
-  const canais = (l.marketplaces && l.marketplaces.length) || l.marketplace
-  if (!canais) return PERGUNTAS.canais
-  if (!l.monthly_orders_range) return PERGUNTAS.volume
+  if (!canaisDe(l)) return PERGUNTAS.canais
+  if (!volumeDe(l)) return PERGUNTAS.volume
   if (!l.priority_goal) return PERGUNTAS.prioridade
   return null
 }
@@ -216,7 +220,7 @@ async function turnoDaConversa(fone: string, idDaMensagem: string): Promise<void
       agora: formatarHorario(new Date().toISOString(), tz),
       nome: lead.name, empresa: lead.company,
       ja_respondeu: {
-        canais: lead.marketplaces ?? lead.marketplace ?? null, volume: lead.monthly_orders_range,
+        canais: canaisDe(lead), volume: volumeDe(lead),
         prioridade: lead.priority_goal, decisor: lead.decision_maker,
       },
       proxima_pergunta: falta,

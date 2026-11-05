@@ -423,8 +423,9 @@ create or replace function aq_funil_pos_qualificacao(p_lead uuid, p_origem text)
 declare l aq_leads; completo boolean;
 begin
   l := aq_rescore(p_lead);
-  completo := l.monthly_orders_range is not null and l.priority_goal is not null
-              and (l.marketplaces is not null or l.marketplace is not null);
+  -- formato antigo (formulário do Make: "até_1000_pedidos", "sim, em marketplace") não conta como respondido
+  completo := l.monthly_orders_range in ('ate_100','101_500','501_2000','2000_mais','nao_informado')
+              and l.priority_goal is not null and coalesce(array_length(l.marketplaces, 1), 0) > 0;
   if completo and l.route = 'fora_icp' then
     perform aq_avancar(p_lead, 'contacted', p_origem, 'fora do perfil');
     if l.marketing_optin and l.stage in ('new','demo_viewed','contacted') then
@@ -609,8 +610,11 @@ begin
   end if;
   update aq_leads set
     marketplaces = coalesce(marketplaces, mps),
-    marketplace = coalesce(marketplace, array_to_string(mps, ', ')),
-    monthly_orders_range = coalesce(monthly_orders_range, case when x->>'monthly_orders_range' in ('ate_100','101_500','501_2000','2000_mais','nao_informado') then x->>'monthly_orders_range' end),
+    marketplace = case when marketplaces is null and mps is not null then array_to_string(mps, ', ') else marketplace end,
+    -- valor no formato antigo (formulário do Make) é trocado pela resposta nova
+    monthly_orders_range = coalesce(case when monthly_orders_range in ('ate_100','101_500','501_2000','2000_mais','nao_informado') then monthly_orders_range end,
+                                    case when x->>'monthly_orders_range' in ('ate_100','101_500','501_2000','2000_mais','nao_informado') then x->>'monthly_orders_range' end,
+                                    monthly_orders_range),
     priority_goal = coalesce(priority_goal, case when x->>'priority_goal' in ('recompra','crm','posvenda','canais') then x->>'priority_goal' end),
     decision_maker = coalesce(decision_maker, case when x->>'decision_maker' in ('sim','compartilhada','nao') then x->>'decision_maker' end),
     main_pain = coalesce(main_pain, nullif(left(x->>'main_pain', 500), '')),
