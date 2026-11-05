@@ -26,6 +26,7 @@ import {
   MessagesSquare,
   Columns3,
   Lock,
+  Target,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCompany } from '../context/CompanyContext'
@@ -83,6 +84,7 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
     itens: [
       { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
       { to: '/painel-vendas', label: 'Painel de vendas', icon: TrendingUp, permission: 'salesPanel' },
+      { to: '/comercial', label: 'Funil comercial', icon: Target, permission: 'salesPanel' },
       { to: '/envios', label: 'Envios', icon: Send, permission: 'sendLog' },
       { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
     ],

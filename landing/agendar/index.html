@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contatta · marcar a conversa</title>
+<meta name="description" content="Escolha o horário da conversa de 20 minutos sobre o Contatta.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/demo/funil.css">
+<style>
+  main{min-height:calc(100vh - 64px);padding:40px 0 80px}
+  .caixa{max-width:640px;margin:0 auto;background:var(--branco);border-radius:20px;padding:32px;box-shadow:0 0 0 1px var(--linha),0 30px 60px -30px rgba(12,16,27,.3)}
+  .caixa h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;font-stretch:90%;letter-spacing:-.03em}
+  .caixa > p{margin-top:12px;color:var(--cinza)}
+  @media (max-width:620px){.caixa{padding:22px 18px;border-radius:16px}main{padding:20px 0 60px}}
+</style>
+</head>
+<body>
+<header class="barra">
+  <div class="envolve">
+    <a class="marca" href="/" aria-label="Contatta, página inicial">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b57ea"/><stop offset="1" stop-color="#4a31d0"/></linearGradient></defs><rect width="32" height="32" rx="7.2" fill="url(#lg)"/><path d="M21 12.4A5.6 5.6 0 1 0 21 19.6" fill="none" stroke="#fff" stroke-width="4.3" stroke-linecap="round"/><circle cx="19.35" cy="16" r="1.85" fill="#a5b4fc"/></svg>
+      Contatta
+    </a>
+  </div>
+</header>
+<main>
+  <div class="envolve">
+    <div class="caixa" id="caixa" aria-live="polite">
+      <h1>Marcar a conversa</h1>
+      <p>Carregando…</p>
+    </div>
+  </div>
+</main>
+<script src="/demo/funil.js"></script>
+<script>
+(function () {
+  'use strict'
+  var F = window.Funil
+  F.evento('page_view')
+  var caixa = document.getElementById('caixa')
+  var token = new URLSearchParams(location.search).get('t') || ''
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
+  function whats(msg) {
+    return '<div class="confirmar"><a class="botao botao-whats" target="_blank" rel="noopener" href="' +
+      F.linkWhats('Oi! Quero conhecer o Contatta e marcar a conversa de 20 minutos.') + '">Combinar pelo WhatsApp</a></div>' + (msg ? '<p class="tz">' + msg + '</p>' : '')
+  }
+
+  if (!token) {
+    caixa.innerHTML = '<h1>Marcar a conversa</h1><p>Este link não tem o código de acesso. Peça um novo pelo WhatsApp ou deixe seus dados na <a href="/demo/#contato">página do Contatta</a>.</p>' + whats()
+    return
+  }
+
+  F.api({ acao: 'lead_info', token: token }).then(function (info) {
+    if (!info.ok) throw new Error(info.error || 'Link inválido.')
+    var titulo = info.nome ? esc(info.nome) + ', escolha o melhor horário' : 'Escolha o melhor horário'
+    var atual = info.reuniao
+      ? '<div class="ticket"><b>' + esc(info.reuniao.rotulo) + '</b>Sua conversa já está marcada.' +
+        (info.reuniao.meet ? '<br>Link da chamada: <a href="' + esc(info.reuniao.meet) + '" target="_blank" rel="noopener">' + esc(info.reuniao.meet.replace('https://', '')) + '</a>' : '') +
+        '</div><p style="margin-top:18px">Para trocar, escolha outro horário abaixo. O anterior é cancelado sozinho.</p>'
+      : '<p>A conversa dura cerca de 20 minutos, por vídeo, e a gente olha o seu fluxo de verdade.</p>'
+    caixa.innerHTML = '<h1>' + titulo + '</h1>' + atual + '<div id="agenda"><p class="tz">Buscando horários livres…</p></div>'
+    carregar()
+  }).catch(function (e) {
+    caixa.innerHTML = '<h1>Marcar a conversa</h1><p>' + esc(e.message || 'Não consegui abrir este link.') + '</p>' + whats()
+  })
+
+  function carregar() {
+    var ag = document.getElementById('agenda')
+    F.api({ acao: 'horarios', token: token }, 15000).then(function (r) {
+      if (!r.ok || !r.horarios || !r.horarios.length) {
+        ag.innerHTML = '<p style="margin-top:14px">Vamos combinar o horário com você pelo WhatsApp.</p>' + whats()
+        return
+      }
+      F.evento('schedule_viewed')
+      ag.innerHTML = '<div id="seletor"></div><p class="tz">Horários de Brasília.</p><div class="confirmar"><button type="button" class="botao botao-primario" id="marcar" disabled>Marcar a conversa</button><span id="msg" role="status"></span></div>'
+      var escolhido = null, marcar = document.getElementById('marcar'), msg = document.getElementById('msg')
+      F.seletorDeHorarios(document.getElementById('seletor'), r.horarios, r.timezone, function (h) {
+        escolhido = h; marcar.disabled = !h; msg.textContent = h ? h.rotulo : ''
+      })
+      marcar.addEventListener('click', function () {
+        if (!escolhido) return
+        marcar.disabled = true
+        marcar.innerHTML = '<span class="gira" aria-hidden="true"></span> Marcando'
+        F.api({ acao: 'agendar', token: token, inicio: escolhido.inicio, visit_id: F.origem.visit_id }, 25000).then(function (a) {
+          if (!a.ok) { msg.textContent = a.error || 'Esse horário não está mais livre.'; return carregar() }
+          F.pixel('Schedule')
+          caixa.innerHTML = '<h1>Conversa marcada</h1><div class="ticket"><b>' + esc(a.rotulo) + '</b>20 minutos sobre a sua operação.' +
+            (a.meet ? '<br>Link da chamada: <a href="' + esc(a.meet) + '" target="_blank" rel="noopener">' + esc(a.meet.replace('https://', '')) + '</a>' : '') +
+            '</div><p style="margin-top:14px">A confirmação também chega no seu WhatsApp.</p>'
+        }).catch(function () { marcar.disabled = false; marcar.textContent = 'Marcar a conversa'; msg.textContent = 'A conexão falhou. Tente de novo.' })
+      })
+    }).catch(function () { ag.innerHTML = whats('Não consegui ler a agenda agora.') })
+  }
+})()
+</script>
+</body>
+</html>
