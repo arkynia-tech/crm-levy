@@ -275,7 +275,7 @@ create index if not exists aq_bot_messages_lead_idx on aq_bot_messages (lead_id,
 create table if not exists aq_followups (
   id                  uuid primary key default gen_random_uuid(),
   lead_id             uuid not null references aq_leads(id) on delete cascade,
-  step                text not null check (step in ('d0','d1','d3','d7','d14','confirmacao','lembrete_24h','lembrete_1h','manual')),
+  step                text not null check (step in ('d0','d1','d3','d7','d14','confirmacao','lembrete_24h','lembrete_1h','manual','retomar_1d','retomar_3d')),
   demo_id             uuid references aq_demos(id) on delete cascade,
   due_at              timestamptz not null,
   status              text not null default 'pendente'
@@ -289,6 +289,10 @@ create table if not exists aq_followups (
   error               text,
   created_at          timestamptz not null default now()
 );
+-- passos de quem parou antes da reunião (04/11/2026): vale também pra tabela que já existia
+alter table aq_followups drop constraint if exists aq_followups_step_check;
+alter table aq_followups add constraint aq_followups_step_check
+  check (step in ('d0','d1','d3','d7','d14','confirmacao','lembrete_24h','lembrete_1h','manual','retomar_1d','retomar_3d'));
 create unique index if not exists aq_followups_once on aq_followups (lead_id, step, coalesce(demo_id, '00000000-0000-0000-0000-000000000000'::uuid))
   where step <> 'manual';
 create index if not exists aq_followups_due_idx on aq_followups (status, due_at);
@@ -389,6 +393,7 @@ declare
       when 'posvenda' then 'automatizar o pós-venda'
       when 'canais' then 'juntar os canais de venda numa base só' end, 'organizar o relacionamento depois da venda');
   fluxo text := coalesce(nullif(l.fluxo_recomendado, ''), 'a mensagem depois do pedido, confirmando os dados do cliente');
+  nome text := case when coalesce(l.name, '') in ('', 'Contato do WhatsApp') then '' else ', ' || split_part(trim(l.name), ' ', 1) end;
 begin
   select * into c from aq_funil_config where id = 1;
   return case p_step
@@ -399,6 +404,16 @@ begin
                           coalesce(nullif(l.recurso_relevante, ''), 'o fluxo que mostrei'), c.link_material)
     when 'd7' then format('Ainda faz sentido avançarmos com %s, ou prefere que eu encerre o acompanhamento por enquanto?', dor)
     when 'd14' then 'Vou encerrar meus acompanhamentos por agora para não te incomodar. Se voltar a ser prioridade, é só me chamar.'
+    -- quem parou antes da reunião (24 h e 3 dias sem responder)
+    when 'retomar_1d' then case
+      when l.last_touch_at is null and l.route = 'entrada' then
+        format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Os planos estão aqui: %s Ficou alguma dúvida? Me fala por aqui.', nome, c.link_planos)
+      when l.last_touch_at is null then
+        format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Quer que eu te mande uns horários pra uma conversa de 20 minutos em cima da sua operação?', nome)
+      when l.route = 'entrada' then 'Ficou alguma dúvida sobre os planos? Se quiser, te explico por aqui ou passo pra uma pessoa do time.'
+      when l.route = 'consultiva' then 'Ficou alguma dúvida? Se quiser, te mando os horários de novo.'
+      else 'Ficou alguma dúvida? Se quiser, a gente continua de onde parou.' end
+    when 'retomar_3d' then 'Vou parar de te chamar por aqui pra não incomodar. Se quiser ver o Contatta funcionando na sua operação, é só responder esta mensagem.'
     else '' end;
 end $$;
 
@@ -566,7 +581,7 @@ begin
     update aq_leads set last_reply_at = now() where id = lid;
     -- respondeu: o follow-up que estava esperando resposta para (o documento manda parar a cadência)
     update aq_followups set status = 'cancelado', reason = 'lead respondeu'
-     where lead_id = lid and status in ('pendente','aprovado') and step in ('d1','d3','d7','d14');
+     where lead_id = lid and status in ('pendente','aprovado') and step in ('d1','d3','d7','d14','retomar_1d','retomar_3d');
   elsif p->>'status' = 'enviada' then
     update aq_leads set last_touch_at = now() where id = lid;
   end if;
@@ -749,6 +764,14 @@ begin
      and (l.opt_out_at is not null or l.stage in ('won','lost','nurturing','onboarding','activated'));
   update aq_followups f set status = 'cancelado', reason = 'reunião cancelada'
     from aq_demos d where f.demo_id = d.id and d.status in ('canceled','no_show') and f.status in ('pendente','aprovado');
+  -- quem parou: respondeu, marcou, saiu da etapa ou a conversa passou pra uma pessoa → não cobra mais
+  update aq_followups f set status = 'cancelado', reason = 'lead voltou, marcou ou saiu da etapa'
+    from aq_leads l
+   where f.lead_id = l.id and f.status in ('pendente','aprovado') and f.step in ('retomar_1d','retomar_3d')
+     and (l.opt_out_at is not null or l.arquivado_em is not null or l.bot_status <> 'ativo'
+          or l.stage not in ('new','demo_viewed','contacted','qualified','demo_pending')
+          or (l.last_reply_at is not null and l.last_reply_at > f.created_at)
+          or exists (select 1 from aq_demos d where d.lead_id = l.id and d.status = 'scheduled'));
 
   for r in
     select l.* from aq_leads l
@@ -774,6 +797,33 @@ begin
         end if;
       end if;
     end loop;
+  end loop;
+
+  -- quem parou antes da reunião: não respondeu as perguntas, não escolheu horário ou não voltou depois dos planos.
+  -- 24 h sem resposta → retomar_1d; 48 h depois dele, ainda sem resposta → retomar_3d (último toque). Fora do perfil não recebe.
+  for r in
+    select l.* from aq_leads l
+     where l.stage in ('new','demo_viewed','contacted','qualified','demo_pending')
+       and l.arquivado_em is null and l.opt_out_at is null and l.whatsapp_optin and l.bot_status = 'ativo'
+       and coalesce(l.route, '') <> 'fora_icp' and l.created_at > now() - interval '30 days'
+       and (l.last_reply_at is null or l.last_reply_at < coalesce(l.last_touch_at, l.created_at))
+       and not exists (select 1 from aq_demos d where d.lead_id = l.id and d.status = 'scheduled')
+  loop
+    if not exists (select 1 from aq_followups f where f.lead_id = r.id and f.step = 'retomar_1d') then
+      if now() >= coalesce(r.last_touch_at, r.created_at) + interval '24 hours' then
+        insert into aq_followups (lead_id, step, due_at, status, text, reason)
+        values (r.id, 'retomar_1d', now(), status_novo, aq_funil_texto('retomar_1d', r), 'parou sem responder há 24 h')
+        on conflict do nothing;
+        if found then criados := criados + 1; end if;
+      end if;
+    elsif exists (select 1 from aq_followups f where f.lead_id = r.id and f.step = 'retomar_1d' and f.status = 'enviado')
+          and not exists (select 1 from aq_followups f where f.lead_id = r.id and f.step = 'retomar_3d')
+          and now() >= coalesce(r.last_touch_at, r.created_at) + interval '48 hours' then
+      insert into aq_followups (lead_id, step, due_at, status, text, reason)
+      values (r.id, 'retomar_3d', now(), status_novo, aq_funil_texto('retomar_3d', r), 'sem resposta 3 dias depois')
+      on conflict do nothing;
+      if found then criados := criados + 1; end if;
+    end if;
   end loop;
 
   -- reunião que passou 2 h sem marcar realizada/não compareceu: vira tarefa

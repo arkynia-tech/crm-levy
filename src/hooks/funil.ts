@@ -85,7 +85,7 @@ export interface DemoAgenda {
   status: 'scheduled' | 'done' | 'no_show' | 'canceled'; meet_url: string | null; booked_by: string | null
 }
 
-export type PassoFila = 'd0' | 'd1' | 'd3' | 'd7' | 'd14' | 'confirmacao' | 'lembrete_24h' | 'lembrete_1h' | 'manual'
+export type PassoFila = 'd0' | 'd1' | 'd3' | 'd7' | 'd14' | 'confirmacao' | 'lembrete_24h' | 'lembrete_1h' | 'manual' | 'retomar_1d' | 'retomar_3d'
 export type StatusFila = 'pendente' | 'aprovado' | 'enviado' | 'cancelado' | 'falhou' | 'pulado'
 
 export interface ItemFila {
@@ -256,6 +256,8 @@ export const PASSO_LABEL: Record<PassoFila, string> = {
   lembrete_24h: 'Lembrete 24 h',
   lembrete_1h: 'Lembrete 1 h',
   manual: 'Mensagem do CRM',
+  retomar_1d: 'Parou · 24 h sem resposta',
+  retomar_3d: 'Parou · último toque',
 }
 
 export const STATUS_FILA_LABEL: Record<StatusFila, string> = {

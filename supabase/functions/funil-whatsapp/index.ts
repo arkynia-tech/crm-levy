@@ -288,7 +288,7 @@ async function registrarDeMim(aviso: Recebida): Promise<void> {
   if (!lead) return
   const igual = (t: string) => String(t ?? '').replace(/\s+/g, ' ').trim()
   const eco = (ctx.mensagens ?? []).some((m: Json) =>
-    m.direction === 'out' && m.author === 'ia' && m.status === 'enviada' && igual(m.text) === igual(aviso.texto) &&
+    m.direction === 'out' && (m.author === 'ia' || m.author === 'sistema') && m.status === 'enviada' && igual(m.text) === igual(aviso.texto) &&
     Date.now() - new Date(m.at).getTime() < 10 * 60_000)
   if (eco) return
   const r = await rpc('aq_funil_mensagem', {
