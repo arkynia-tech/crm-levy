@@ -9,11 +9,11 @@
     api: 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/funil-publico',
     whatsapp: '5581920020337',
     // Preencher quando existir (ver docs/funil-comercial.md). Vazio = desligado.
-    pixelId: '',
+    pixelId: '2318201022314942', // Pixel "Contatta · site" (ContattaPro), 05/11/2026
     turnstileSiteKey: '',
     // Gravação real da demonstração (90 a 120 s, dados fictícios). Vazio = só a demo clicável.
-    videoUrl: '',
-    videoPoster: '',
+    videoUrl: '/demo/video/contatta-como-funciona.mp4',   // explicação rápida de 03/11, cortada antes do fecho de WhatsApp
+    videoPoster: '/demo/video/contatta-como-funciona.jpg',
   }
   window.FUNIL_CONFIG = CONFIG
 

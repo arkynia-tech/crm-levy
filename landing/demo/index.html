@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://lopdvdblwasuowjdokpo.supabase.co" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/demo/funil.css">
+<link rel="stylesheet" href="/demo/funil.css?v=20261105b">
 </head>
 <body>
 
@@ -46,7 +46,7 @@
       <h1>Você conquistou o cliente. Agora crie oportunidades para ele comprar de novo.</h1>
       <p class="sub">O Contatta ajuda a organizar dados comerciais, acompanhar clientes em um CRM e automatizar jornadas de relacionamento pelo WhatsApp, com visibilidade dos resultados.</p>
       <div class="acoes">
-        <a class="botao botao-primario" href="#demo" data-cta="hero_demo">Ver o Contatta funcionando (2 min)</a>
+        <a class="botao botao-primario" href="#demo" data-cta="hero_demo">Ver o Contatta funcionando (1 min)</a>
         <a class="botao botao-secundario" href="#contato" data-cta="hero_reuniao" data-reuniao>Agendar uma demonstração para minha operação</a>
       </div>
       <p class="micro">Conheça o funcionamento antes de falar com vendas. Sem compromisso.</p>
@@ -103,11 +103,15 @@
   <div class="envolve">
     <div class="demo-cabeca">
       <div>
-        <h2 id="demo-t">Veja o fluxo na prática, em menos de 2 minutos.</h2>
-        <p class="intro">Quatro telas de um cenário de exemplo: dados, segmentos, automações e painel. Clique nos passos ou siga em frente.</p>
+        <h2 id="demo-t">Veja o fluxo na prática, em menos de 1 minuto.</h2>
+        <p class="intro" id="demo-intro">Quatro telas de um cenário de exemplo: dados, segmentos, automações e painel. Clique nos passos ou siga em frente.</p>
       </div>
     </div>
     <div class="video" id="video" hidden></div>
+    <div class="depois-video" id="depois-video" hidden>
+      <a class="botao botao-primario" href="#contato" data-cta="video_cta">Quero ver isso aplicado à minha loja</a>
+      <button type="button" class="botao botao-secundario" id="abrir-tour">Prefere ver as telas uma a uma?</button>
+    </div>
 
     <div class="janela" id="tour">
       <div class="janela-barra">
@@ -268,7 +272,7 @@
   <a class="botao botao-primario" href="#contato" data-cta="fixa_contato">Meu próximo passo</a>
 </div>
 
-<script src="/demo/funil.js"></script>
+<script src="/demo/funil.js?v=20261105b"></script>
 <script>
 (function () {
   'use strict'
@@ -308,13 +312,24 @@
   })
 
   // ---------------------------------------------------------------- vídeo real (quando existir)
+  // com vídeo: ele é a demonstração; a demo clicável fica atrás do botão "Prefere ver as telas uma a uma?"
   if (F.config.videoUrl) {
     var v = document.getElementById('video')
     v.hidden = false
-    v.innerHTML = '<video controls playsinline preload="none"' + (F.config.videoPoster ? ' poster="' + F.config.videoPoster + '"' : '') + '><source src="' + F.config.videoUrl + '" type="video/mp4"></video>'
+    v.innerHTML = '<video controls playsinline preload="metadata"' + (F.config.videoPoster ? ' poster="' + F.config.videoPoster + '"' : '') + '><source src="' + F.config.videoUrl + '" type="video/mp4"></video>'
     var vid = v.querySelector('video')
     vid.addEventListener('play', function () { F.evento('video_play') }, { once: true })
-    vid.addEventListener('ended', function () { F.evento('video_complete') }, { once: true })
+    vid.addEventListener('ended', function () { F.evento('video_complete'); document.getElementById('depois-video').classList.add('destaque') }, { once: true })
+    document.getElementById('demo-intro').textContent = 'Um minuto mostrando o sistema por dentro, com dados de demonstração. Dá play.'
+    document.getElementById('depois-video').hidden = false
+    var tourEl = document.getElementById('tour')
+    tourEl.hidden = true
+    document.getElementById('abrir-tour').addEventListener('click', function () {
+      tourEl.hidden = false
+      this.hidden = true
+      F.evento('cta_click', { step: 'abrir_tour' })
+      tourEl.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+    })
   }
 
   // ---------------------------------------------------------------- demonstração guiada
