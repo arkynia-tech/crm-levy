@@ -136,19 +136,14 @@ async function caminhoDaRota(ctx: Json, turno: Turno | null): Promise<void> {
     if (turno && (turno.comentario || turno.pergunta)) await entregar(ctx, [turno.comentario, turno.pergunta].filter(Boolean), { etapa: 'pos_agenda' })
     return
   }
-  if (lead.route === 'consultiva' || turno?.intencao === 'quer_agendar') {
-    await oferecerHorarios(ctx, anterior === 'oferta_horarios' ? comentario : (comentario || 'Faz sentido te mostrar isso em cima do seu fluxo.'))
+  // sem preço público desde 06/11/2026 (pedido do Mohamad): o valor sai do volume de cada loja,
+  // então quem pergunta preço, e o lead de entrada que antes ia pra tabela, vai pra conversa
+  if (turno?.intencao === 'quer_planos' && anterior !== 'oferta_horarios') {
+    await oferecerHorarios(ctx, [comentario, 'O valor do Contatta sai do volume de pedidos da sua loja, sem plano de prateleira. Na conversa eu já te passo o número fechado.'].filter(Boolean).join('\n\n'))
     return
   }
-  if (lead.route === 'entrada' || turno?.intencao === 'quer_planos') {
-    if (anterior === 'entrada') {
-      if (turno) await entregar(ctx, [turno.comentario, turno.pergunta].filter(Boolean), { etapa: 'entrada' })
-      return
-    }
-    await entregar(ctx, [
-      ...(comentario ? [comentario] : []),
-      `Pelo seu cenário, vale começar vendo o plano de entrada e a demonstração rápida. Os planos e o que está incluído estão aqui: ${cfg.link_planos}\nQuer que eu te explique algum ponto ou prefere falar com uma pessoa?`,
-    ], { etapa: 'entrada' })
+  if (lead.route === 'consultiva' || lead.route === 'entrada' || turno?.intencao === 'quer_agendar' || turno?.intencao === 'quer_planos') {
+    await oferecerHorarios(ctx, anterior === 'oferta_horarios' ? comentario : (comentario || 'Faz sentido te mostrar isso em cima do seu fluxo.'))
     return
   }
   // fora do perfil

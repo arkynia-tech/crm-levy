@@ -45,11 +45,8 @@ begin
     when 'd14' then 'Vou encerrar meus acompanhamentos por agora para não te incomodar. Se voltar a ser prioridade, é só me chamar.'
     -- quem parou antes da reunião (24 h e 3 dias sem responder)
     when 'retomar_1d' then case
-      when l.last_touch_at is null and l.route = 'entrada' then
-        format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Os planos estão aqui: %s Ficou alguma dúvida? Me fala por aqui.', nome, c.link_planos)
       when l.last_touch_at is null then
         format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Quer que eu te mande uns horários pra uma conversa de 20 minutos em cima da sua operação?', nome)
-      when l.route = 'entrada' then 'Ficou alguma dúvida sobre os planos? Se quiser, te explico por aqui ou passo pra uma pessoa do time.'
       when l.route = 'consultiva' then 'Ficou alguma dúvida? Se quiser, te mando os horários de novo.'
       else 'Ficou alguma dúvida? Se quiser, a gente continua de onde parou.' end
     when 'retomar_3d' then 'Vou parar de te chamar por aqui pra não incomodar. Se quiser ver o Contatta funcionando na sua operação, é só responder esta mensagem.'

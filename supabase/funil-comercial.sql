@@ -351,15 +351,10 @@ Integrações abertas para todas as lojas: Bling, Tiny (Olist ERP), Mercado Livr
 
 WhatsApp: API oficial da Meta (a loja paga a Meta direto pelo WhatsApp Manager, por conversa) ou conexão por QR Code. Custos da Meta variam pelo uso.
 
-Planos (valor mensal; semestral com 10% de desconto; anual com 2 meses grátis):
-- Starter R$ 397: 1.000 pedidos/mês, 1 usuário, excedente R$ 0,45 por pedido.
-- Pro R$ 997: 3.500 pedidos/mês, 3 usuários, excedente R$ 0,32 por pedido.
-- Business R$ 2.497: 10.000 pedidos/mês, 5 usuários, excedente R$ 0,27 por pedido.
-- Sob demanda (Enterprise): escopo e valor combinados.
-Todos os planos têm WhatsApp e segmentação. Usuário extra: R$ 97/mês.
-Pode assinar sozinho no site (contatta.pro, seção Planos).
+Preço: não tem tabela pública (decisão de 06/11/2026). O valor mensal sai do volume de pedidos de cada loja (quem faz 400 pedidos não paga por 1.000) e é passado já fechado na conversa de 20 minutos. Assina por mês, semestre ou ano, pelo link que o time manda depois da conversa. Todo cliente tem WhatsApp e segmentação.
+Não citar valor, faixa nem plano (Starter, Pro, Business não existem mais para cliente novo). Quem pergunta preço: dizer que o valor sai do volume da loja e oferecer a conversa.
 
-NÃO CONFIRMADO (passar para humano): condição de implantação e suporte de cada plano, prazo de implantação, contrato, multa, desconto fora do semestral/anual, integrações que não estão na lista, resultados ou números de clientes, qualquer promessa de faturamento.
+NÃO CONFIRMADO (passar para humano): condição de implantação e suporte, prazo de implantação, contrato, multa, desconto fora do semestral/anual, integrações que não estão na lista, resultados ou números de clientes, qualquer promessa de faturamento.
 
 Regras: usar só dados que a loja tem permissão para usar; mensagens com consentimento e dentro das regras do WhatsApp e de cada marketplace. Nunca dizer que o Contatta "consegue o contato" de quem comprou.
 $kb$ where id = 1 and base_conhecimento = '';
@@ -406,11 +401,8 @@ begin
     when 'd14' then 'Vou encerrar meus acompanhamentos por agora para não te incomodar. Se voltar a ser prioridade, é só me chamar.'
     -- quem parou antes da reunião (24 h e 3 dias sem responder)
     when 'retomar_1d' then case
-      when l.last_touch_at is null and l.route = 'entrada' then
-        format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Os planos estão aqui: %s Ficou alguma dúvida? Me fala por aqui.', nome, c.link_planos)
       when l.last_touch_at is null then
         format('Oi%s! Aqui é do Contatta. Vi que você conheceu o sistema pela nossa página. Quer que eu te mande uns horários pra uma conversa de 20 minutos em cima da sua operação?', nome)
-      when l.route = 'entrada' then 'Ficou alguma dúvida sobre os planos? Se quiser, te explico por aqui ou passo pra uma pessoa do time.'
       when l.route = 'consultiva' then 'Ficou alguma dúvida? Se quiser, te mando os horários de novo.'
       else 'Ficou alguma dúvida? Se quiser, a gente continua de onde parou.' end
     when 'retomar_3d' then 'Vou parar de te chamar por aqui pra não incomodar. Se quiser ver o Contatta funcionando na sua operação, é só responder esta mensagem.'

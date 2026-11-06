@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://lopdvdblwasuowjdokpo.supabase.co" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/demo/funil.css?v=20261105b">
+<link rel="stylesheet" href="/demo/funil.css?v=20261106a">
 </head>
 <body>
 
@@ -30,7 +30,7 @@
     </a>
     <nav aria-label="Principal">
       <a href="#demo">Demonstração</a>
-      <a href="#planos">Planos</a>
+      <a href="#planos">Preço</a>
       <a href="#duvidas">Dúvidas</a>
       <a class="botao botao-primario" href="#contato" data-cta="topo">Quero entender para minha loja</a>
     </nav>
@@ -152,18 +152,16 @@
   </div>
 </section>
 
-<!-- PLANOS -->
+<!-- PREÇO -->
 <section class="secao branca" id="planos" aria-labelledby="planos-t">
   <div class="envolve">
-    <h2 id="planos-t">Uma solução para diferentes estágios da sua operação.</h2>
-    <p class="intro">Todos os planos têm WhatsApp e segmentação. O plano certo e o que entra na implantação a gente define no diagnóstico.</p>
-    <div class="planos">
-      <div class="plano"><h3>Starter</h3><div class="preco">R$ 397<small>/mês</small></div><p>Até 1.000 pedidos por mês e 1 usuário.</p></div>
-      <div class="plano"><h3>Pro</h3><div class="preco">R$ 997<small>/mês</small></div><p>Até 3.500 pedidos por mês e 3 usuários.</p></div>
-      <div class="plano"><h3>Business</h3><div class="preco">R$ 2.497<small>/mês</small></div><p>Até 10.000 pedidos por mês e 5 usuários.</p></div>
-      <div class="plano"><h3>Sob demanda</h3><div class="preco">Projeto</div><p>Integrações e processos exclusivos, com escopo e proposta próprios.</p></div>
+    <h2 id="planos-t">O preço sai do tamanho da sua operação.</h2>
+    <p class="intro">Não tem plano de prateleira: quem faz 400 pedidos por mês não paga por 1.000. Todo cliente tem WhatsApp e segmentação.</p>
+    <div class="planos tres">
+      <div class="plano"><div class="preco">1</div><h3>Você conta como vende</h3><p>Quantos pedidos faz por mês, em quais canais e quantas pessoas vão usar.</p></div>
+      <div class="plano"><div class="preco">2</div><h3>A gente mostra com os seus números</h3><p>Na conversa você vê o sistema funcionando e recebe o valor fechado para o seu volume.</p></div>
+      <div class="plano"><div class="preco">3</div><h3>Você assina pelo link</h3><p>Mensal, semestral ou anual. A base sobe na primeira importação.</p></div>
     </div>
-    <p class="nota">Semestral com 10% de desconto ou anual com 2 meses grátis. Detalhes de cada plano na <a href="/#planos">tabela completa</a>.</p>
   </div>
 </section>
 
@@ -520,19 +518,15 @@
       proximo.innerHTML = html
       return
     }
-    if (r.route === 'consultiva' || (querReuniao && r.route !== 'fora_icp')) {
+    // sem preço público desde 06/11/2026: quem não é fora do perfil vai pra conversa, onde sai o valor
+    if (r.route !== 'fora_icp') {
       proximo.innerHTML = '<div class="resultado"><h3>Faz sentido te mostrar isso em cima do seu fluxo.</h3>' +
         '<p>A conversa dura cerca de 20 minutos, por vídeo. Escolha um horário:</p><div id="agenda"><p class="tz">Buscando horários livres…</p></div></div>'
       carregarAgenda(r.token, primeiro)
-    } else if (r.route === 'fora_icp') {
+    } else {
       proximo.innerHTML = '<div class="resultado"><h3>Obrigado por contar, ' + esc(primeiro) + '.</h3>' +
         '<p>Pelo que você descreveu, o Contatta rende mais quando a loja já tem uma base de clientes comprando todo mês. Quando fizer sentido, a gente conversa, e se tiver alguma dúvida agora é só chamar.</p>' +
         '<div class="acoes">' + botaoWhats(textoWhats(primeiro), 'Tirar uma dúvida no WhatsApp', 'fora_icp') + '</div></div>'
-    } else {
-      proximo.innerHTML = '<div class="resultado"><h3>Pelo seu cenário, vale começar pelo plano de entrada.</h3>' +
-        '<p>O Starter cobre até 1.000 pedidos por mês, com WhatsApp e segmentação. Você pode ver o que está incluído e assinar sozinho, ou falar com uma pessoa antes.</p>' +
-        '<div class="acoes"><a class="botao botao-primario" href="/#planos" data-cta="ver_planos">Ver o que está incluído</a>' +
-        botaoWhats(textoWhats(primeiro), 'Falar com uma pessoa', 'entrada') + '</div></div>'
     }
     proximo.querySelectorAll('[data-whats]').forEach(function (a) {
       a.addEventListener('click', function () { F.evento('whatsapp_click', { step: a.dataset.whats }) })
