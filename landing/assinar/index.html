@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Assinar o Contatta</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-950:#0c101b; --ink-800:#1a2138;
+    --brand-100:#e0e7ff; --brand-300:#a5b4fc; --brand-600:#4f46e5; --brand-700:#4338ca;
+    --ok-300:#6ee7b7;
+    --gray-300:#d1d5db; --gray-400:#9ca3af; --gray-500:#6b7280; --gray-600:#4b5563; --gray-800:#1f2937;
+    --ease-out:cubic-bezier(.23,1,.32,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:#fff;color:var(--gray-800);
+       font-family:Inter,system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2{font-family:Archivo,Inter,system-ui,sans-serif;line-height:1.15;margin:0;text-wrap:balance}
+  p{margin:0;text-wrap:pretty}
+
+  .pagina{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:100vh}
+  @media(max-width:880px){.pagina{grid-template-columns:1fr;min-height:0}}
+
+  /* proposta (escuro) */
+  .proposta{background:var(--ink-950);color:#fff;padding:40px clamp(20px,5vw,64px) 48px;
+            position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .proposta::before{content:"";position:absolute;right:-140px;top:-140px;width:420px;height:420px;border-radius:50%;
+                    background:radial-gradient(closest-side,rgba(79,70,229,.45),transparent);pointer-events:none}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;position:relative}
+  .brand span{font-family:Archivo;font-weight:600;font-size:18px;letter-spacing:.01em}
+  .proposta-corpo{position:relative;margin:auto 0;padding-top:48px;max-width:460px}
+  .para{color:#c3cad9;font-size:15px}
+  .proposta h1{font-size:clamp(30px,4vw,42px);font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .preco{margin-top:28px;font-family:Archivo;font-weight:800;font-size:clamp(44px,6vw,64px);
+         letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+  .ciclo{color:#c3cad9;margin-top:8px;font-size:15px}
+  .itens{list-style:none;padding:24px 0 0;margin:28px 0 0;border-top:1px solid rgba(255,255,255,.12);display:grid;gap:12px}
+  .itens li{padding-left:28px;position:relative;color:#dfe3ec;font-size:15.5px}
+  .itens li::before{content:"";position:absolute;left:0;top:5px;width:16px;height:16px;border-radius:50%;
+    background:rgba(110,231,183,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-5' fill='none' stroke='%236ee7b7' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+  .itens b{color:#fff;font-weight:600}
+
+  /* formulário */
+  .dados{padding:40px clamp(20px,5vw,64px) 48px;display:flex;align-items:center}
+  .dados-corpo{width:100%;max-width:460px;margin:0 auto}
+  .dados h2{font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .dados .sub{color:var(--gray-600);font-size:15px;margin-top:6px}
+  form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+  @media(max-width:520px){form{grid-template-columns:1fr}}
+  .campo{display:flex;flex-direction:column;gap:6px}
+  .campo.full{grid-column:1/-1}
+  .campo label{font-size:13.5px;font-weight:600;color:var(--gray-600)}
+  .campo input{border:1px solid var(--gray-300);border-radius:10px;padding:11px 12px;font:inherit;font-size:15px;
+    background:#fff;color:var(--gray-800);transition:border-color 160ms ease,box-shadow 160ms ease}
+  .campo input:focus{outline:none;border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+  .isca{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .erro{grid-column:1/-1;background:#fef2f2;color:#b91c1c;border-radius:8px;padding:10px 12px;font-size:14px;margin:0}
+  .btn{grid-column:1/-1;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;
+       padding:14px 22px;font-weight:600;font-size:15.5px;border:0;cursor:pointer;font-family:inherit;
+       background:var(--brand-600);color:#fff;text-decoration:none;
+       transition:transform 160ms var(--ease-out),background-color 160ms ease}
+  .btn:active{transform:scale(.97)}
+  .btn[disabled]{opacity:.7;cursor:progress}
+  .btn:focus-visible,.brand:focus-visible{outline:3px solid var(--brand-300);outline-offset:2px}
+  @media (hover:hover) and (pointer:fine){.btn:hover{background:var(--brand-700)}}
+  .letra{grid-column:1/-1;color:var(--gray-500);font-size:13px;margin:0}
+
+  /* estados */
+  .carregando .preco,.carregando h1{color:transparent;background:rgba(255,255,255,.08);border-radius:8px;width:max-content}
+  .aviso{max-width:460px;margin:auto;padding:64px 20px;text-align:center}
+  .aviso h1{font-size:28px;color:var(--ink-950)}
+  .aviso p{color:var(--gray-600);margin-top:10px}
+  .aviso .btn{margin-top:24px}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<main class="pagina carregando" id="pagina">
+  <section class="proposta" aria-labelledby="titulo">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5b57ea"/><stop offset="1" stop-color="#4a31d0"/>
+        </linearGradient></defs>
+        <rect width="32" height="32" rx="7.2" fill="url(#lg)"/>
+        <path d="M21 12.4A5.6 5.6 0 1 0 21 19.6" fill="none" stroke="#fff" stroke-width="4.3" stroke-linecap="round"/>
+      </svg>
+      <span>Contatta</span>
+    </a>
+    <div class="proposta-corpo">
+      <p class="para" id="para">Proposta do Contatta</p>
+      <h1 id="titulo">Carregando a proposta</h1>
+      <p class="preco" id="preco">R$ 0,00</p>
+      <p class="ciclo" id="ciclo">&nbsp;</p>
+      <ul class="itens" id="itens"></ul>
+    </div>
+  </section>
+
+  <section class="dados" aria-labelledby="dados-titulo">
+    <div class="dados-corpo">
+      <h2 id="dados-titulo">Dados pra cobrança</h2>
+      <p class="sub">Depois do pagamento a conta é criada e chega no seu e-mail o convite pra criar a senha.</p>
+      <form id="form" novalidate>
+        <div class="campo full">
+          <label for="f-empresa">Empresa</label>
+          <input id="f-empresa" name="empresa" required autocomplete="organization">
+        </div>
+        <div class="campo">
+          <label for="f-doc">CPF ou CNPJ</label>
+          <input id="f-doc" name="cpf_cnpj" required inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="campo">
+          <label for="f-nome">Seu nome</label>
+          <input id="f-nome" name="nome" required autocomplete="name">
+        </div>
+        <div class="campo">
+          <label for="f-email">E-mail</label>
+          <input id="f-email" name="email" type="email" required autocomplete="email">
+        </div>
+        <div class="campo">
+          <label for="f-whats">WhatsApp</label>
+          <input id="f-whats" name="telefone" inputmode="tel" autocomplete="tel">
+        </div>
+        <div class="isca" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
+        <p class="erro" id="erro" role="alert" hidden></p>
+        <button type="submit" class="btn" id="enviar" disabled>Ir para o pagamento</button>
+        <p class="letra">Pix, boleto ou cartão, na página de pagamento do Asaas. Ao continuar você aceita os
+          <a href="/termos-de-uso.html" target="_blank" rel="noopener">Termos de Uso</a> e a
+          <a href="/politica-de-privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<div class="aviso" id="aviso" hidden>
+  <h1 id="aviso-titulo">Esse link não está valendo</h1>
+  <p id="aviso-texto"></p>
+  <a class="btn" href="https://wa.me/5581920020337?text=Oi!%20Meu%20link%20de%20assinatura%20do%20Contatta%20n%C3%A3o%20abriu.">Falar com o Contatta</a>
+</div>
+
+<script>
+  var API = 'https://lopdvdblwasuowjdokpo.supabase.co/functions/v1/asaas-checkout'
+  var codigo = (new URLSearchParams(location.search).get('c') || '').trim().toLowerCase()
+  var proposta = null
+  var COBRANCA = { MONTHLY: 'cobrado todo mês', SEMIANNUALLY: 'cobrado a cada 6 meses', YEARLY: 'cobrado uma vez por ano' }
+  var $ = function (id) { return document.getElementById(id) }
+
+  function brl(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
+  function num(v) { return Number(v).toLocaleString('pt-BR') }
+  function li(html) { var el = document.createElement('li'); el.innerHTML = html; return el }
+
+  function avisar(texto) {
+    $('pagina').hidden = true
+    $('aviso-texto').textContent = texto
+    $('aviso').hidden = false
+  }
+
+  function mostrar(p) {
+    proposta = p
+    $('pagina').classList.remove('carregando')
+    $('para').textContent = p.empresa ? 'Proposta pra ' + p.empresa : 'Proposta do Contatta'
+    $('titulo').textContent = p.estrategista ? 'Contatta com estrategista' : 'Contatta'
+    $('preco').textContent = brl(p.valor_ciclo)
+    $('ciclo').textContent = COBRANCA[p.ciclo] + (p.ciclo !== 'MONTHLY' ? ', o mesmo que ' + brl(p.ciclo === 'SEMIANNUALLY' ? p.valor_ciclo / 6 : p.valor_ciclo / 12) + ' por mês' : '')
+    var itens = $('itens')
+    itens.appendChild(li('Até <b>' + num(p.pedidos) + ' pedidos</b> por mês'))
+    itens.appendChild(li('<b>' + p.usuarios + (p.usuarios === 1 ? ' usuário' : ' usuários') + '</b> da sua equipe'))
+    if (p.estrategista) itens.appendChild(li('<b>Estrategista</b> montando e acompanhando as suas campanhas todo mês'))
+    itens.appendChild(li('Campanhas de WhatsApp e segmentos prontos'))
+    itens.appendChild(li('Base de clientes de todos os canais num lugar só'))
+    if (p.empresa) $('f-empresa').value = p.empresa
+    $('enviar').disabled = false
+    document.title = 'Assinar o Contatta' + (p.empresa ? ' · ' + p.empresa : '')
+  }
+
+  if (!/^[0-9a-f]{32}$/.test(codigo)) {
+    avisar('O endereço está incompleto. Confira se o link veio inteiro ou peça um novo pra quem te mandou.')
+  } else {
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oferta: codigo, acao: 'ver' }) })
+      .then(function (r) { return r.json().catch(function () { return {} }) })
+      .then(function (j) {
+        if (j && j.ok) mostrar(j)
+        else avisar((j && j.error) || 'Não deu pra abrir a proposta agora. Tente de novo em instantes.')
+      })
+      .catch(function () { avisar('Sem conexão agora. Confira a internet e abra o link de novo.') })
+  }
+
+  var form = $('form'), erro = $('erro'), enviar = $('enviar')
+  form.addEventListener('submit', function (e) {
+    e.preventDefault()
+    if (!proposta) return
+    var d = new FormData(form)
+    if (d.get('site')) return
+    var doc = String(d.get('cpf_cnpj') || '').replace(/\D/g, '')
+    var falta = !String(d.get('empresa') || '').trim() ? 'Preencha o nome da empresa.'
+      : (doc.length !== 11 && doc.length !== 14) ? 'O CPF ou CNPJ precisa ter 11 ou 14 dígitos.'
+      : !String(d.get('nome') || '').trim() ? 'Preencha o seu nome.'
+      : !/^\S+@\S+\.\S+$/.test(String(d.get('email') || '').trim()) ? 'Confira o e-mail.' : null
+    if (falta) { erro.textContent = falta; erro.hidden = false; return }
+    erro.hidden = true
+    enviar.disabled = true
+    enviar.textContent = 'Gerando a fatura…'
+    fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oferta: codigo, empresa: d.get('empresa'), cpf_cnpj: doc, nome: d.get('nome'),
+        email: String(d.get('email')).trim(), telefone: d.get('telefone') })
+    }).then(function (r) { return r.json().catch(function () { return {} }) })
+      .then(function (j) {
+        if (j && j.ok && j.invoice_url) { window.location.href = j.invoice_url; return }
+        erro.textContent = (j && j.error) || 'Não deu pra gerar a fatura agora. Tente de novo em instantes.'
+        erro.hidden = false
+        enviar.disabled = false
+        enviar.textContent = 'Ir para o pagamento'
+      })
+      .catch(function () {
+        erro.textContent = 'Sem conexão agora. Confira a internet e tente de novo.'
+        erro.hidden = false
+        enviar.disabled = false
+        enviar.textContent = 'Ir para o pagamento'
+      })
+  })
+</script>
+</body>
+</html>
