@@ -13,6 +13,10 @@ verify_jwt = false
 [functions.asaas-checkout]
 verify_jwt = false
 
+# conta-teste confere o login por dentro (auth.getUser) e o banco confere o master
+[functions.conta-teste]
+verify_jwt = false
+
 [functions.asaas-webhook]
 verify_jwt = false
 
