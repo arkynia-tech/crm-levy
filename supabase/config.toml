@@ -127,6 +127,10 @@ verify_jwt = false
 [functions.primeira-mensagem]
 verify_jwt = false
 
+# Catálogo das plataformas: a tela manda o login, o pg_cron o x-cron-token
+[functions.catalogo]
+verify_jwt = false
+
 [functions.conversa-enviar]
 verify_jwt = false
 
