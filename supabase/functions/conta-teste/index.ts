@@ -27,13 +27,25 @@ Deno.serve(async (req) => {
     if (!master) return falha(403, 'Só o master reenvia o acesso.')
     const { data: t } = await banco.from('billing_trials').select('email').eq('client_id', String(b.client_id ?? '')).maybeSingle()
     if (!t?.email) return falha(404, 'Teste não encontrado.')
-    // e-mail de "criar/redefinir senha": serve pra quem nunca aceitou o convite e pra quem esqueceu a senha
-    const { error: e } = await banco.auth.resetPasswordForEmail(t.email, { redirectTo: 'https://app.contatta.pro' })
-    if (e) {
-      console.error('reenviar acesso:', e.message || e.status)
-      return falha(502, `O e-mail não saiu: ${e.message || 'erro no envio'}. Confira o envio de e-mails (Resend) e tente de novo.`)
+    // 1º o convite: se o envio falhou antes, o Supabase desfaz o login junto e o
+    // "esqueci a senha" não teria pra quem mandar (responde ok sem enviar nada)
+    const { error: conv } = await banco.auth.admin.inviteUserByEmail(t.email, { redirectTo: 'https://app.contatta.pro' })
+    const jaTem = Boolean(conv && /already been registered|already registered|email_exists/i
+      .test(`${conv.message ?? ''} ${(conv as { code?: string }).code ?? ''}`))
+    if (conv && !jaTem) {
+      console.error('reenviar convite:', conv.message || conv.status)
+      return falha(502, `O e-mail não saiu: ${conv.message || 'erro no envio'}. Confira o envio de e-mails (Resend) e tente de novo.`)
     }
-    return responder(200, { ok: true, email: t.email }, CORS)
+    if (jaTem) {
+      // login já existe: manda o e-mail de criar/redefinir senha
+      const { error: e } = await banco.auth.resetPasswordForEmail(t.email, { redirectTo: 'https://app.contatta.pro' })
+      if (e) {
+        console.error('reenviar acesso:', e.message || e.status)
+        return falha(502, `O e-mail não saiu: ${e.message || 'erro no envio'}. Tente de novo em 1 minuto.`)
+      }
+    }
+    await rpc('crm_teste_vincular', { p_client_id: String(b.client_id) }).catch(() => null)
+    return responder(200, { ok: true, email: t.email, tipo: jaTem ? 'senha' : 'convite' }, CORS)
   }
 
   let r
