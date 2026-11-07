@@ -227,8 +227,11 @@ img{max-width:100%;display:block}
 .plano .preco{margin-top:14px;font:800 34px/1 Archivo,sans-serif;font-stretch:90%;color:var(--tinta);letter-spacing:-.02em}
 .plano .preco small{font:500 15px Inter,sans-serif;color:var(--cinza);letter-spacing:0}
 .plano p{margin-top:10px;font-size:15px;color:var(--cinza)}
+.planos.tres{grid-template-columns:repeat(3,1fr)}
+.planos.tres .plano .preco{margin:0 0 14px}
 @media (max-width:900px){.planos{grid-template-columns:1fr 1fr}.plano:nth-child(3){border-left:0}}
 @media (max-width:520px){.planos{grid-template-columns:1fr}.plano + .plano{border-left:0}}
+@media (max-width:900px){.planos.tres{grid-template-columns:1fr}.planos.tres .plano + .plano{border-left:0}}
 
 /* ---------- dúvidas ---------- */
 .duvidas{margin-top:36px;max-width:820px}
