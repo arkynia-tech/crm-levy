@@ -2,6 +2,10 @@
 // "Checkout do site — Contatta" (contatta-checkout): valida e grava o pedido,
 // cria cliente e assinatura no Asaas e devolve o link da fatura. A conta nasce
 // quando o pagamento é confirmado (asaas-webhook).
+//
+// Link de pagamento sob medida (07/11/2026): com `oferta` (o código do link que
+// o master criou), o plano, o ciclo e o valor vêm da proposta, não do corpo.
+// `acao: 'ver'` só devolve o resumo da proposta pra página contatta.pro/assinar.
 
 import { AMBIENTE, asaas, erroDoAsaas, type Json, soDigitos } from '../_shared/asaas.ts'
 import { cors, hojeSP, ipDe, responder, rpc } from '../_shared/comum.ts'
@@ -18,14 +22,32 @@ Deno.serve(async (req) => {
 
   const b = ((await req.json().catch(() => null)) ?? {}) as Json
 
-  // No banco (crm_signup_preparar): valida os dados, barra quem já tem conta,
-  // segura abuso (3 por e-mail ou documento por dia, 10 por IP por hora) e grava o pedido
+  const oferta = typeof b.oferta === 'string' && /^[0-9a-f]{32}$/.test(b.oferta) ? b.oferta : null
+  if (b.oferta && !oferta) return falha(400, 'Link inválido. Confira se ele veio inteiro.')
+
+  if (oferta && b.acao === 'ver') {
+    try {
+      const r = await rpc('crm_oferta_publica', { p_token: oferta })
+      return responder(r.ok === true ? 200 : 404, r, CORS)
+    } catch (e) {
+      console.error(e)
+      return falha(500, TENTE_DE_NOVO)
+    }
+  }
+
+  // No banco (crm_signup_preparar ou crm_signup_preparar_oferta): valida os dados, barra
+  // quem já tem conta, segura abuso e grava o pedido
   let p: Json
   try {
-    p = await rpc('crm_signup_preparar', {
-      p_empresa: b.empresa, p_cpf_cnpj: b.cpf_cnpj, p_nome: b.nome, p_email: b.email,
-      p_telefone: b.telefone || null, p_plan: b.plan_code, p_cycle: b.cycle, p_ip: ipDe(req) ?? null,
-    })
+    p = oferta
+      ? await rpc('crm_signup_preparar_oferta', {
+        p_token: oferta, p_empresa: b.empresa, p_cpf_cnpj: b.cpf_cnpj, p_nome: b.nome, p_email: b.email,
+        p_telefone: b.telefone || null, p_ip: ipDe(req) ?? null,
+      })
+      : await rpc('crm_signup_preparar', {
+        p_empresa: b.empresa, p_cpf_cnpj: b.cpf_cnpj, p_nome: b.nome, p_email: b.email,
+        p_telefone: b.telefone || null, p_plan: b.plan_code, p_cycle: b.cycle, p_ip: ipDe(req) ?? null,
+      })
   } catch (e) {
     console.error(e)
     return falha(400, TENTE_DE_NOVO)
@@ -42,7 +64,7 @@ Deno.serve(async (req) => {
     // primeiro vencimento hoje; billingType UNDEFINED deixa a pessoa escolher Pix, boleto ou cartão
     const s = await asaas('POST', '/subscriptions', {
       customer: c.json.id, billingType: 'UNDEFINED', value: p.valor, nextDueDate: hojeSP(),
-      cycle: b.cycle, description: p.descricao, externalReference: 'signup:' + p.signup_id,
+      cycle: oferta ? p.ciclo : b.cycle, description: p.descricao, externalReference: 'signup:' + p.signup_id,
     })
     if (!s.json.id) return falha(422, erroDoAsaas(s.json) || SEM_FATURA)
 

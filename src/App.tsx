@@ -25,6 +25,7 @@ import Comecar from './pages/Comecar'
 import ComprarPedidos from './pages/ComprarPedidos'
 import ComprarUsuarios from './pages/ComprarUsuarios'
 import PainelVendas from './pages/PainelVendas'
+import LinksPagamento from './pages/LinksPagamento'
 import Comercial from './pages/Comercial'
 import Envios from './pages/Envios'
 import Conversas from './pages/Conversas'
@@ -187,6 +188,10 @@ function Rotas() {
         <Route
           path="/painel-vendas"
           element={<RequirePermission permission="salesPanel"><PainelVendas /></RequirePermission>}
+        />
+        <Route
+          path="/links-pagamento"
+          element={<RequirePermission permission="salesPanel"><LinksPagamento /></RequirePermission>}
         />
         <Route
           path="/comercial"
