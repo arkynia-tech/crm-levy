@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, ExternalLink, MessageCircle, Plus, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, Mail, MessageCircle, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
@@ -118,7 +118,7 @@ async function erroDaFuncao(error: unknown): Promise<string> {
     const j = await ctx.json().catch(() => null)
     if (j?.error) return String(j.error)
   }
-  return 'Não deu pra liberar o teste agora. Tente de novo em instantes.'
+  return 'Não deu certo agora. Tente de novo em instantes.'
 }
 
 const dataHora = (iso: string) =>
@@ -139,7 +139,9 @@ function NovoTeste({ onCriado }: { onCriado: () => void }) {
   const [pedidosTxt, setPedidosTxt] = useState('500')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [feito, setFeito] = useState<{ loja: string; email: string; ate: string; convite: boolean } | null>(null)
+  const [feito, setFeito] = useState<{
+    loja: string; email: string; ate: string; convite: boolean; jaTinhaLogin: boolean; conviteErro: string | null
+  } | null>(null)
   const dias = Math.floor(Number(diasTxt) || 0)
   const pedidos = Math.floor(Number(pedidosTxt) || 0)
   const ate = new Date(Date.now() + dias * 86400000)
@@ -157,9 +159,12 @@ function NovoTeste({ onCriado }: { onCriado: () => void }) {
     })
     setEnviando(false)
     if (error) return setErro(await erroDaFuncao(error))
-    const r = data as { ok: boolean; ate?: string; convite?: boolean; error?: string } | null
+    const r = data as { ok: boolean; ate?: string; convite?: boolean; ja_tinha_login?: boolean; convite_erro?: string | null; error?: string } | null
     if (!r?.ok || !r.ate) return setErro(r?.error ?? 'Não deu pra liberar o teste agora.')
-    setFeito({ loja: loja.trim(), email: email.trim().toLowerCase(), ate: r.ate, convite: r.convite !== false })
+    setFeito({
+      loja: loja.trim(), email: email.trim().toLowerCase(), ate: r.ate, convite: r.convite !== false,
+      jaTinhaLogin: r.ja_tinha_login === true, conviteErro: r.convite_erro ?? null,
+    })
     onCriado()
   }
 
@@ -170,9 +175,17 @@ function NovoTeste({ onCriado }: { onCriado: () => void }) {
         <p className="mt-1 text-sm text-gray-600">
           {feito.convite
             ? <>O convite pra criar a senha foi pro <b className="font-medium text-gray-800">{feito.email}</b>. </>
-            : <>Esse e-mail já tinha login: ele entra com a senha que já usa. </>}
+            : feito.jaTinhaLogin
+              ? <>Esse e-mail já tinha login: ele entra com a senha que já usa. </>
+              : null}
           A conta funciona até {dataHora(feito.ate)}. Depois trava até a loja pagar o link de pagamento.
         </p>
+        {!feito.convite && !feito.jaTinhaLogin && (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
+            A loja foi criada, mas o e-mail do convite não saiu ({feito.conviteErro}). Depois de resolver o envio, use
+            "Reenviar acesso" na lista abaixo.
+          </p>
+        )}
         <button
           type="button"
           className="btn-secondary mt-4"
@@ -244,6 +257,15 @@ function NovoTeste({ onCriado }: { onCriado: () => void }) {
 
 function ListaTestes({ testes, onMudou, onCobrar }: { testes: Teste[]; onMudou: () => void; onCobrar: (clientId: string) => void }) {
   const [mexendo, setMexendo] = useState<string | null>(null)
+  const reenviar = async (t: Teste) => {
+    if (!window.confirm(`Mandar de novo o e-mail de acesso (criar senha) pra ${t.email}?`)) return
+    setMexendo(t.client_id)
+    const { data, error } = await supabase.functions.invoke('conta-teste', { body: { acao: 'reenviar', client_id: t.client_id } })
+    setMexendo(null)
+    if (error) return window.alert(await erroDaFuncao(error))
+    const r = data as { ok: boolean; email?: string; error?: string } | null
+    window.alert(r?.ok ? `E-mail de acesso enviado pra ${r.email}. Peça pra olhar também o spam.` : r?.error ?? 'Não deu pra reenviar agora.')
+  }
   const estender = async (t: Teste) => {
     const v = window.prompt(`Quantos dias a mais pro teste da ${t.loja}?`, '2')
     const dias = Math.floor(Number(v) || 0)
@@ -298,6 +320,16 @@ function ListaTestes({ testes, onMudou, onCobrar }: { testes: Teste[]; onMudou: 
                           Criar link de pagamento
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="btn-secondary px-2.5 py-1 text-xs"
+                        onClick={() => reenviar(t)}
+                        disabled={mexendo === t.client_id}
+                        aria-label="Reenviar o e-mail de acesso"
+                        title="Reenviar o e-mail de acesso"
+                      >
+                        <Mail className="h-4 w-4" aria-hidden />
+                      </button>
                       <button
                         type="button"
                         className="btn-secondary px-2.5 py-1 text-xs"
