@@ -3,6 +3,8 @@
 // (crm_teste_criar), manda o convite de acesso pro e-mail do cliente e dá a ele
 // o papel de admin na loja. Sem Asaas: a cobrança vem depois, pelo link de
 // pagamento feito pra essa loja.
+// { acao: 'reenviar', client_id }: manda de novo o e-mail de acesso (link de
+// criar senha) pro e-mail do teste. Usado quando o convite não chegou.
 
 import { banco, cors, responder, rpc } from '../_shared/comum.ts'
 
@@ -19,6 +21,21 @@ Deno.serve(async (req) => {
   if (!login?.user) return falha(401, 'Entre de novo no Contatta.')
 
   const b = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>
+
+  if (b.acao === 'reenviar') {
+    const { data: master } = await banco.from('crm_masters').select('user_id').eq('user_id', login.user.id).maybeSingle()
+    if (!master) return falha(403, 'Só o master reenvia o acesso.')
+    const { data: t } = await banco.from('billing_trials').select('email').eq('client_id', String(b.client_id ?? '')).maybeSingle()
+    if (!t?.email) return falha(404, 'Teste não encontrado.')
+    // e-mail de "criar/redefinir senha": serve pra quem nunca aceitou o convite e pra quem esqueceu a senha
+    const { error: e } = await banco.auth.resetPasswordForEmail(t.email, { redirectTo: 'https://app.contatta.pro' })
+    if (e) {
+      console.error('reenviar acesso:', e.message || e.status)
+      return falha(502, `O e-mail não saiu: ${e.message || 'erro no envio'}. Confira o envio de e-mails (Resend) e tente de novo.`)
+    }
+    return responder(200, { ok: true, email: t.email }, CORS)
+  }
+
   let r
   try {
     r = await rpc('crm_teste_criar', {
@@ -34,8 +51,14 @@ Deno.serve(async (req) => {
   // O Supabase manda o e-mail de convite (tela Crie sua senha). Se o e-mail já tiver
   // login (sem loja), o convite falha e o acesso é dado do mesmo jeito.
   const { error } = await banco.auth.admin.inviteUserByEmail(r.email, { redirectTo: 'https://app.contatta.pro' })
-  if (error) console.log('convite:', error.message)
+  // "já registrado" é esperado (login antigo sem loja); qualquer outro erro é o e-mail que não saiu
+  const jaTinhaLogin = Boolean(error && /already been registered|already registered|email_exists/i
+    .test(`${error.message ?? ''} ${(error as { code?: string }).code ?? ''}`))
+  if (error && !jaTinhaLogin) console.error('convite:', error.message || error.status)
   const v = await rpc('crm_teste_vincular', { p_client_id: r.client_id }).catch(() => ({ ok: false }))
 
-  return responder(200, { ok: true, client_id: r.client_id, ate: r.ate, convite: !error, acesso: v.ok === true }, CORS)
+  return responder(200, {
+    ok: true, client_id: r.client_id, ate: r.ate, convite: !error, ja_tinha_login: jaTinhaLogin,
+    convite_erro: error && !jaTinhaLogin ? (error.message || 'erro no envio') : null, acesso: v.ok === true,
+  }, CORS)
 })
