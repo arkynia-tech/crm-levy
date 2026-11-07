@@ -6,9 +6,11 @@
 // Link de pagamento sob medida (07/11/2026): com `oferta` (o código do link que
 // o master criou), o plano, o ciclo e o valor vêm da proposta, não do corpo.
 // `acao: 'ver'` só devolve o resumo da proposta pra página contatta.pro/assinar.
+// Proposta com teste: a 1ª cobrança vence no fim do teste e a conta nasce na hora
+// (sem esperar o aviso de pagamento), com o convite de acesso no e-mail.
 
 import { AMBIENTE, asaas, erroDoAsaas, type Json, soDigitos } from '../_shared/asaas.ts'
-import { cors, hojeSP, ipDe, responder, rpc } from '../_shared/comum.ts'
+import { banco, cors, hojeSP, ipDe, responder, rpc } from '../_shared/comum.ts'
 
 const ORIGENS = ['https://contatta.pro', 'https://www.contatta.pro', 'https://app.contatta.pro']
 const TENTE_DE_NOVO = 'Não deu pra continuar agora. Tente de novo em instantes.'
@@ -61,9 +63,11 @@ Deno.serve(async (req) => {
     })
     if (!c.json.id) return falha(422, erroDoAsaas(c.json) || SEM_FATURA)
 
-    // primeiro vencimento hoje; billingType UNDEFINED deixa a pessoa escolher Pix, boleto ou cartão
+    // primeiro vencimento hoje (ou no fim do teste); billingType UNDEFINED deixa a pessoa escolher Pix, boleto ou cartão
+    const diasTeste = Number(p.teste_dias) || 0
+    const vencimento = hojeSP(diasTeste)
     const s = await asaas('POST', '/subscriptions', {
-      customer: c.json.id, billingType: 'UNDEFINED', value: p.valor, nextDueDate: hojeSP(),
+      customer: c.json.id, billingType: 'UNDEFINED', value: p.valor, nextDueDate: vencimento,
       cycle: oferta ? p.ciclo : b.cycle, description: p.descricao, externalReference: 'signup:' + p.signup_id,
     })
     if (!s.json.id) return falha(422, erroDoAsaas(s.json) || SEM_FATURA)
@@ -74,6 +78,15 @@ Deno.serve(async (req) => {
       p_signup_id: p.signup_id, p_customer_id: s.json.customer, p_subscription_id: s.json.id,
       p_invoice_url: f.invoiceUrl || null, p_ambiente: AMBIENTE,
     })
+    if (diasTeste > 0) {
+      // teste: a conta nasce agora; o convite é o mesmo do pagamento confirmado (asaas-webhook)
+      const cliente: unknown = await rpc('crm_signup_provisionar', { p_subscription_id: s.json.id, p_due: vencimento })
+      if (typeof cliente !== 'string') return falha(500, TENTE_DE_NOVO)
+      const { error } = await banco.auth.admin.inviteUserByEmail(p.email, { redirectTo: 'https://app.contatta.pro' })
+      if (error) console.log('convite:', error.message)
+      await rpc('crm_signup_vincular', { p_client_id: cliente })
+      return responder(200, { ok: true, teste: true, email: p.email, vence_em: vencimento, valor: p.valor, invoice_url: f.invoiceUrl || null }, CORS)
+    }
     return responder(200, { ok: true, invoice_url: f.invoiceUrl || null }, CORS)
   } catch (e) {
     console.error(e)
