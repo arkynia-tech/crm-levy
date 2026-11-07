@@ -341,6 +341,12 @@ export interface SituacaoConta {
   valor?: number | null
   /** só vem para admin e master, que são quem paga */
   fatura_url?: string | null
+  /** 'teste': o teste grátis acabou e a loja ainda não assinou (teste-gratis.sql) */
+  motivo?: 'teste' | null
+  /** fim do teste grátis, quando a loja está ou esteve em teste */
+  teste_ate?: string | null
+  /** link de pagamento aberto pra loja (só admin e master) */
+  link_assinatura?: string | null
 }
 
 /** Situação da conta para qualquer papel da loja. Bloqueada, confere de novo a cada 10 s. */

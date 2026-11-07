@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, ExternalLink, MessageCircle, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, MessageCircle, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatCurrency, formatDate } from '../lib/format'
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '../components/ui'
@@ -11,7 +11,10 @@ import { valorDoCiclo, type Ciclo } from '../hooks/billing'
  * a tela sugere os valores da tabela interna (03-Comercial/Contatta/precos.md,
  * aprovada em 06/11/2026) e tudo pode ser editado. O cliente abre
  * contatta.pro/assinar/?c=<código>, preenche os dados e paga no Asaas.
- * Com período de teste, a conta nasce na hora e a 1ª cobrança vence no fim dele.
+ *
+ * Aba Testes (07/11/2026): o teste é separado do pagamento. O master libera N
+ * dias com um limite de pedidos (função conta-teste); acabou, a conta trava até
+ * a loja pagar o link de pagamento feito PRA ELA, que liga a assinatura à mesma conta.
  */
 
 const PAGINA = 'https://contatta.pro/assinar/?c='
@@ -74,6 +77,247 @@ interface Oferta {
   teste_ate: string | null
   conta_status: string | null
   conta_pagou_em: string | null
+}
+
+interface Teste {
+  client_id: string
+  loja: string
+  email: string
+  pedidos: number
+  usados: number
+  inicio: string
+  ate: string
+  criado_em: string
+  /** status da assinatura, se já pagou o link */
+  assinatura: string | null
+  pagou_em: string | null
+  /** link de pagamento aberto pra essa loja */
+  link_aberto: string | null
+  /** o login do cliente já está ligado à loja */
+  acesso_ok: boolean
+}
+
+function useTestes() {
+  return useQuery({
+    queryKey: ['master-testes'],
+    queryFn: async (): Promise<Teste[] | null> => {
+      const { data, error } = await supabase.rpc('crm_testes_listar')
+      if (error) {
+        if (/crm_testes_listar|does not exist|schema cache/i.test(error.message)) return null
+        throw new Error(error.message)
+      }
+      return (data ?? []) as Teste[]
+    },
+  })
+}
+
+/** Erro que a Edge Function devolveu no corpo ({ error }), em vez do genérico do supabase-js. */
+async function erroDaFuncao(error: unknown): Promise<string> {
+  const ctx = (error as { context?: Response })?.context
+  if (ctx && typeof ctx.json === 'function') {
+    const j = await ctx.json().catch(() => null)
+    if (j?.error) return String(j.error)
+  }
+  return 'Não deu pra liberar o teste agora. Tente de novo em instantes.'
+}
+
+const dataHora = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+function situacaoTeste(t: Teste): { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral'; detalhe?: string } {
+  if (t.assinatura === 'ativa' || t.assinatura === 'em_atraso') {
+    return { label: 'Assinou', tone: 'ok', detalhe: t.pagou_em ? `em ${formatDate(t.pagou_em)}` : undefined }
+  }
+  if (new Date(t.ate).getTime() > Date.now()) return { label: 'Em teste', tone: 'warn', detalhe: `até ${dataHora(t.ate)}` }
+  return { label: 'Teste acabou', tone: 'bad', detalhe: t.link_aberto ? 'Link de pagamento enviado' : 'Conta travada até pagar' }
+}
+
+function NovoTeste({ onCriado }: { onCriado: () => void }) {
+  const [loja, setLoja] = useState('')
+  const [email, setEmail] = useState('')
+  const [diasTxt, setDiasTxt] = useState('5')
+  const [pedidosTxt, setPedidosTxt] = useState('500')
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [feito, setFeito] = useState<{ loja: string; email: string; ate: string; convite: boolean } | null>(null)
+  const dias = Math.floor(Number(diasTxt) || 0)
+  const pedidos = Math.floor(Number(pedidosTxt) || 0)
+  const ate = new Date(Date.now() + dias * 86400000)
+
+  const liberar = async (e: FormEvent) => {
+    e.preventDefault()
+    setErro(null)
+    if (loja.trim().length < 2) return setErro('Informe o nome da loja.')
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErro('Confira o e-mail do cliente.')
+    if (dias < 1 || dias > 90) return setErro('O teste pode ter de 1 a 90 dias.')
+    if (pedidos < 1) return setErro('Informe quantos pedidos a loja pode importar no teste.')
+    setEnviando(true)
+    const { data, error } = await supabase.functions.invoke('conta-teste', {
+      body: { loja: loja.trim(), email: email.trim(), dias, pedidos },
+    })
+    setEnviando(false)
+    if (error) return setErro(await erroDaFuncao(error))
+    const r = data as { ok: boolean; ate?: string; convite?: boolean; error?: string } | null
+    if (!r?.ok || !r.ate) return setErro(r?.error ?? 'Não deu pra liberar o teste agora.')
+    setFeito({ loja: loja.trim(), email: email.trim().toLowerCase(), ate: r.ate, convite: r.convite !== false })
+    onCriado()
+  }
+
+  if (feito) {
+    return (
+      <section className="card p-5">
+        <p className="font-medium text-gray-900">Teste liberado pra {feito.loja}</p>
+        <p className="mt-1 text-sm text-gray-600">
+          {feito.convite
+            ? <>O convite pra criar a senha foi pro <b className="font-medium text-gray-800">{feito.email}</b>. </>
+            : <>Esse e-mail já tinha login: ele entra com a senha que já usa. </>}
+          A conta funciona até {dataHora(feito.ate)}. Depois trava até a loja pagar o link de pagamento.
+        </p>
+        <button
+          type="button"
+          className="btn-secondary mt-4"
+          onClick={() => {
+            setFeito(null)
+            setLoja('')
+            setEmail('')
+          }}
+        >
+          Liberar outro teste
+        </button>
+      </section>
+    )
+  }
+
+  return (
+    <form onSubmit={liberar} className="card space-y-5 p-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="nt-loja" className="text-xs font-medium text-gray-600">Nome da loja</label>
+          <input id="nt-loja" className="input mt-1" value={loja} onChange={(e) => setLoja(e.target.value)} maxLength={120} />
+        </div>
+        <div>
+          <label htmlFor="nt-email" className="text-xs font-medium text-gray-600">E-mail do cliente</label>
+          <input
+            id="nt-email"
+            className="input mt-1"
+            type="email"
+            inputMode="email"
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-gray-500">O convite pra criar a senha vai pra esse e-mail.</p>
+        </div>
+        <div>
+          <label htmlFor="nt-dias" className="text-xs font-medium text-gray-600">Dias de teste</label>
+          <input
+            id="nt-dias"
+            className="input mt-1 tabular-nums"
+            inputMode="numeric"
+            value={diasTxt}
+            onChange={(e) => setDiasTxt(e.target.value.replace(/\D/g, ''))}
+          />
+          {dias > 0 && <p className="mt-1 text-xs text-gray-500">Até {dataHora(ate.toISOString())}, se liberar agora.</p>}
+        </div>
+        <div>
+          <label htmlFor="nt-pedidos" className="text-xs font-medium text-gray-600">Pedidos no teste</label>
+          <input
+            id="nt-pedidos"
+            className="input mt-1 tabular-nums"
+            inputMode="numeric"
+            value={pedidosTxt}
+            onChange={(e) => setPedidosTxt(e.target.value.replace(/\D/g, ''))}
+          />
+          <p className="mt-1 text-xs text-gray-500">Quantos pedidos a loja pode importar nesses dias.</p>
+        </div>
+      </div>
+      {erro && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{erro}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={enviando} className="btn-primary transition-transform duration-150 ease-out active:scale-[0.97]">
+          {enviando ? 'Liberando…' : 'Liberar teste'}
+        </button>
+        <p className="text-xs text-gray-500">Sem cobrança agora. Acabou o teste, a conta trava até pagar o link de pagamento.</p>
+      </div>
+    </form>
+  )
+}
+
+function ListaTestes({ testes, onMudou, onCobrar }: { testes: Teste[]; onMudou: () => void; onCobrar: (clientId: string) => void }) {
+  const [mexendo, setMexendo] = useState<string | null>(null)
+  const estender = async (t: Teste) => {
+    const v = window.prompt(`Quantos dias a mais pro teste da ${t.loja}?`, '2')
+    const dias = Math.floor(Number(v) || 0)
+    if (!v || dias < 1) return
+    setMexendo(t.client_id)
+    const { data, error } = await supabase.rpc('crm_teste_estender', { p_client_id: t.client_id, p_dias: dias })
+    setMexendo(null)
+    const r = data as { ok: boolean; error?: string } | null
+    if (error || !r?.ok) window.alert(r?.error ?? error?.message ?? 'Não deu pra estender agora.')
+    onMudou()
+  }
+
+  if (testes.length === 0) {
+    return <EmptyState title="Nenhum teste liberado ainda" hint="Libere um teste acima e o cliente recebe o acesso no e-mail." />
+  }
+  return (
+    <div className="relative overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="th">Loja</th>
+            <th className="th">Uso no teste</th>
+            <th className="th">Situação</th>
+            <th className="th"><span className="sr-only">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {testes.map((t) => {
+            const sit = situacaoTeste(t)
+            const assinou = sit.label === 'Assinou'
+            return (
+              <tr key={t.client_id}>
+                <td className="td">
+                  <p className="font-medium text-gray-900">{t.loja}</p>
+                  <p className="text-xs text-gray-500">{t.email}{t.acesso_ok ? '' : ' · convite ainda não aceito'}</p>
+                </td>
+                <td className="td tabular-nums">
+                  <p>{numero(t.usados)} de {numero(t.pedidos)} pedidos</p>
+                  <p className="text-xs text-gray-500">Desde {formatDate(t.inicio)}</p>
+                </td>
+                <td className="td">
+                  <StatusBadge status={sit.label} tone={sit.tone} />
+                  {sit.detalhe && <p className="mt-1 text-xs text-gray-500">{sit.detalhe}</p>}
+                </td>
+                <td className="td">
+                  {!assinou && (
+                    <div className="flex justify-end gap-2">
+                      {t.link_aberto ? (
+                        <BotaoCopiar texto={PAGINA + t.link_aberto} rotulo="Copiar link" compacto />
+                      ) : (
+                        <button type="button" className="btn-secondary px-2.5 py-1 text-xs" onClick={() => onCobrar(t.client_id)}>
+                          Criar link de pagamento
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary px-2.5 py-1 text-xs"
+                        onClick={() => estender(t)}
+                        disabled={mexendo === t.client_id}
+                        aria-label="Dar mais dias de teste"
+                        title="Dar mais dias de teste"
+                      >
+                        <Plus className="h-4 w-4" aria-hidden /> Dias
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function useOfertas() {
@@ -152,7 +396,8 @@ function CampoReais({
   )
 }
 
-function NovoLink({ onCriado }: { onCriado: () => void }) {
+function NovoLink({ onCriado, testes, lojaInicial }: { onCriado: () => void; testes: Teste[]; lojaInicial?: string }) {
+  const [loja, setLoja] = useState(lojaInicial ?? '')
   const [empresa, setEmpresa] = useState('')
   const [pedidosTxt, setPedidosTxt] = useState('1000')
   const [usuariosTxt, setUsuariosTxt] = useState('1')
@@ -163,10 +408,6 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
   const [estrategistaTxt, setEstrategistaTxt] = useState('1000')
   const [estrategistaEditado, setEstrategistaEditado] = useState(false)
   const [ciclo, setCiclo] = useState<Ciclo>('MONTHLY')
-  const [comTeste, setComTeste] = useState(false)
-  const [testeDiasTxt, setTesteDiasTxt] = useState('7')
-  const [testePedidosTxt, setTestePedidosTxt] = useState('500')
-  const [testePedidosEditado, setTestePedidosEditado] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [criado, setCriado] = useState<{ link: string; empresa: string | null } | null>(null)
@@ -177,9 +418,8 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
   const mensal = Math.round((sistema + estrategista) * 100) / 100
   const total = valorDoCiclo(mensal, ciclo)
   const porMes = ciclo === 'MONTHLY' ? total : total / (ciclo === 'SEMIANNUALLY' ? 6 : 12)
-  const testeDias = Math.floor(Number(testeDiasTxt) || 0)
-  const testePedidos = Math.floor(Number(testePedidosTxt) || 0)
-  const primeiraCobranca = new Date(Date.now() + testeDias * 86400000)
+  const lojaEscolhida = testes.find((t) => t.client_id === loja) ?? null
+  const nomeLoja = lojaEscolhida ? lojaEscolhida.loja : empresa.trim() || null
 
   // mudou o volume: o que não foi editado à mão acompanha a tabela
   const mudarPedidos = (v: string) => {
@@ -189,7 +429,6 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
     if (!sistemaEditado) setSistemaTxt(reaisParaCampo(sistemaDaTabela(n)))
     if (!estrategistaEditado) setEstrategistaTxt(reaisParaCampo(estrategistaDaTabela(n)))
     if (!usuariosEditado) setUsuariosTxt(String(usuariosDaTabela(n)))
-    if (!testePedidosEditado) setTestePedidosTxt(String(Math.min(500, n)))
   }
 
   const criar = async (e: FormEvent) => {
@@ -199,45 +438,62 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
     if (lerReais(sistemaTxt) == null) return setErro('Confira o valor do sistema.')
     if (comEstrategista && !(estrategista > 0)) return setErro('Confira o valor do estrategista.')
     if (mensal < 5) return setErro('O valor mensal precisa ser de pelo menos R$ 5 (mínimo do Asaas).')
-    if (comTeste && (testeDias < 1 || testeDias > 90)) return setErro('O teste pode ter de 1 a 90 dias.')
-    if (comTeste && testePedidos < 1) return setErro('Informe quantos pedidos a loja pode importar no teste.')
     setEnviando(true)
     const { data, error } = await supabase.rpc('crm_oferta_criar', {
-      p_empresa: empresa.trim() || null,
+      p_empresa: nomeLoja,
       p_pedidos: pedidos,
       p_usuarios: Math.floor(Number(usuariosTxt) || 1),
       p_sistema: sistema,
       p_estrategista: comEstrategista ? estrategista : null,
       p_ciclo: ciclo,
-      p_teste_dias: comTeste ? testeDias : null,
-      p_teste_pedidos: comTeste ? testePedidos : null,
+      p_loja: lojaEscolhida ? lojaEscolhida.client_id : null,
     })
     setEnviando(false)
     const r = data as { ok: boolean; token?: string; error?: string } | null
     if (error || !r?.ok || !r.token) return setErro(r?.error ?? error?.message ?? 'Não deu pra criar o link agora.')
-    setCriado({ link: PAGINA + r.token, empresa: empresa.trim() || null })
+    setCriado({ link: PAGINA + r.token, empresa: nomeLoja })
     onCriado()
   }
 
   const novo = () => {
     setCriado(null)
     setEmpresa('')
+    setLoja('')
     setErro(null)
   }
 
   return (
     <form onSubmit={criar} className="grid gap-4 lg:grid-cols-5">
       <section className="card space-y-5 p-5 lg:col-span-3">
-        <div>
-          <label htmlFor="ol-empresa" className="text-xs font-medium text-gray-600">Para quem</label>
-          <input
-            id="ol-empresa"
-            className="input mt-1"
-            placeholder="Nome da loja (aparece pro cliente)"
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value)}
-            maxLength={120}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="ol-loja" className="text-xs font-medium text-gray-600">Para</label>
+            <select id="ol-loja" className="input mt-1" value={loja} onChange={(e) => setLoja(e.target.value)}>
+              <option value="">Loja nova</option>
+              {testes.map((t) => (
+                <option key={t.client_id} value={t.client_id}>
+                  {t.loja} (teste)
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ol-empresa" className="text-xs font-medium text-gray-600">Nome da loja</label>
+            <input
+              id="ol-empresa"
+              className="input mt-1 disabled:bg-gray-50 disabled:text-gray-500"
+              placeholder="Aparece pro cliente"
+              value={lojaEscolhida ? lojaEscolhida.loja : empresa}
+              onChange={(e) => setEmpresa(e.target.value)}
+              disabled={Boolean(lojaEscolhida)}
+              maxLength={120}
+            />
+          </div>
+          {lojaEscolhida && (
+            <p className="text-xs text-gray-500 sm:col-span-2">
+              Quando pagar, a assinatura entra nessa loja e ela volta a funcionar com tudo que já tinha.
+            </p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -318,53 +574,6 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600"
-              checked={comTeste}
-              onChange={(e) => setComTeste(e.target.checked)}
-            />
-            <span>
-              <span className="block text-sm font-medium text-gray-900">Período de teste</span>
-              <span className="block text-xs text-gray-500">
-                A conta nasce na hora, sem pagar. A 1ª cobrança vence no fim do teste.
-              </span>
-            </span>
-          </label>
-          {comTeste && (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="ol-teste-dias" className="text-xs font-medium text-gray-600">Dias de teste</label>
-                <input
-                  id="ol-teste-dias"
-                  className="input mt-1 tabular-nums"
-                  inputMode="numeric"
-                  value={testeDiasTxt}
-                  onChange={(e) => setTesteDiasTxt(e.target.value.replace(/\D/g, ''))}
-                />
-              </div>
-              <div>
-                <label htmlFor="ol-teste-pedidos" className="text-xs font-medium text-gray-600">Pedidos no teste</label>
-                <input
-                  id="ol-teste-pedidos"
-                  className="input mt-1 tabular-nums"
-                  inputMode="numeric"
-                  value={testePedidosTxt}
-                  onChange={(e) => {
-                    setTestePedidosTxt(e.target.value.replace(/\D/g, ''))
-                    setTestePedidosEditado(true)
-                  }}
-                />
-              </div>
-              <p className="text-xs text-gray-500 sm:col-span-2">
-                Passou desse limite, a loja só importa mais depois de pagar. Não pagou no vencimento, segue a régua normal de atraso.
-              </p>
-            </div>
-          )}
-        </div>
-
         <div>
           <span className="text-xs font-medium text-gray-600">Ciclo</span>
           <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1" role="radiogroup" aria-label="Ciclo">
@@ -390,20 +599,12 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
       <section className="relative flex flex-col overflow-hidden rounded-2xl bg-ink-900 p-6 text-white lg:col-span-2">
         <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-brand-600/30 blur-3xl" />
         <div className="relative flex flex-1 flex-col">
-          {comTeste && testeDias > 0 && (
-            <p className="mb-4 inline-flex w-fit rounded-full bg-emerald-400/15 px-3 py-1 text-sm text-emerald-200">
-              {testeDias} {testeDias === 1 ? 'dia' : 'dias'} grátis, até {numero(testePedidos)} pedidos
-            </p>
-          )}
-          <p className="text-sm text-white/60">{comTeste ? 'Depois do teste, o cliente paga' : 'O cliente paga'}</p>
+          <p className="text-sm text-white/60">{nomeLoja ? `${nomeLoja} paga` : 'O cliente paga'}</p>
           <p className="mt-1 font-display text-4xl font-semibold tracking-tight tabular-nums">{formatCurrency(total)}</p>
           <p className="mt-1 text-sm text-white/60">
             {COBRANCA[ciclo]}
             {ciclo !== 'MONTHLY' && ` · equivale a ${formatCurrency(porMes)}/mês`}
           </p>
-          {comTeste && testeDias > 0 && (
-            <p className="mt-1 text-sm text-white/60">1ª cobrança em {primeiraCobranca.toLocaleDateString('pt-BR')}, se o link for usado hoje</p>
-          )}
 
           <dl className="mt-6 space-y-2 border-t border-white/10 pt-4 text-sm">
             <div className="flex justify-between gap-3">
@@ -573,36 +774,102 @@ function Lista({ ofertas, onMudou }: { ofertas: Oferta[]; onMudou: () => void })
   )
 }
 
+type Aba = 'links' | 'testes'
+
 export default function LinksPagamento() {
   const qc = useQueryClient()
+  const [aba, setAba] = useState<Aba>('links')
+  const [lojaDoLink, setLojaDoLink] = useState<string | undefined>(undefined)
   const { data: ofertas, isLoading, error } = useOfertas()
-  const atualizar = () => qc.invalidateQueries({ queryKey: ['master-ofertas'] })
+  const { data: testes, isLoading: carregandoTestes, error: erroTestes } = useTestes()
+  const atualizar = () => {
+    void qc.invalidateQueries({ queryKey: ['master-ofertas'] })
+    void qc.invalidateQueries({ queryKey: ['master-testes'] })
+  }
+  // loja em teste que ainda não assinou: pode receber link de pagamento
+  const testesSemAssinatura = (testes ?? []).filter((t) => t.assinatura !== 'ativa' && t.assinatura !== 'em_atraso')
+
+  const abas: { id: Aba; label: string }[] = [
+    { id: 'links', label: 'Links de pagamento' },
+    { id: 'testes', label: 'Testes' },
+  ]
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Links de pagamento" subtitle="Monte o preço pelo volume da loja e mande o link pra ela assinar" />
+      <PageHeader title="Links de pagamento" subtitle="Libere testes, monte o preço pelo volume da loja e mande o link pra ela assinar" />
 
-      {ofertas === null ? (
-        <div className="card">
-          <EmptyState title="Os links ainda não foram ligados neste banco" hint="Falta rodar o link-pagamento.sql no Supabase." />
-        </div>
+      <div className="flex gap-1 border-b border-gray-200" role="tablist" aria-label="Seções">
+        {abas.map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={aba === x.id}
+            onClick={() => setAba(x.id)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors duration-150 ${
+              aba === x.id ? 'border-brand-600 font-medium text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+
+      {aba === 'testes' ? (
+        <>
+          {testes === null ? (
+            <div className="card">
+              <EmptyState title="Os testes ainda não foram ligados neste banco" hint="Falta rodar o teste-gratis.sql no Supabase." />
+            </div>
+          ) : (
+            <NovoTeste onCriado={atualizar} />
+          )}
+          <section className="card">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="font-display text-sm font-semibold text-gray-900">Testes liberados</h2>
+              <p className="text-xs text-gray-500">Acabou o teste, a conta trava. Quando a loja paga o link dela, volta com tudo que tinha.</p>
+            </div>
+            {carregandoTestes ? (
+              <div className="h-32 animate-pulse" />
+            ) : erroTestes ? (
+              <div className="p-5"><ErrorState message={(erroTestes as Error).message} /></div>
+            ) : (
+              <ListaTestes
+                testes={testes ?? []}
+                onMudou={atualizar}
+                onCobrar={(id) => {
+                  setLojaDoLink(id)
+                  setAba('links')
+                }}
+              />
+            )}
+          </section>
+        </>
       ) : (
-        <NovoLink onCriado={atualizar} />
-      )}
+        <>
+          {ofertas === null ? (
+            <div className="card">
+              <EmptyState title="Os links ainda não foram ligados neste banco" hint="Falta rodar o link-pagamento.sql no Supabase." />
+            </div>
+          ) : (
+            <NovoLink key={lojaDoLink ?? 'nova'} onCriado={atualizar} testes={testesSemAssinatura} lojaInicial={lojaDoLink} />
+          )}
 
-      <section className="card">
-        <div className="border-b border-gray-200 px-5 py-4">
-          <h2 className="font-display text-sm font-semibold text-gray-900">Links criados</h2>
-          <p className="text-xs text-gray-500">Quando o cliente paga, a conta nasce sozinha e o convite de acesso vai pro e-mail dele.</p>
-        </div>
-        {isLoading ? (
-          <div className="h-32 animate-pulse" />
-        ) : error ? (
-          <div className="p-5"><ErrorState message={(error as Error).message} /></div>
-        ) : (
-          <Lista ofertas={ofertas ?? []} onMudou={atualizar} />
-        )}
-      </section>
+          <section className="card">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="font-display text-sm font-semibold text-gray-900">Links criados</h2>
+              <p className="text-xs text-gray-500">Quando o cliente paga, a conta nasce (ou volta, se era teste) e o convite de acesso vai pro e-mail dele.</p>
+            </div>
+            {isLoading ? (
+              <div className="h-32 animate-pulse" />
+            ) : error ? (
+              <div className="p-5"><ErrorState message={(error as Error).message} /></div>
+            ) : (
+              <Lista ofertas={ofertas ?? []} onMudou={atualizar} />
+            )}
+          </section>
+        </>
+      )}
     </div>
   )
 }
