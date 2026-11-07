@@ -73,6 +73,14 @@
 
   /* estados */
   .carregando .preco,.carregando h1{color:transparent;background:rgba(255,255,255,.08);border-radius:8px;width:max-content}
+  .selo{display:inline-block;margin-top:24px;background:rgba(110,231,183,.14);color:var(--ok-300);
+        border-radius:999px;padding:5px 12px;font-size:14px;font-weight:600}
+  .feito h2{font-size:24px}
+  .feito p{color:var(--gray-600);margin-top:10px}
+  .feito .acoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .feito .btn{grid-column:auto}
+  .btn-claro{background:#fff;color:var(--brand-700);border:1px solid var(--gray-300)}
+  @media (hover:hover) and (pointer:fine){.btn-claro:hover{background:#f6f7fb}}
   .aviso{max-width:460px;margin:auto;padding:64px 20px;text-align:center}
   .aviso h1{font-size:28px;color:var(--ink-950)}
   .aviso p{color:var(--gray-600);margin-top:10px}
@@ -97,6 +105,7 @@
     <div class="proposta-corpo">
       <p class="para" id="para">Proposta do Contatta</p>
       <h1 id="titulo">Carregando a proposta</h1>
+      <p class="selo" id="selo" hidden></p>
       <p class="preco" id="preco">R$ 0,00</p>
       <p class="ciclo" id="ciclo">&nbsp;</p>
       <ul class="itens" id="itens"></ul>
@@ -104,9 +113,9 @@
   </section>
 
   <section class="dados" aria-labelledby="dados-titulo">
-    <div class="dados-corpo">
+    <div class="dados-corpo" id="dados-corpo">
       <h2 id="dados-titulo">Dados pra cobrança</h2>
-      <p class="sub">Depois do pagamento a conta é criada e chega no seu e-mail o convite pra criar a senha.</p>
+      <p class="sub" id="dados-sub">Depois do pagamento a conta é criada e chega no seu e-mail o convite pra criar a senha.</p>
       <form id="form" novalidate>
         <div class="campo full">
           <label for="f-empresa">Empresa</label>
@@ -131,10 +140,18 @@
         <div class="isca" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
         <p class="erro" id="erro" role="alert" hidden></p>
         <button type="submit" class="btn" id="enviar" disabled>Ir para o pagamento</button>
-        <p class="letra">Pix, boleto ou cartão, na página de pagamento do Asaas. Ao continuar você aceita os
+        <p class="letra"><span id="letra-pagamento">Pix, boleto ou cartão, na página de pagamento do Asaas.</span> Ao continuar você aceita os
           <a href="/termos-de-uso.html" target="_blank" rel="noopener">Termos de Uso</a> e a
           <a href="/politica-de-privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
       </form>
+    </div>
+    <div class="dados-corpo feito" id="feito" hidden aria-live="polite">
+      <h2>Conta criada</h2>
+      <p id="feito-texto"></p>
+      <div class="acoes">
+        <a class="btn" href="https://app.contatta.pro">Entrar no Contatta</a>
+        <a class="btn btn-claro" id="feito-fatura" target="_blank" rel="noopener" hidden>Ver a 1ª cobrança</a>
+      </div>
     </div>
   </section>
 </main>
@@ -162,14 +179,27 @@
     $('aviso').hidden = false
   }
 
+  function dataBR(iso) { var d = String(iso).split('-'); return d[2] + '/' + d[1] + '/' + d[0] }
+  function diasDepois(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('pt-BR') }
+
   function mostrar(p) {
     proposta = p
+    var teste = Number(p.teste_dias) || 0
     $('pagina').classList.remove('carregando')
     $('para').textContent = p.empresa ? 'Proposta pra ' + p.empresa : 'Proposta do Contatta'
     $('titulo').textContent = p.estrategista ? 'Contatta com estrategista' : 'Contatta'
     $('preco').textContent = brl(p.valor_ciclo)
-    $('ciclo').textContent = COBRANCA[p.ciclo] + (p.ciclo !== 'MONTHLY' ? ', o mesmo que ' + brl(p.ciclo === 'SEMIANNUALLY' ? p.valor_ciclo / 6 : p.valor_ciclo / 12) + ' por mês' : '')
+    $('ciclo').textContent = (teste ? 'Depois do teste, ' : '') + COBRANCA[p.ciclo] + (p.ciclo !== 'MONTHLY' ? ', o mesmo que ' + brl(p.ciclo === 'SEMIANNUALLY' ? p.valor_ciclo / 6 : p.valor_ciclo / 12) + ' por mês' : '')
     var itens = $('itens')
+    if (teste) {
+      $('selo').textContent = teste + (teste === 1 ? ' dia grátis' : ' dias grátis') + ' pra testar'
+      $('selo').hidden = false
+      itens.appendChild(li('<b>Teste de ' + teste + (teste === 1 ? ' dia' : ' dias') + '</b> com até ' + num(p.teste_pedidos) + ' pedidos, sem pagar nada agora'))
+      $('dados-titulo').textContent = 'Seus dados'
+      $('dados-sub').textContent = 'A conta é criada na hora e chega no seu e-mail o convite pra criar a senha.'
+      $('letra-pagamento').textContent = 'Nada é cobrado agora. A 1ª cobrança vence em ' + diasDepois(teste) + ', por Pix, boleto ou cartão.'
+      $('enviar').textContent = 'Começar o teste grátis'
+    }
     itens.appendChild(li('Até <b>' + num(p.pedidos) + ' pedidos</b> por mês'))
     itens.appendChild(li('<b>' + p.usuarios + (p.usuarios === 1 ? ' usuário' : ' usuários') + '</b> da sua equipe'))
     if (p.estrategista) itens.appendChild(li('<b>Estrategista</b> montando e acompanhando as suas campanhas todo mês'))
@@ -192,6 +222,15 @@
       .catch(function () { avisar('Sem conexão agora. Confira a internet e abra o link de novo.') })
   }
 
+  // teste: a conta já existe, então a página vira a confirmação
+  function pronto(j) {
+    $('dados-corpo').hidden = true
+    $('feito-texto').textContent = 'Mandamos pra ' + j.email + ' o convite pra criar a senha. Confira também a caixa de spam. '
+      + 'A 1ª cobrança, de ' + brl(j.valor) + ', vence em ' + dataBR(j.vence_em) + '.'
+    if (j.invoice_url) { $('feito-fatura').href = j.invoice_url; $('feito-fatura').hidden = false }
+    $('feito').hidden = false
+  }
+
   var form = $('form'), erro = $('erro'), enviar = $('enviar')
   form.addEventListener('submit', function (e) {
     e.preventDefault()
@@ -205,8 +244,9 @@
       : !/^\S+@\S+\.\S+$/.test(String(d.get('email') || '').trim()) ? 'Confira o e-mail.' : null
     if (falta) { erro.textContent = falta; erro.hidden = false; return }
     erro.hidden = true
+    var rotulo = enviar.textContent
     enviar.disabled = true
-    enviar.textContent = 'Gerando a fatura…'
+    enviar.textContent = proposta.teste_dias ? 'Criando a sua conta…' : 'Gerando a fatura…'
     fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -214,17 +254,18 @@
         email: String(d.get('email')).trim(), telefone: d.get('telefone') })
     }).then(function (r) { return r.json().catch(function () { return {} }) })
       .then(function (j) {
+        if (j && j.ok && j.teste) { pronto(j); return }
         if (j && j.ok && j.invoice_url) { window.location.href = j.invoice_url; return }
         erro.textContent = (j && j.error) || 'Não deu pra gerar a fatura agora. Tente de novo em instantes.'
         erro.hidden = false
         enviar.disabled = false
-        enviar.textContent = 'Ir para o pagamento'
+        enviar.textContent = rotulo
       })
       .catch(function () {
         erro.textContent = 'Sem conexão agora. Confira a internet e tente de novo.'
         erro.hidden = false
         enviar.disabled = false
-        enviar.textContent = 'Ir para o pagamento'
+        enviar.textContent = rotulo
       })
   })
 </script>

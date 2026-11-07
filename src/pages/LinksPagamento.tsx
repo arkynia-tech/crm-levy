@@ -11,6 +11,7 @@ import { valorDoCiclo, type Ciclo } from '../hooks/billing'
  * a tela sugere os valores da tabela interna (03-Comercial/Contatta/precos.md,
  * aprovada em 06/11/2026) e tudo pode ser editado. O cliente abre
  * contatta.pro/assinar/?c=<código>, preenche os dados e paga no Asaas.
+ * Com período de teste, a conta nasce na hora e a 1ª cobrança vence no fim dele.
  */
 
 const PAGINA = 'https://contatta.pro/assinar/?c='
@@ -63,11 +64,16 @@ interface Oferta {
   ciclo: Ciclo
   mensal: number
   valor_ciclo: number
-  status: 'aberto' | 'pago' | 'cancelado'
+  status: 'aberto' | 'teste' | 'pago' | 'cancelado'
   criado_em: string
   pago_em: string | null
   loja: string | null
   tentativas: number
+  teste_dias: number | null
+  teste_pedidos: number | null
+  teste_ate: string | null
+  conta_status: string | null
+  conta_pagou_em: string | null
 }
 
 function useOfertas() {
@@ -157,6 +163,10 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
   const [estrategistaTxt, setEstrategistaTxt] = useState('1000')
   const [estrategistaEditado, setEstrategistaEditado] = useState(false)
   const [ciclo, setCiclo] = useState<Ciclo>('MONTHLY')
+  const [comTeste, setComTeste] = useState(false)
+  const [testeDiasTxt, setTesteDiasTxt] = useState('7')
+  const [testePedidosTxt, setTestePedidosTxt] = useState('500')
+  const [testePedidosEditado, setTestePedidosEditado] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [criado, setCriado] = useState<{ link: string; empresa: string | null } | null>(null)
@@ -167,6 +177,9 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
   const mensal = Math.round((sistema + estrategista) * 100) / 100
   const total = valorDoCiclo(mensal, ciclo)
   const porMes = ciclo === 'MONTHLY' ? total : total / (ciclo === 'SEMIANNUALLY' ? 6 : 12)
+  const testeDias = Math.floor(Number(testeDiasTxt) || 0)
+  const testePedidos = Math.floor(Number(testePedidosTxt) || 0)
+  const primeiraCobranca = new Date(Date.now() + testeDias * 86400000)
 
   // mudou o volume: o que não foi editado à mão acompanha a tabela
   const mudarPedidos = (v: string) => {
@@ -176,6 +189,7 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
     if (!sistemaEditado) setSistemaTxt(reaisParaCampo(sistemaDaTabela(n)))
     if (!estrategistaEditado) setEstrategistaTxt(reaisParaCampo(estrategistaDaTabela(n)))
     if (!usuariosEditado) setUsuariosTxt(String(usuariosDaTabela(n)))
+    if (!testePedidosEditado) setTestePedidosTxt(String(Math.min(500, n)))
   }
 
   const criar = async (e: FormEvent) => {
@@ -185,6 +199,8 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
     if (lerReais(sistemaTxt) == null) return setErro('Confira o valor do sistema.')
     if (comEstrategista && !(estrategista > 0)) return setErro('Confira o valor do estrategista.')
     if (mensal < 5) return setErro('O valor mensal precisa ser de pelo menos R$ 5 (mínimo do Asaas).')
+    if (comTeste && (testeDias < 1 || testeDias > 90)) return setErro('O teste pode ter de 1 a 90 dias.')
+    if (comTeste && testePedidos < 1) return setErro('Informe quantos pedidos a loja pode importar no teste.')
     setEnviando(true)
     const { data, error } = await supabase.rpc('crm_oferta_criar', {
       p_empresa: empresa.trim() || null,
@@ -193,6 +209,8 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
       p_sistema: sistema,
       p_estrategista: comEstrategista ? estrategista : null,
       p_ciclo: ciclo,
+      p_teste_dias: comTeste ? testeDias : null,
+      p_teste_pedidos: comTeste ? testePedidos : null,
     })
     setEnviando(false)
     const r = data as { ok: boolean; token?: string; error?: string } | null
@@ -300,6 +318,53 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
           )}
         </div>
 
+        <div className="rounded-lg border border-gray-200 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600"
+              checked={comTeste}
+              onChange={(e) => setComTeste(e.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-900">Período de teste</span>
+              <span className="block text-xs text-gray-500">
+                A conta nasce na hora, sem pagar. A 1ª cobrança vence no fim do teste.
+              </span>
+            </span>
+          </label>
+          {comTeste && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="ol-teste-dias" className="text-xs font-medium text-gray-600">Dias de teste</label>
+                <input
+                  id="ol-teste-dias"
+                  className="input mt-1 tabular-nums"
+                  inputMode="numeric"
+                  value={testeDiasTxt}
+                  onChange={(e) => setTesteDiasTxt(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <div>
+                <label htmlFor="ol-teste-pedidos" className="text-xs font-medium text-gray-600">Pedidos no teste</label>
+                <input
+                  id="ol-teste-pedidos"
+                  className="input mt-1 tabular-nums"
+                  inputMode="numeric"
+                  value={testePedidosTxt}
+                  onChange={(e) => {
+                    setTestePedidosTxt(e.target.value.replace(/\D/g, ''))
+                    setTestePedidosEditado(true)
+                  }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 sm:col-span-2">
+                Passou desse limite, a loja só importa mais depois de pagar. Não pagou no vencimento, segue a régua normal de atraso.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div>
           <span className="text-xs font-medium text-gray-600">Ciclo</span>
           <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1" role="radiogroup" aria-label="Ciclo">
@@ -325,12 +390,20 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
       <section className="relative flex flex-col overflow-hidden rounded-2xl bg-ink-900 p-6 text-white lg:col-span-2">
         <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-brand-600/30 blur-3xl" />
         <div className="relative flex flex-1 flex-col">
-          <p className="text-sm text-white/60">O cliente paga</p>
+          {comTeste && testeDias > 0 && (
+            <p className="mb-4 inline-flex w-fit rounded-full bg-emerald-400/15 px-3 py-1 text-sm text-emerald-200">
+              {testeDias} {testeDias === 1 ? 'dia' : 'dias'} grátis, até {numero(testePedidos)} pedidos
+            </p>
+          )}
+          <p className="text-sm text-white/60">{comTeste ? 'Depois do teste, o cliente paga' : 'O cliente paga'}</p>
           <p className="mt-1 font-display text-4xl font-semibold tracking-tight tabular-nums">{formatCurrency(total)}</p>
           <p className="mt-1 text-sm text-white/60">
             {COBRANCA[ciclo]}
             {ciclo !== 'MONTHLY' && ` · equivale a ${formatCurrency(porMes)}/mês`}
           </p>
+          {comTeste && testeDias > 0 && (
+            <p className="mt-1 text-sm text-white/60">1ª cobrança em {primeiraCobranca.toLocaleDateString('pt-BR')}, se o link for usado hoje</p>
+          )}
 
           <dl className="mt-6 space-y-2 border-t border-white/10 pt-4 text-sm">
             <div className="flex justify-between gap-3">
@@ -389,10 +462,24 @@ function NovoLink({ onCriado }: { onCriado: () => void }) {
   )
 }
 
-const SITUACAO: Record<Oferta['status'], { label: string; tone: 'ok' | 'warn' | 'neutral' }> = {
-  aberto: { label: 'Aguardando pagamento', tone: 'warn' },
-  pago: { label: 'Pago', tone: 'ok' },
-  cancelado: { label: 'Cancelado', tone: 'neutral' },
+/** Situação que aparece na lista. Link de teste usado acompanha a conta: em teste, pagou ou não pagou. */
+function situacao(o: Oferta): { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral'; detalhe?: string } {
+  if (o.status === 'cancelado') return { label: 'Cancelado', tone: 'neutral' }
+  if (o.status === 'pago') return { label: 'Pago', tone: 'ok', detalhe: o.pago_em ? `em ${formatDate(o.pago_em)}` : undefined }
+  if (o.status === 'teste') {
+    if (o.conta_pagou_em) return { label: 'Pago', tone: 'ok', detalhe: `depois do teste, em ${formatDate(o.conta_pagou_em)}` }
+    if (o.conta_status === 'suspensa' || o.conta_status === 'cancelada') return { label: 'Teste acabou sem pagar', tone: 'bad' }
+    const fim = o.teste_ate ? new Date(o.teste_ate) : null
+    if (fim && fim.getTime() > Date.now()) {
+      return { label: 'Em teste', tone: 'warn', detalhe: `até ${fim.toLocaleDateString('pt-BR')}` }
+    }
+    return { label: 'Teste acabou, aguardando pagamento', tone: 'bad' }
+  }
+  return {
+    label: o.teste_dias ? 'Aguardando cadastro' : 'Aguardando pagamento',
+    tone: 'warn',
+    detalhe: o.tentativas > 0 ? `${o.teste_dias ? 'Tentou se cadastrar' : 'Abriu a fatura'} ${o.tentativas} ${o.tentativas === 1 ? 'vez' : 'vezes'}` : undefined,
+  }
 }
 
 function Lista({ ofertas, onMudou }: { ofertas: Oferta[]; onMudou: () => void }) {
@@ -425,6 +512,7 @@ function Lista({ ofertas, onMudou }: { ofertas: Oferta[]; onMudou: () => void })
         <tbody className="divide-y divide-gray-100">
           {ofertas.map((o) => {
             const link = PAGINA + o.token
+            const sit = situacao(o)
             return (
               <tr key={o.id}>
                 <td className="td">
@@ -437,19 +525,19 @@ function Lista({ ofertas, onMudou }: { ofertas: Oferta[]; onMudou: () => void })
                     Sistema {formatCurrency(o.sistema)}
                     {o.estrategista != null ? ` + estrategista ${formatCurrency(o.estrategista)}` : ''}
                   </p>
+                  {o.teste_dias != null && (
+                    <p className="text-xs text-gray-500">
+                      Teste de {o.teste_dias} {o.teste_dias === 1 ? 'dia' : 'dias'}, até {numero(o.teste_pedidos ?? 0)} pedidos
+                    </p>
+                  )}
                 </td>
                 <td className="td text-right tabular-nums">
                   <p className="font-medium text-gray-900">{formatCurrency(o.valor_ciclo)}</p>
                   <p className="text-xs text-gray-500">{COBRANCA[o.ciclo]}</p>
                 </td>
                 <td className="td">
-                  <StatusBadge status={SITUACAO[o.status].label} tone={SITUACAO[o.status].tone} />
-                  {o.status === 'pago' && o.pago_em && <p className="mt-1 text-xs text-gray-500">em {formatDate(o.pago_em)}</p>}
-                  {o.status === 'aberto' && o.tentativas > 0 && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Abriu a fatura {o.tentativas} {o.tentativas === 1 ? 'vez' : 'vezes'}
-                    </p>
-                  )}
+                  <StatusBadge status={sit.label} tone={sit.tone} />
+                  {sit.detalhe && <p className="mt-1 text-xs text-gray-500">{sit.detalhe}</p>}
                 </td>
                 <td className="td">
                   {o.status === 'aberto' && (
