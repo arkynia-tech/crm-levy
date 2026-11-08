@@ -1,16 +1,19 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, MapPin, Phone } from 'lucide-react'
+import { ArrowLeft, Mail, MapPin, Pencil, Phone } from 'lucide-react'
 import { useCustomerDetail } from '../hooks/queries'
-import { formatCurrency, formatDate, formatDateTime, maskCpf } from '../lib/format'
+import { formatCurrency, formatDate, formatDateTime, formatPhone, maskCpf } from '../lib/format'
 import { EmptyState, ErrorState, MarketplaceBadge, OrderStatusBadge } from '../components/ui'
 import { BotaoPrimeiraMensagem } from '../components/PrimeiraMensagem'
 import { ApagarVenda, RegistrarVenda } from '../components/RegistrarVenda'
 import { useUserRole } from '../hooks/settings'
+import { TelefonesCliente } from '../components/TelefonesCliente'
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>()
   const { data, isLoading, error } = useCustomerDetail(id)
   const { data: papel } = useUserRole()
+  const [editandoTelefone, setEditandoTelefone] = useState(false)
 
   if (error) return <ErrorState message={(error as Error).message} />
 
@@ -40,6 +43,7 @@ export default function CustomerDetail() {
   const { customer, orders } = data
   const validOrders = orders.filter((o) => !(o.status ?? '').toLowerCase().includes('cancel'))
   const totalSpent = validOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0)
+  const podeEditar = papel === 'admin' || papel === 'master'
 
   return (
     <div>
@@ -76,9 +80,26 @@ export default function CustomerDetail() {
             <Mail className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
             <span className="text-gray-800">{customer.email || 'Email não informado'}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Phone className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-            <span className="text-gray-800">{customer.phone || 'Telefone não informado'}</span>
+            <span className="tabular-nums text-gray-800">
+              {customer.phone ? formatPhone(customer.phone) : 'Telefone não informado'}
+            </span>
+            {(customer.telefones?.length ?? 0) > 0 && (
+              <span className="text-xs text-gray-500">
+                +{customer.telefones!.length} {customer.telefones!.length === 1 ? 'número' : 'números'}
+              </span>
+            )}
+            {podeEditar && !editandoTelefone && (
+              <button
+                type="button"
+                onClick={() => setEditandoTelefone(true)}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-50"
+              >
+                <Pencil className="h-3 w-3" aria-hidden />
+                {customer.phone ? 'Trocar' : 'Adicionar'}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
@@ -87,6 +108,15 @@ export default function CustomerDetail() {
             </span>
           </div>
         </dl>
+
+        {podeEditar && editandoTelefone && (
+          <TelefonesCliente
+            customerId={customer.id}
+            principal={customer.phone}
+            outros={customer.telefones ?? []}
+            onFechar={() => setEditandoTelefone(false)}
+          />
+        )}
 
         {(papel === 'admin' || papel === 'master') && (
           <BotaoPrimeiraMensagem
