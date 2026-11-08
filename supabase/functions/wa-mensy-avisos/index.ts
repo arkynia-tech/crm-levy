@@ -9,7 +9,8 @@
 //                      wa_messages): é daí que saem o "respondeu", o SAIR/PARAR
 //                      das campanhas e o 1, 2, 3 da primeira mensagem. A que a
 //                      loja mandou pelo celular (fromMe) entra na conversa como
-//                      enviada (crm_wa_mensy_enviada, conversas-funil.sql).
+//                      enviada (crm_wa_mensy_enviada, conversas-funil.sql), na
+//                      conversa do cliente (data.chat; data.from é a loja).
 //                      Foto, áudio, vídeo e documento: grava o endereço do
 //                      arquivo no Mensy, que a conversa-midia baixa
 //                      (conversas-midia.sql)
@@ -38,7 +39,8 @@ async function tratar(ev: Json) {
   const d = ev.data ?? {}
   if (ev.event === 'messages.received') {
     if (d.isGroup) return
-    const fone = String(d.from ?? d.chat ?? '').replace(/\D/g, '')
+    // Mandada pelo celular da loja: "from" é a própria loja, o cliente está em "chat"
+    const fone = String((d.fromMe ? d.chat ?? d.to : d.from ?? d.chat) ?? '').replace(/\D/g, '')
     if (fone.length < 10 || fone.length > 13) return // LID ou grupo: sem telefone
     const id = d.id ?? ev.deliveryId
     if (d.fromMe) {
