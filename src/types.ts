@@ -28,6 +28,9 @@ export interface Customer {
   name: string | null
   email: string | null
   phone: string | null
+  /** outros números do cliente (telefones-do-cliente.sql); o principal é phone */
+  telefones?: string[] | null
+  telefone_manual?: boolean
   birth_date: string | null
   city: string | null
   state: string | null

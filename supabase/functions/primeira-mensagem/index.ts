@@ -97,7 +97,7 @@ async function numeroNaoOficial(clientId: string): Promise<Json | null> {
   const { data } = await banco
     .from('wa_instances').select('id, instance_name, label, profile_name')
     .eq('client_id', clientId).eq('provider', 'mensy').eq('status', 'connected')
-    .order('principal', { ascending: false }).order('last_status_at', { ascending: false, nullsFirst: false }).limit(1)
+    .order('last_status_at', { ascending: false, nullsFirst: false }).limit(1)
   return data?.[0] ?? null
 }
 

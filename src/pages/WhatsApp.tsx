@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Star, Trash2, Unplug, X } from 'lucide-react'
+import { BadgeCheck, FileText, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2, Unplug, X } from 'lucide-react'
 import {
   ehOficial,
   esquecerInstancia,
@@ -24,44 +24,7 @@ function qrSrc(qr: string): string {
   return qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`
 }
 
-/** Selo do número principal, quando a loja tem mais de um. */
-function SeloPrincipal({ i, varios }: { i: WaInstance; varios: boolean }) {
-  if (!varios || !i.principal) return null
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-      <Star className="h-3 w-3 fill-current" aria-hidden />
-      Principal
-    </span>
-  )
-}
-
-/** "Tornar principal": as campanhas passam a sair por este número. */
-function BotaoPrincipal({ i, varios, onErro }: { i: WaInstance; varios: boolean; onErro: (m: string | null) => void }) {
-  const acoes = useWaActions()
-  const [indo, setIndo] = useState(false)
-  if (!varios || i.principal) return null
-  const tornar = async () => {
-    setIndo(true)
-    onErro(null)
-    const r = await acoes.tornarPrincipal(i.id)
-    setIndo(false)
-    if (!r.ok) onErro(r.error ?? 'Não deu pra trocar o número principal agora.')
-  }
-  return (
-    <button
-      type="button"
-      className="btn-secondary"
-      onClick={() => void tornar()}
-      disabled={indo}
-      title="Campanhas, aniversário e primeira mensagem passam a sair por este número"
-    >
-      {indo ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Star className="h-4 w-4" aria-hidden />}
-      Tornar principal
-    </button>
-  )
-}
-
-function CartaoInstancia({ i, gerarQrJa = false, varios = false }: { i: WaInstance; gerarQrJa?: boolean; varios?: boolean }) {
+function CartaoInstancia({ i, gerarQrJa = false }: { i: WaInstance; gerarQrJa?: boolean }) {
   const acoes = useWaActions()
   const [qr, setQr] = useState<string | null>(null)
   const [paircode, setPaircode] = useState<string | null>(null)
@@ -190,13 +153,12 @@ function CartaoInstancia({ i, gerarQrJa = false, varios = false }: { i: WaInstan
     <div className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <Smartphone className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
             <h3 className="truncate font-display text-sm font-semibold text-gray-900">
               {i.label ?? i.instance_name}
             </h3>
             <StatusBadge status={STATUS_LABEL[i.status]} tone={STATUS_TONE[i.status]} />
-            <SeloPrincipal i={i} varios={varios} />
           </div>
           <p className="mt-1 text-sm text-gray-600">{STATUS_HINT[i.status]}</p>
           {conectado && i.phone && (
@@ -211,7 +173,6 @@ function CartaoInstancia({ i, gerarQrJa = false, varios = false }: { i: WaInstan
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <BotaoPrincipal i={i} varios={varios} onErro={setErro} />
           {!conectado && (
             <button type="button" className="btn-primary" onClick={() => void conectar()} disabled={ocupado !== null}>
               {ocupado === 'conectar' ? (
@@ -335,7 +296,7 @@ function limiteLegivel(t: string): string {
   return `até ${s.replace(/K$/i, ' mil').replace(/^250$/, '250')} pessoas novas por dia`
 }
 
-function CartaoOficial({ i, varios = false }: { i: WaInstance; varios?: boolean }) {
+function CartaoOficial({ i }: { i: WaInstance }) {
   const oficial = useWaOficial()
   const [ocupado, setOcupado] = useState<'conferir' | 'remover' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -374,7 +335,6 @@ function CartaoOficial({ i, varios = false }: { i: WaInstance; varios?: boolean 
             <h3 className="truncate font-display text-sm font-semibold text-gray-900">{i.label ?? 'WhatsApp oficial'}</h3>
             <StatusBadge status={st.label} tone={STATUS_TONE[i.status]} />
             <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">API oficial</span>
-            <SeloPrincipal i={i} varios={varios} />
           </div>
           <p className="mt-1 text-sm text-gray-600">{st.hint}</p>
           {i.phone && (
@@ -394,7 +354,6 @@ function CartaoOficial({ i, varios = false }: { i: WaInstance; varios?: boolean 
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <BotaoPrincipal i={i} varios={varios} onErro={setErro} />
           <Link to="/whatsapp/modelos" className="btn-secondary">
             <FileText className="h-4 w-4" aria-hidden />
             Modelos
@@ -755,7 +714,6 @@ export default function WhatsApp() {
   const oficial = useWaOficial()
   const oficiais = (instancias ?? []).filter(ehOficial)
   const porQr = (instancias ?? []).filter((i) => !ehOficial(i))
-  const varios = (instancias ?? []).length > 1
   // número do QR que acabou de ser criado: o cartão dele já gera o QR Code
   const [recemCriada, setRecemCriada] = useState<string | null>(null)
 
@@ -790,10 +748,6 @@ export default function WhatsApp() {
       {quota && (
         <p className="mb-3 text-sm text-gray-500">
           {quota.usadas} de {quota.limite} {quota.limite === 1 ? 'número' : 'números'} em uso.
-          {(instancias ?? []).length > 0 &&
-            (varios
-              ? ' As campanhas saem pelo número principal.'
-              : ' Pra trocar de número, conecte o novo, toque em Tornar principal e depois apague o antigo.')}
         </p>
       )}
 
@@ -811,7 +765,7 @@ export default function WhatsApp() {
           {oficiais.length > 0 && (
             <div className="space-y-4">
               {oficiais.map((i) => (
-                <CartaoOficial key={i.id} i={i} varios={varios} />
+                <CartaoOficial key={i.id} i={i} />
               ))}
             </div>
           )}
@@ -822,7 +776,7 @@ export default function WhatsApp() {
               )}
               <div className="space-y-4">
                 {porQr.map((i) => (
-                  <CartaoInstancia key={i.id} i={i} gerarQrJa={i.id === recemCriada} varios={varios} />
+                  <CartaoInstancia key={i.id} i={i} gerarQrJa={i.id === recemCriada} />
                 ))}
               </div>
             </div>

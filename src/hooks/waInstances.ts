@@ -37,8 +37,6 @@ export interface WaInstance {
   quality_rating?: string | null
   messaging_limit?: string | null
   coexistence?: boolean
-  /** Número que dispara campanha, aniversário e primeira mensagem (numero-principal.sql). */
-  principal?: boolean
 }
 
 export function ehOficial(i: Pick<WaInstance, 'provider'>): boolean {
@@ -162,12 +160,6 @@ export function useWaActions() {
     atualizarStatus: (instanceId: string) => chamar({ action: 'status', instance_id: instanceId }),
     desconectar: (instanceId: string) => chamar({ action: 'disconnect', instance_id: instanceId }),
     deletar: (instanceId: string) => chamar({ action: 'delete', instance_id: instanceId }),
-    tornarPrincipal: async (instanceId: string): Promise<{ ok: boolean; error?: string }> => {
-      const { data, error } = await supabase.rpc('crm_wa_tornar_principal', { p_instance_id: instanceId })
-      revalidar()
-      if (error) return { ok: false, error: /crm_wa_tornar_principal|schema cache/i.test(error.message) ? 'Essa opção ainda não está ligada. Tente de novo mais tarde.' : error.message }
-      return (data ?? { ok: false, error: 'Resposta vazia.' }) as { ok: boolean; error?: string }
-    },
   }
 }
 
