@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       const { data: w } = await banco
         .from('wa_instances').select('instance_name')
         .eq('client_id', cv.client_id).eq('provider', 'mensy').eq('status', 'connected')
-        .order('last_status_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+        .order('principal', { ascending: false }).order('last_status_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
       if (!w) return falha(409, 'O número da loja está desconectado. Conecte de novo na tela WhatsApp.')
       const m = await mandarPeloMensy(w.instance_name, cv.wa_number, texto)
       if ('erro' in m) return falha(422, `O WhatsApp não entregou: ${m.erro}`)

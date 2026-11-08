@@ -166,6 +166,6 @@ async function sessaoDaFoto(clientId: string): Promise<string | null> {
   const { data: w } = await banco
     .from('wa_instances').select('instance_name')
     .eq('client_id', clientId).eq('provider', 'mensy').eq('status', 'connected')
-    .order('last_status_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+    .order('principal', { ascending: false }).order('last_status_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
   return w?.instance_name ?? Deno.env.get('CONVERSAS_FOTO_SESSAO') ?? null
 }
