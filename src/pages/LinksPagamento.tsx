@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, ExternalLink, Mail, MessageCircle, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -428,7 +428,82 @@ function CampoReais({
   )
 }
 
-function NovoLink({ onCriado, testes, lojaInicial }: { onCriado: () => void; testes: Teste[]; lojaInicial?: string }) {
+/** Tabela de preços (03-Comercial/Contatta/precos.md, aprovada em 06/11/2026). "Usar" preenche o link. */
+function TabelaPrecos({ onUsar }: { onUsar: (pedidos: number) => void }) {
+  const linhas = FAIXAS_SISTEMA.map(([ate, valor], i) => ({
+    de: i === 0 ? 1 : FAIXAS_SISTEMA[i - 1][0] + 1,
+    ate,
+    sistema: valor,
+    usuarios: usuariosDaTabela(ate),
+    estrategista: estrategistaDaTabela(ate),
+  }))
+  const mil = (n: number) => n.toLocaleString('pt-BR')
+  return (
+    <section className="card" aria-labelledby="tabela-precos">
+      <div className="border-b border-gray-200 px-5 py-4">
+        <h2 id="tabela-precos" className="font-display text-sm font-semibold text-gray-900">Tabela de preços</h2>
+        <p className="text-xs text-gray-500">
+          Valores mensais pelo volume de pedidos da loja (média dos últimos 3 meses, arredondada pra faixa de cima). O link já
+          vem com eles; dá pra mudar no formulário.
+        </p>
+      </div>
+      <div className="relative overflow-x-auto">
+        <table className="w-full min-w-[34rem] text-sm">
+          <thead>
+            <tr className="text-left text-xs text-gray-500">
+              <th scope="col" className="px-5 py-2 font-medium">Pedidos por mês</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Sistema</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Usuários</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Estrategista</th>
+              <th scope="col" className="px-5 py-2"><span className="sr-only">Ação</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {linhas.map((l) => (
+              <tr key={l.ate}>
+                <td className="whitespace-nowrap px-5 py-2 tabular-nums text-gray-800">{l.de === 1 ? `até ${mil(l.ate)}` : `${mil(l.de)} a ${mil(l.ate)}`}</td>
+                <td className="px-3 py-2 text-right font-medium tabular-nums text-gray-900">{formatCurrency(l.sistema)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-700">{l.usuarios}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-gray-700">
+                  {formatCurrency(l.estrategista)}
+                  {l.ate > 5000 && <span className="ml-1 text-xs text-amber-700" title="Faixa sugerida, ainda a confirmar">*</span>}
+                </td>
+                <td className="px-5 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onUsar(l.ate)}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-brand-700 transition-transform hover:bg-brand-50 active:scale-[0.97]"
+                  >
+                    Usar no link
+                  </button>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="whitespace-nowrap px-5 py-2 tabular-nums text-gray-800">acima de {mil(10000)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right text-gray-700">sob proposta</td>
+              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{usuariosDaTabela(10001)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{formatCurrency(estrategistaDaTabela(10001))}</td>
+              <td className="px-5 py-2" />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
+        Acima de 10.000 pedidos, perto de R$ 0,20 por pedido. Estrategista é opcional e mensal.{' '}
+        <span className="text-amber-700">*</span> Faixa de 5.001 a 10.000 do estrategista ainda a confirmar.
+      </p>
+    </section>
+  )
+}
+
+function NovoLink({ onCriado, testes, lojaInicial, faixa }: {
+  onCriado: () => void
+  testes: Teste[]
+  lojaInicial?: string
+  /** faixa escolhida na tabela ({ pedidos, vez } muda a cada clique) */
+  faixa?: { pedidos: number; vez: number } | null
+}) {
   const [loja, setLoja] = useState(lojaInicial ?? '')
   const [empresa, setEmpresa] = useState('')
   const [pedidosTxt, setPedidosTxt] = useState('1000')
@@ -462,6 +537,20 @@ function NovoLink({ onCriado, testes, lojaInicial }: { onCriado: () => void; tes
     if (!estrategistaEditado) setEstrategistaTxt(reaisParaCampo(estrategistaDaTabela(n)))
     if (!usuariosEditado) setUsuariosTxt(String(usuariosDaTabela(n)))
   }
+
+  // "Usar no link" na tabela: volta tudo pro valor da tabela daquela faixa
+  useEffect(() => {
+    if (!faixa) return
+    const n = faixa.pedidos
+    setPedidosTxt(String(n))
+    setSistemaTxt(reaisParaCampo(sistemaDaTabela(n)))
+    setSistemaEditado(false)
+    setEstrategistaTxt(reaisParaCampo(estrategistaDaTabela(n)))
+    setEstrategistaEditado(false)
+    setUsuariosTxt(String(usuariosDaTabela(n)))
+    setUsuariosEditado(false)
+    document.getElementById('ol-pedidos')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [faixa])
 
   const criar = async (e: FormEvent) => {
     e.preventDefault()
@@ -812,6 +901,7 @@ export default function LinksPagamento() {
   const qc = useQueryClient()
   const [aba, setAba] = useState<Aba>('links')
   const [lojaDoLink, setLojaDoLink] = useState<string | undefined>(undefined)
+  const [faixa, setFaixa] = useState<{ pedidos: number; vez: number } | null>(null)
   const { data: ofertas, isLoading, error } = useOfertas()
   const { data: testes, isLoading: carregandoTestes, error: erroTestes } = useTestes()
   const atualizar = () => {
@@ -879,12 +969,14 @@ export default function LinksPagamento() {
         </>
       ) : (
         <>
+          <TabelaPrecos onUsar={(pedidos) => setFaixa((f) => ({ pedidos, vez: (f?.vez ?? 0) + 1 }))} />
+
           {ofertas === null ? (
             <div className="card">
               <EmptyState title="Os links ainda não foram ligados neste banco" hint="Falta rodar o link-pagamento.sql no Supabase." />
             </div>
           ) : (
-            <NovoLink key={lojaDoLink ?? 'nova'} onCriado={atualizar} testes={testesSemAssinatura} lojaInicial={lojaDoLink} />
+            <NovoLink key={lojaDoLink ?? 'nova'} onCriado={atualizar} testes={testesSemAssinatura} lojaInicial={lojaDoLink} faixa={faixa} />
           )}
 
           <section className="card">
