@@ -141,7 +141,9 @@ async function fotos(ids: string[], pode: (clientId: string) => Promise<boolean>
   const validade = Date.now() - FOTO_DIAS * 86400_000
   for (const c of lista ?? []) {
     if (!(await pode(c.client_id))) continue
-    if (c.foto_em && new Date(c.foto_em).getTime() > validade) saida[c.id] = c.foto_url
+    // "sem foto" pergunta de novo no dia seguinte (a pessoa pode pôr foto ou liberar)
+    const vale = c.foto_url ? validade : Date.now() - 86400_000
+    if (c.foto_em && new Date(c.foto_em).getTime() > vale) saida[c.id] = c.foto_url
     else buscar.push(c)
   }
 
