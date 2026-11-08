@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contatta · recompra para quem vende em marketplace</title>
+<meta name="description" content="Você conquistou o cliente. O Contatta organiza a base, acompanha cada cliente num CRM e automatiza jornadas autorizadas pelo WhatsApp. Veja funcionando em 2 minutos.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="canonical" href="https://contatta.pro/demo/">
+<meta property="og:title" content="Contatta · veja o fluxo de recompra funcionando">
+<meta property="og:description" content="Organize o relacionamento com quem já comprou e transforme o pós-venda em uma operação comercial acompanhável.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://contatta.pro/demo/">
+<meta property="og:image" content="https://contatta.pro/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f5f6fa">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://lopdvdblwasuowjdokpo.supabase.co" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/demo/funil.css?v=20261106a">
+</head>
+<body>
+
+<header class="barra" id="barra">
+  <div class="envolve">
+    <a class="marca" href="/" aria-label="Contatta, página inicial">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b57ea"/><stop offset="1" stop-color="#4a31d0"/></linearGradient></defs><rect width="32" height="32" rx="7.2" fill="url(#lg)"/><path d="M21 12.4A5.6 5.6 0 1 0 21 19.6" fill="none" stroke="#fff" stroke-width="4.3" stroke-linecap="round"/><circle cx="19.35" cy="16" r="1.85" fill="#a5b4fc"/></svg>
+      Contatta
+    </a>
+    <nav aria-label="Principal">
+      <a href="#demo">Demonstração</a>
+      <a href="#planos">Preço</a>
+      <a href="#duvidas">Dúvidas</a>
+      <a class="botao botao-primario" href="#contato" data-cta="topo">Quero entender para minha loja</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- HERO -->
+<section class="hero">
+  <div class="envolve">
+    <div>
+      <span class="selo">Para operações que vendem em marketplaces e e-commerce.</span>
+      <h1>Você conquistou o cliente. Agora crie oportunidades para ele comprar de novo.</h1>
+      <p class="sub">O Contatta ajuda a organizar dados comerciais, acompanhar clientes em um CRM e automatizar jornadas de relacionamento pelo WhatsApp, com visibilidade dos resultados.</p>
+      <div class="acoes">
+        <a class="botao botao-primario" href="#demo" data-cta="hero_demo">Ver o Contatta funcionando (1 min)</a>
+        <a class="botao botao-secundario" href="#contato" data-cta="hero_reuniao" data-reuniao>Agendar uma demonstração para minha operação</a>
+      </div>
+      <p class="micro">Conheça o funcionamento antes de falar com vendas. Sem compromisso.</p>
+    </div>
+
+    <div class="cena antes" id="cena" aria-label="Ilustração: quatro pedidos de canais diferentes viram uma ficha de cliente" role="img">
+      <div class="etiqueta"><span class="canal"><i style="background:#ee4d2d"></i>Shopee</span><b>Pedido 2408113</b>Ana R. · Campinas, SP<div class="barras"></div></div>
+      <div class="etiqueta"><span class="canal"><i style="background:#f5c300"></i>Mercado Livre</span><b>Pedido 2000071</b>Ana R. · Campinas, SP<div class="barras"></div></div>
+      <div class="etiqueta"><span class="canal"><i style="background:#4f46e5"></i>Loja própria</span><b>Pedido 10522</b>Ana R. · Campinas, SP<div class="barras"></div></div>
+      <div class="etiqueta"><span class="canal"><i style="background:#ee4d2d"></i>Shopee</span><b>Pedido 2419877</b>Ana R. · Campinas, SP<div class="barras"></div></div>
+      <p class="legenda">Quatro pedidos, três canais, uma pessoa.</p>
+      <div class="ficha">
+        <div class="topo"><div class="avatar" aria-hidden="true">AR</div><div><h3>Ana R.</h3><div class="quem">Cliente desde março</div></div></div>
+        <dl>
+          <div><dt>Pedidos</dt><dd>4</dd></div>
+          <div><dt>Canais</dt><dd>3</dd></div>
+          <div><dt>Gasto total</dt><dd>R$ 612</dd></div>
+          <div><dt>Última compra</dt><dd>há 94 dias</dd></div>
+        </dl>
+        <div class="marcas"><span class="chip sumida">Sumida há 90 dias</span><span class="chip ok">Autorizou WhatsApp</span></div>
+        <p class="aviso-demo">Exemplo com dados fictícios.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOR -->
+<section class="secao branca" aria-labelledby="dor-t">
+  <div class="envolve">
+    <h2 id="dor-t">O pedido termina. O relacionamento nem começa.</h2>
+    <div class="dores">
+      <div class="dor"><h3>Vendas que não viram relacionamento</h3><p>O pedido termina e a operação não tem uma jornada clara de pós-venda.</p></div>
+      <div class="dor"><h3>Dados espalhados</h3><p>Histórico, contatos e oportunidades ficam desconectados, cada canal no seu canto.</p></div>
+      <div class="dor"><h3>Follow-up manual</h3><p>A equipe depende de lembretes, planilhas e tarefas repetitivas.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section class="secao" aria-labelledby="como-t">
+  <div class="envolve">
+    <h2 id="como-t">Como funciona</h2>
+    <ol class="passos">
+      <li><h3>Conecte e organize</h3><p>Os dados das fontes e integrações suportadas no seu plano viram uma base de clientes só.</p></li>
+      <li><h3>Crie segmentos</h3><p>A partir de critérios comerciais: quem voltou, quem sumiu, quem gasta mais, quem faz aniversário.</p></li>
+      <li><h3>Automatize comunicações autorizadas</h3><p>Jornadas de relacionamento pelo WhatsApp, só para quem permitiu o contato.</p></li>
+      <li><h3>Acompanhe no CRM e no painel</h3><p>O que avançou e o que precisa de atenção, num lugar só.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- DEMONSTRAÇÃO GUIADA -->
+<section class="secao branca" id="demo" aria-labelledby="demo-t">
+  <div class="envolve">
+    <div class="demo-cabeca">
+      <div>
+        <h2 id="demo-t">Veja o fluxo na prática, em menos de 1 minuto.</h2>
+        <p class="intro" id="demo-intro">Quatro telas de um cenário de exemplo: dados, segmentos, automações e painel. Clique nos passos ou siga em frente.</p>
+      </div>
+    </div>
+    <div class="video" id="video" hidden></div>
+    <div class="depois-video" id="depois-video" hidden>
+      <a class="botao botao-primario" href="#contato" data-cta="video_cta">Quero ver isso aplicado à minha loja</a>
+      <button type="button" class="botao botao-secundario" id="abrir-tour">Prefere ver as telas uma a uma?</button>
+    </div>
+
+    <div class="janela" id="tour">
+      <div class="janela-barra">
+        <span class="pontos" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="rotulo">Demonstração · dados fictícios</span>
+      </div>
+      <div class="etapas" role="tablist" aria-label="Passos da demonstração">
+        <button role="tab" id="t-dados" aria-controls="p-tour" aria-selected="true" data-passo="0"><span>1</span>Dados</button>
+        <button role="tab" id="t-seg" aria-controls="p-tour" aria-selected="false" data-passo="1" tabindex="-1"><span>2</span>Segmentos</button>
+        <button role="tab" id="t-aut" aria-controls="p-tour" aria-selected="false" data-passo="2" tabindex="-1"><span>3</span>Automações</button>
+        <button role="tab" id="t-pai" aria-controls="p-tour" aria-selected="false" data-passo="3" tabindex="-1"><span>4</span>Painel</button>
+      </div>
+      <div class="palco" id="p-tour" role="tabpanel" aria-live="polite">
+        <div class="tela" id="tela"></div>
+        <div class="explica">
+          <h3 id="exp-t"></h3>
+          <p id="exp-p"></p>
+          <ul id="exp-l"></ul>
+          <div class="nav-demo">
+            <button type="button" class="botao botao-secundario" id="voltar">Voltar</button>
+            <button type="button" class="botao botao-primario" id="avancar">Próximo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROVA -->
+<section class="secao" aria-labelledby="prova-t">
+  <div class="envolve">
+    <h2 id="prova-t">Conecta com o que você já usa</h2>
+    <p class="intro">Integrações abertas hoje para todas as lojas. A Amazon entra pelo Bling, e também dá para importar o XML das notas.</p>
+    <div class="integra">
+      <span>Mercado Livre</span><span>Bling</span><span>Tiny</span><span>Nuvemshop</span><span>Shopify</span><span>TikTok Shop</span><span>Magalu</span>
+    </div>
+    <p class="nota">O WhatsApp funciona pela API oficial da Meta ou por QR Code. Usamos só os dados que a sua operação tem permissão para usar, com consentimento e dentro das regras do WhatsApp e de cada marketplace.</p>
+  </div>
+</section>
+
+<!-- PREÇO -->
+<section class="secao branca" id="planos" aria-labelledby="planos-t">
+  <div class="envolve">
+    <h2 id="planos-t">O preço sai do tamanho da sua operação.</h2>
+    <p class="intro">Não tem plano de prateleira: quem faz 400 pedidos por mês não paga por 1.000. Todo cliente tem WhatsApp e segmentação.</p>
+    <div class="planos tres">
+      <div class="plano"><div class="preco">1</div><h3>Você conta como vende</h3><p>Quantos pedidos faz por mês, em quais canais e quantas pessoas vão usar.</p></div>
+      <div class="plano"><div class="preco">2</div><h3>A gente mostra com os seus números</h3><p>Na conversa você vê o sistema funcionando e recebe o valor fechado para o seu volume.</p></div>
+      <div class="plano"><div class="preco">3</div><h3>Você assina pelo link</h3><p>Mensal, semestral ou anual. A base sobe na primeira importação.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- DÚVIDAS -->
+<section class="secao" id="duvidas" aria-labelledby="duvidas-t">
+  <div class="envolve">
+    <h2 id="duvidas-t">Dúvidas</h2>
+    <div class="duvidas">
+      <details><summary>Preciso falar com alguém para conhecer?</summary><p>Não. Você pode ver a demonstração curta primeiro. Para uma configuração específica, oferecemos uma conversa de 20 minutos.</p></details>
+      <details><summary>Serve para quem vende em marketplaces?</summary><p>A proposta é direcionada a operações de marketplaces e e-commerce, respeitando as integrações disponíveis, as finalidades de uso dos dados, os consentimentos e as regras das plataformas.</p></details>
+      <details><summary>O Contatta envia mensagens automaticamente?</summary><p>Ele foi feito para fluxos automatizados. Os canais, gatilhos, permissões e custos variam conforme a implantação e o uso. Pela API oficial, a Meta cobra as conversas direto da sua conta.</p></details>
+      <details><summary>Tem suporte na implantação?</summary><p>A condição de cada plano é apresentada na conversa de diagnóstico, junto com os requisitos de integração da sua operação.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- FORMULÁRIO / PRÓXIMO PASSO -->
+<section class="secao contato" id="contato" aria-labelledby="contato-t">
+  <div class="envolve">
+    <h2 id="contato-t">Quero ver isso aplicado à minha loja.</h2>
+    <p class="intro">Três perguntas rápidas e você já vê o próximo passo: horário para a conversa de 20 minutos ou o plano que faz sentido agora.</p>
+
+    <div class="cartao-form" id="cartao">
+      <form id="form" novalidate>
+        <div class="campos">
+          <div class="campo"><label for="f-nome">Seu nome</label><input id="f-nome" name="nome" autocomplete="name" required maxlength="120"></div>
+          <div class="campo"><label for="f-whats">WhatsApp</label><input id="f-whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(11) 99999-9999" maxlength="20"></div>
+          <div class="campo" style="grid-column:1/-1"><label for="f-emp">Loja ou empresa <span style="font-weight:400;color:var(--cinza-2)">(opcional)</span></label><input id="f-emp" name="empresa" autocomplete="organization" maxlength="120"></div>
+        </div>
+        <div class="pote" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
+
+        <fieldset class="pergunta">
+          <legend>Hoje vocês vendem por onde? <small>Pode marcar mais de um.</small></legend>
+          <div class="opcoes">
+            <label><input type="checkbox" name="mp" value="mercado_livre"><span>Mercado Livre</span></label>
+            <label><input type="checkbox" name="mp" value="shopee"><span>Shopee</span></label>
+            <label><input type="checkbox" name="mp" value="loja_propria"><span>Loja própria</span></label>
+            <label><input type="checkbox" name="mp" value="tiktok"><span>TikTok Shop</span></label>
+            <label><input type="checkbox" name="mp" value="amazon"><span>Amazon</span></label>
+            <label><input type="checkbox" name="mp" value="outros"><span>Outros canais</span></label>
+            <label><input type="checkbox" name="mp" value="nao_vende"><span>Ainda não vendo</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="pergunta">
+          <legend>Em média, qual o volume mensal de pedidos?</legend>
+          <div class="opcoes">
+            <label><input type="radio" name="volume" value="ate_100"><span>Até 100</span></label>
+            <label><input type="radio" name="volume" value="101_500"><span>101 a 500</span></label>
+            <label><input type="radio" name="volume" value="501_2000"><span>501 a 2.000</span></label>
+            <label><input type="radio" name="volume" value="2000_mais"><span>Mais de 2.000</span></label>
+            <label><input type="radio" name="volume" value="nao_informado"><span>Prefiro não informar</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="pergunta">
+          <legend>Qual sua prioridade agora?</legend>
+          <div class="opcoes">
+            <label><input type="radio" name="prioridade" value="recompra"><span>Aumentar a recompra</span></label>
+            <label><input type="radio" name="prioridade" value="crm"><span>Organizar o CRM</span></label>
+            <label><input type="radio" name="prioridade" value="posvenda"><span>Automatizar o pós-venda</span></label>
+            <label><input type="radio" name="prioridade" value="canais"><span>Conectar vários canais</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="pergunta">
+          <legend>Você decide sobre essa contratação? <small>Opcional.</small></legend>
+          <div class="opcoes">
+            <label><input type="radio" name="decisor" value="sim"><span>Sim, eu decido</span></label>
+            <label><input type="radio" name="decisor" value="compartilhada"><span>Decido com outra pessoa</span></label>
+            <label><input type="radio" name="decisor" value="nao"><span>Outra pessoa decide</span></label>
+          </div>
+        </fieldset>
+
+        <div class="aceites">
+          <label class="aceite"><input type="checkbox" name="consentimento" required><span>Autorizo o Contatta a falar comigo pelo WhatsApp sobre esta solicitação. Posso pedir para parar a qualquer momento. <a href="/privacidade.html" target="_blank" rel="noopener">Como usamos seus dados</a>.</span></label>
+          <label class="aceite"><input type="checkbox" name="marketing"><span>Quero receber conteúdos sobre recompra e pós-venda (opcional).</span></label>
+        </div>
+        <div id="turnstile"></div>
+        <p class="erro-form" id="erro" role="alert" hidden></p>
+        <div class="enviar">
+          <button type="submit" class="botao botao-primario" id="enviar">Ver meu próximo passo</button>
+          <small>Leva menos de 1 minuto.</small>
+        </div>
+      </form>
+      <div id="proximo" hidden></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="rodape">
+  <div class="envolve">
+    <span>© <span id="ano">2026</span> Contatta</span>
+    <span><a href="/politica-de-privacidade.html">Política de privacidade</a> · <a href="/termos-de-uso.html">Termos de uso</a></span>
+  </div>
+</footer>
+
+<div class="cookies" id="cookies" role="dialog" aria-label="Medição de anúncios" hidden>
+  Usamos um cookie de medição da Meta para saber quais anúncios trazem pessoas até aqui. Ele só é ligado se você aceitar.
+  <div class="acoes">
+    <button type="button" class="botao botao-primario" data-cookies="sim">Aceitar</button>
+    <button type="button" class="botao botao-secundario" data-cookies="nao">Recusar</button>
+  </div>
+</div>
+
+<div class="fixa" id="fixa">
+  <a class="botao botao-secundario" href="#demo" data-cta="fixa_demo">Ver a demo</a>
+  <a class="botao botao-primario" href="#contato" data-cta="fixa_contato">Meu próximo passo</a>
+</div>
+
+<script src="/demo/funil.js?v=20261105b"></script>
+<script>
+(function () {
+  'use strict'
+  var F = window.Funil
+  F.iniciarCookies()
+  F.evento('page_view')
+  document.getElementById('ano').textContent = new Date().getFullYear()
+
+  // ---------------------------------------------------------------- topo e barra fixa
+  var barra = document.getElementById('barra'), fixa = document.getElementById('fixa'), contato = document.getElementById('contato')
+  addEventListener('scroll', function () { barra.classList.toggle('rolou', scrollY > 8) }, { passive: true })
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) { fixa.classList.toggle('some', e[0].isIntersecting) }, { threshold: .15 }).observe(contato)
+  }
+
+  // ---------------------------------------------------------------- o movimento do topo (uma vez)
+  var cena = document.getElementById('cena')
+  var reduz = matchMedia('(prefers-reduced-motion: reduce)').matches
+  function juntar() { cena.classList.remove('antes'); cena.classList.add('juntou') }
+  // acontece quando a cena está na tela (no celular ela fica abaixo do título)
+  if ('IntersectionObserver' in window && !reduz) {
+    var obs = new IntersectionObserver(function (e) {
+      if (!e[0].isIntersecting) return
+      obs.disconnect()
+      setTimeout(juntar, 700)
+    }, { threshold: .55 })
+    obs.observe(cena)
+  } else juntar()
+
+  // ---------------------------------------------------------------- CTAs
+  var querReuniao = false
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-cta]')
+    if (!a) return
+    F.evento('cta_click', { step: a.dataset.cta })
+    if (a.hasAttribute('data-reuniao')) querReuniao = true
+  })
+
+  // ---------------------------------------------------------------- vídeo real (quando existir)
+  // com vídeo: ele é a demonstração; a demo clicável fica atrás do botão "Prefere ver as telas uma a uma?"
+  if (F.config.videoUrl) {
+    var v = document.getElementById('video')
+    v.hidden = false
+    v.innerHTML = '<video controls playsinline preload="metadata"' + (F.config.videoPoster ? ' poster="' + F.config.videoPoster + '"' : '') + '><source src="' + F.config.videoUrl + '" type="video/mp4"></video>'
+    var vid = v.querySelector('video')
+    vid.addEventListener('play', function () { F.evento('video_play') }, { once: true })
+    vid.addEventListener('ended', function () { F.evento('video_complete'); document.getElementById('depois-video').classList.add('destaque') }, { once: true })
+    document.getElementById('demo-intro').textContent = 'Um minuto mostrando o sistema por dentro, com dados de demonstração. Dá play.'
+    document.getElementById('depois-video').hidden = false
+    var tourEl = document.getElementById('tour')
+    tourEl.hidden = true
+    document.getElementById('abrir-tour').addEventListener('click', function () {
+      tourEl.hidden = false
+      this.hidden = true
+      F.evento('cta_click', { step: 'abrir_tour' })
+      tourEl.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+    })
+  }
+
+  // ---------------------------------------------------------------- demonstração guiada
+  var passos = [
+    {
+      t: 'Os pedidos viram clientes',
+      p: 'Os pedidos chegam das integrações. O mesmo comprador em canais diferentes vira uma pessoa só, com o histórico junto.',
+      l: ['Cada linha é um pedido, de qualquer canal conectado.', 'Pedidos da mesma pessoa se juntam numa ficha de cliente.', 'Você vê quantas vezes comprou, quanto gastou e quando foi a última vez.'],
+      tela: '<div class="app-titulo"><b>Pedidos recebidos</b><small>últimos 7 dias</small></div>' +
+        '<table class="tabela"><thead><tr><th>Pedido</th><th>Canal</th><th>Cliente</th><th class="esconde-celular">Valor</th></tr></thead><tbody>' +
+        '<tr class="destaque"><td>2419877</td><td><i class="ponto" style="background:#ee4d2d"></i>Shopee</td><td>Ana R.</td><td class="esconde-celular">R$ 129</td></tr>' +
+        '<tr><td>2000184</td><td><i class="ponto" style="background:#f5c300"></i>Mercado Livre</td><td>Bruno M.</td><td class="esconde-celular">R$ 86</td></tr>' +
+        '<tr class="destaque"><td>10522</td><td><i class="ponto" style="background:#4f46e5"></i>Loja própria</td><td>Ana R.</td><td class="esconde-celular">R$ 214</td></tr>' +
+        '<tr><td>2419901</td><td><i class="ponto" style="background:#ee4d2d"></i>Shopee</td><td>Carla S.</td><td class="esconde-celular">R$ 59</td></tr>' +
+        '<tr class="destaque"><td>2000071</td><td><i class="ponto" style="background:#f5c300"></i>Mercado Livre</td><td>Ana R.</td><td class="esconde-celular">R$ 140</td></tr>' +
+        '</tbody></table>' +
+        '<div class="junta"><span class="seta" aria-hidden="true">3 pedidos</span><span>viram <b>1 cliente: Ana R.</b>, com 4 compras em 3 canais e R$ 612 no total.</span></div>'
+    },
+    {
+      t: 'Segmentos prontos e do seu jeito',
+      p: 'A base se divide sozinha em grupos que importam para vender de novo. E dá para montar o seu público com filtros.',
+      l: ['Recorrentes, alto valor, sumidos há 90 dias e aniversariantes já vêm prontos.', 'Filtros por estado, gasto, canal, produto e última compra.', 'A contagem atualiza enquanto você monta o público.'],
+      tela: '<div class="app-titulo"><b>Segmentos</b><small>base de exemplo</small></div>' +
+        '<div class="segmentos">' +
+        '<div class="segmento"><b>312</b><span>Recorrentes</span></div><div class="segmento"><b>87</b><span>Alto valor</span></div>' +
+        '<div class="segmento"><b>540</b><span>Sumidos há 90 dias</span></div><div class="segmento"><b>41</b><span>Aniversariantes do mês</span></div>' +
+        '</div><div class="montador"><b style="color:var(--tinta);font-size:14px">Público personalizado</b><div class="filtros">' +
+        '<span class="chip">Estado: SP</span><span class="chip">Última compra: mais de 60 dias</span><span class="chip">Canal: Shopee</span><span class="chip">Autorizou WhatsApp</span>' +
+        '</div><div class="conta"><b>1.204</b> clientes nesse público</div></div>'
+    },
+    {
+      t: 'Jornadas autorizadas no WhatsApp',
+      p: 'Com o fluxo configurado e a permissão de contato, as mensagens saem no momento certo e você acompanha cada uma.',
+      l: ['Mensagem depois do pedido confirmando os dados, com botão para sair da lista.', 'Aniversário e campanhas agendadas para um segmento.', 'Quem pede para não receber sai na hora, por loja.'],
+      tela: '<div class="app-titulo"><b>Automações</b><small>só para quem autorizou</small></div><div class="fluxos">' +
+        '<div class="fluxo"><span><b>Mensagem depois do pedido</b><small>confirma os dados do cliente</small></span><i class="liga" aria-label="ligada"></i></div>' +
+        '<div class="fluxo"><span><b>Aniversário</b><small>no dia, às 10h</small></span><i class="liga" aria-label="ligada"></i></div>' +
+        '<div class="fluxo"><span><b>Campanha: sumidos há 90 dias</b><small>agendada para terça, 10h</small></span><i class="liga desl" aria-label="desligada"></i></div>' +
+        '</div><div class="zap"><div class="bolha">Oi, Ana! Seu pedido na Shopee chegou? Confirma pra gente se este WhatsApp é seu e se seus dados estão certos.<div class="botoes"><span>Está tudo certo</span><span>Não quero mais mensagens</span></div></div></div>'
+    },
+    {
+      t: 'O painel mostra o que avançou',
+      p: 'A equipe vê execuções, respostas e os indicadores disponíveis para acompanhar a operação, sem planilha paralela.',
+      l: ['Quantas mensagens saíram e quantas pessoas responderam.', 'Clientes que compraram de novo no período.', 'Números desta tela são de demonstração.'],
+      tela: '<div class="app-titulo"><b>Painel</b><small>exemplo de um mês</small></div><div class="kpis">' +
+        '<div class="kpi"><span>Mensagens enviadas</span><b>1.850</b></div><div class="kpi"><span>Responderam</span><b>412</b></div><div class="kpi"><span>Compraram de novo</span><b>96</b></div>' +
+        '</div><div class="colunas"><b style="color:var(--tinta);font-size:14px">Clientes que voltaram a comprar</b><div class="graf" aria-hidden="true">' +
+        '<i style="height:38%"></i><i style="height:46%"></i><i style="height:44%"></i><i style="height:58%"></i><i style="height:63%"></i><i class="fim" style="height:78%"></i>' +
+        '</div><div class="meses"><span>jun</span><span>jul</span><span>ago</span><span>set</span><span>out</span><span>nov</span></div></div>'
+    },
+  ]
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.etapas button'))
+  var atual = 0, comecou = false
+  var tela = document.getElementById('tela'), expT = document.getElementById('exp-t'), expP = document.getElementById('exp-p'), expL = document.getElementById('exp-l')
+  var voltar = document.getElementById('voltar'), avancar = document.getElementById('avancar')
+
+  function mostrar(i, porClique) {
+    atual = i
+    var p = passos[i]
+    tela.innerHTML = '<div class="cena-tela">' + p.tela + '</div>'
+    expT.textContent = p.t
+    expP.textContent = p.p
+    expL.innerHTML = p.l.map(function (x) { return '<li>' + x + '</li>' }).join('')
+    tabs.forEach(function (b, j) {
+      b.setAttribute('aria-selected', String(j === i))
+      b.tabIndex = j === i ? 0 : -1
+      if (j < i) b.classList.add('vista')
+    })
+    voltar.hidden = i === 0
+    avancar.textContent = i === passos.length - 1 ? 'Quero ver isso aplicado à minha loja' : 'Próximo'
+    if (porClique) {
+      if (!comecou) { comecou = true; F.evento('demo_started') }
+      F.evento('demo_step', { step: String(i + 1) })
+      if (i === passos.length - 1) F.evento('demo_completed')
+    }
+  }
+  tabs.forEach(function (b, j) {
+    b.addEventListener('click', function () { mostrar(j, true) })
+    b.addEventListener('keydown', function (e) {
+      var k = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+      if (!k) return
+      e.preventDefault()
+      var n = (j + k + tabs.length) % tabs.length
+      tabs[n].focus(); mostrar(n, true)
+    })
+  })
+  voltar.addEventListener('click', function () { mostrar(Math.max(0, atual - 1), true) })
+  avancar.addEventListener('click', function () {
+    if (atual < passos.length - 1) return mostrar(atual + 1, true)
+    F.evento('cta_click', { step: 'fim_demo' })
+    contato.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth' })
+    setTimeout(function () { document.getElementById('f-nome').focus({ preventScroll: true }) }, reduz ? 0 : 600)
+  })
+  mostrar(0, false)
+
+  // ---------------------------------------------------------------- formulário
+  var form = document.getElementById('form'), erro = document.getElementById('erro'), botao = document.getElementById('enviar')
+  var proximo = document.getElementById('proximo')
+  var submissao = F.novoId()
+  form.addEventListener('focusin', function () { F.evento('form_started') }, { once: true })
+
+  // "Ainda não vendo" desmarca os canais (e vice-versa)
+  form.addEventListener('change', function (e) {
+    if (e.target.name !== 'mp') return
+    var nv = form.querySelector('input[value="nao_vende"]')
+    if (e.target === nv && nv.checked) form.querySelectorAll('input[name="mp"]').forEach(function (x) { if (x !== nv) x.checked = false })
+    else if (e.target !== nv && e.target.checked) nv.checked = false
+  })
+
+  // Turnstile (só quando houver chave do site)
+  var turnstileToken = ''
+  if (F.config.turnstileSiteKey) {
+    window.onTurnstile = function () {
+      window.turnstile.render('#turnstile', { sitekey: F.config.turnstileSiteKey, callback: function (t) { turnstileToken = t } })
+    }
+    var s = document.createElement('script')
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstile&render=explicit'
+    s.async = true
+    document.head.appendChild(s)
+  }
+
+  function falhar(msg, campo) {
+    erro.textContent = msg
+    erro.hidden = false
+    if (campo) campo.focus()
+  }
+
+  function textoWhats(nome) {
+    return 'Oi! Quero conhecer o Contatta.' + (nome ? ' Aqui é ' + nome + '.' : '')
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault()
+    erro.hidden = true
+    var d = new FormData(form)
+    var nome = String(d.get('nome') || '').trim()
+    var fone = String(d.get('whatsapp') || '').replace(/\D/g, '')
+    var mps = d.getAll('mp')
+    if (nome.length < 2) return falhar('Diga seu nome.', form.nome)
+    if (fone.length < 10 || fone.length > 13) return falhar('Confira o WhatsApp, com DDD.', form.whatsapp)
+    if (!mps.length) return falhar('Marque por onde vocês vendem hoje.', form.querySelector('input[name="mp"]'))
+    if (!d.get('volume')) return falhar('Escolha o volume de pedidos (ou "Prefiro não informar").', form.querySelector('input[name="volume"]'))
+    if (!d.get('prioridade')) return falhar('Escolha a prioridade de agora.', form.querySelector('input[name="prioridade"]'))
+    if (!d.get('consentimento')) return falhar('Para seguir, autorize o contato pelo WhatsApp sobre esta solicitação.', form.consentimento)
+    if (F.config.turnstileSiteKey && !turnstileToken) return falhar('Aguarde a verificação de segurança terminar.')
+
+    botao.disabled = true
+    botao.innerHTML = '<span class="gira" aria-hidden="true"></span> Enviando'
+    var o = F.origem
+    var corpo = {
+      acao: 'lead', submission_id: submissao, nome: nome, empresa: String(d.get('empresa') || ''), whatsapp: fone,
+      marketplaces: mps, volume: d.get('volume'), prioridade: d.get('prioridade'), decisor: d.get('decisor') || '',
+      consentimento: true, marketing: Boolean(d.get('marketing')), medicao: F.medicaoAceita(), quer_reuniao: querReuniao,
+      visit_id: o.visit_id, path: location.pathname, url: location.href.split('#')[0],
+      utm_source: o.utm_source || '', utm_medium: o.utm_medium || '', utm_campaign: o.utm_campaign || '', utm_content: o.utm_content || '',
+      ad_id: o.ad_id || '', fbp: F.cookie('_fbp'), fbc: o.fbc || F.cookie('_fbc'), site: String(d.get('site') || ''), turnstile: turnstileToken,
+    }
+    F.api(corpo, 15000).then(function (r) {
+      if (!r || !r.ok) throw new Error((r && r.error) || 'Não deu certo.')
+      F.pixel('Lead', {}, submissao)
+      mostrarProximo(r, nome.split(' ')[0])
+    }).catch(function (err) {
+      // o lead nunca se perde: se a função falhar, segue pelo WhatsApp com a mensagem pronta
+      botao.disabled = false
+      botao.textContent = 'Ver meu próximo passo'
+      var msg = err && err.name === 'AbortError' ? 'A conexão demorou.' : (err && err.message) || 'Não deu certo.'
+      erro.innerHTML = ''
+      erro.appendChild(document.createTextNode(msg + ' Se preferir, '))
+      var a = document.createElement('a')
+      a.href = F.linkWhats(textoWhats(nome)); a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'fale com a gente no WhatsApp'
+      a.addEventListener('click', function () { F.evento('whatsapp_click', { step: 'erro_form' }) })
+      erro.appendChild(a)
+      erro.hidden = false
+    })
+  })
+
+  function botaoWhats(texto, rotulo, passo) {
+    return '<a class="botao botao-whats" target="_blank" rel="noopener" data-whats="' + passo + '" href="' + F.linkWhats(texto) + '">' + rotulo + '</a>'
+  }
+
+  function mostrarProximo(r, primeiro) {
+    form.hidden = true
+    proximo.hidden = false
+    var html
+    if (r.duplicado) {
+      html = '<div class="resultado"><h3>Recebemos, ' + esc(primeiro) + '.</h3><p>Seu pedido já estava com a gente. Se quiser adiantar, chame no WhatsApp.</p><div class="acoes">' +
+        botaoWhats(textoWhats(primeiro), 'Chamar no WhatsApp', 'duplicado') + '</div></div>'
+      proximo.innerHTML = html
+      return
+    }
+    // sem preço público desde 06/11/2026: quem não é fora do perfil vai pra conversa, onde sai o valor
+    if (r.route !== 'fora_icp') {
+      proximo.innerHTML = '<div class="resultado"><h3>Faz sentido te mostrar isso em cima do seu fluxo.</h3>' +
+        '<p>A conversa dura cerca de 20 minutos, por vídeo. Escolha um horário:</p><div id="agenda"><p class="tz">Buscando horários livres…</p></div></div>'
+      carregarAgenda(r.token, primeiro)
+    } else {
+      proximo.innerHTML = '<div class="resultado"><h3>Obrigado por contar, ' + esc(primeiro) + '.</h3>' +
+        '<p>Pelo que você descreveu, o Contatta rende mais quando a loja já tem uma base de clientes comprando todo mês. Quando fizer sentido, a gente conversa, e se tiver alguma dúvida agora é só chamar.</p>' +
+        '<div class="acoes">' + botaoWhats(textoWhats(primeiro), 'Tirar uma dúvida no WhatsApp', 'fora_icp') + '</div></div>'
+    }
+    proximo.querySelectorAll('[data-whats]').forEach(function (a) {
+      a.addEventListener('click', function () { F.evento('whatsapp_click', { step: a.dataset.whats }) })
+    })
+    proximo.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'center' })
+  }
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
+
+  function carregarAgenda(token, primeiro) {
+    var caixa = document.getElementById('agenda')
+    var semAgenda = function (motivo) {
+      caixa.innerHTML = '<p style="margin-top:14px">' + motivo + '</p><div class="acoes">' +
+        botaoWhats('Oi! Quero conhecer o Contatta e marcar a conversa de 20 minutos. Aqui é ' + primeiro + '.', 'Combinar o horário no WhatsApp', 'agenda_fallback') + '</div>'
+      caixa.querySelector('[data-whats]').addEventListener('click', function () { F.evento('whatsapp_click', { step: 'agenda_fallback' }) })
+    }
+    F.api({ acao: 'horarios', token: token }, 15000).then(function (r) {
+      if (!r.ok || !r.horarios || !r.horarios.length) {
+        return semAgenda(r.motivo === 'agenda_nao_configurada' || (r.ok && !r.horarios.length)
+          ? 'Vamos combinar o melhor horário com você pelo WhatsApp.'
+          : 'Não consegui ler a agenda agora. Vamos combinar pelo WhatsApp.')
+      }
+      F.evento('schedule_viewed')
+      caixa.innerHTML = '<div id="seletor"></div><p class="tz">Horários de Brasília.</p><div class="confirmar"><button type="button" class="botao botao-primario" id="marcar" disabled>Marcar a conversa</button><span id="marcar-msg" role="status"></span></div>'
+      var escolhido = null, marcar = document.getElementById('marcar'), msg = document.getElementById('marcar-msg')
+      F.seletorDeHorarios(document.getElementById('seletor'), r.horarios, r.timezone, function (h) {
+        escolhido = h; marcar.disabled = !h; msg.textContent = h ? h.rotulo : ''
+      })
+      marcar.addEventListener('click', function () {
+        if (!escolhido) return
+        marcar.disabled = true
+        marcar.innerHTML = '<span class="gira" aria-hidden="true"></span> Marcando'
+        F.api({ acao: 'agendar', token: token, inicio: escolhido.inicio, visit_id: F.origem.visit_id }, 25000).then(function (a) {
+          if (!a.ok) {
+            marcar.textContent = 'Marcar a conversa'
+            msg.textContent = a.error || 'Não deu para marcar. Escolha outro horário.'
+            return carregarAgenda(token, primeiro)
+          }
+          F.pixel('Schedule', {}, 'schedule-' + submissao)
+          caixa.innerHTML = '<div class="ticket"><b>' + esc(a.rotulo) + '</b>Conversa de 20 minutos sobre a sua operação.' +
+            (a.meet ? '<br>Link da chamada: <a href="' + esc(a.meet) + '" target="_blank" rel="noopener">' + esc(a.meet.replace('https://', '')) + '</a>' : '') +
+            '</div><p style="margin-top:14px">A confirmação também chega no seu WhatsApp.</p>'
+        }).catch(function () {
+          marcar.disabled = false
+          marcar.textContent = 'Marcar a conversa'
+          msg.textContent = 'A conexão falhou. Tente de novo.'
+        })
+      })
+    }).catch(function () { semAgenda('Não consegui ler a agenda agora. Vamos combinar pelo WhatsApp.') })
+  }
+})()
+</script>
+</body>
+</html>
