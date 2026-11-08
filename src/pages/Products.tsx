@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Minus, Package, Plus, Search } from 'lucide-react'
+import { ExternalLink, Minus, Package, Plus, RefreshCw, Search } from 'lucide-react'
 import {
   REASON_LABEL,
   useProducts,
@@ -9,9 +9,13 @@ import {
   type Product,
 } from '../hooks/stock'
 import { formatCurrency, formatDateTime } from '../lib/format'
-import { EmptyState, ErrorState, LoadingRows, PageHeader } from '../components/ui'
+import { EmptyState, ErrorState, LoadingRows, PageHeader, StatusBadge } from '../components/ui'
+import { MarcaLogo } from '../components/MarcaLogo'
+import {
+  NOME_PROVEDOR, useCatalogo, useConexoesCatalogo, useImportarCatalogo, type ConexaoCatalogo, type ItemCatalogo,
+} from '../hooks/catalogo'
 
-type Tab = 'estoque' | 'vendidos' | 'movimentacoes'
+type Tab = 'estoque' | 'plataformas' | 'vendidos' | 'movimentacoes'
 
 function NewProductForm({ onDone }: { onDone: () => void }) {
   const { createProduct } = useStockActions()
@@ -286,8 +290,190 @@ function MovimentacoesTab() {
   )
 }
 
+const press = 'transition-transform duration-150 ease-out active:scale-[0.97]'
+
+/** A logo usa o nome do canal (mercado_livre); a conexão, o do provedor (mercadolivre). */
+const LOGO: Record<string, string> = { mercadolivre: 'mercado_livre', bling: 'bling', shopee: 'shopee', nuvemshop: 'nuvemshop' }
+
+function SituacaoConexao({ c }: { c: ConexaoCatalogo }) {
+  if (c.catalog_state) {
+    const lidos = c.catalog_state.lidos ?? 0
+    return <p className="text-xs text-amber-800">Importando{lidos ? `: ${lidos.toLocaleString('pt-BR')} lidos até agora` : '…'}</p>
+  }
+  if (c.catalog_error) return <p className="text-xs text-red-700">{c.catalog_error}</p>
+  if (!c.catalog_synced_at) return <p className="text-xs text-gray-500">Ainda não importado</p>
+  const n = c.catalog_count ?? 0
+  return (
+    <p className="text-xs text-gray-500">
+      {n.toLocaleString('pt-BR')} {n === 1 ? 'item' : 'itens'}, atualizado em {formatDateTime(c.catalog_synced_at)}
+    </p>
+  )
+}
+
+function LinhaCatalogo({ item }: { item: ItemCatalogo }) {
+  return (
+    <tr className={item.active ? '' : 'text-gray-400'}>
+      <td className="td">
+        <div className="flex items-center gap-3">
+          {item.image_url ? (
+            <img src={item.image_url} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-md border border-gray-100 object-cover" />
+          ) : (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-100 bg-gray-50">
+              <Package className="h-4 w-4 text-gray-300" aria-hidden />
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className={`truncate font-medium ${item.active ? 'text-gray-900' : 'text-gray-500'}`} title={item.name}>{item.name}</p>
+            {item.variation && <p className="truncate text-xs text-gray-500">{item.variation}</p>}
+          </div>
+        </div>
+      </td>
+      <td className="td whitespace-nowrap text-gray-600">{NOME_PROVEDOR[item.provider] ?? item.provider}</td>
+      <td className="td tabular-nums text-gray-500">{item.sku || '—'}</td>
+      <td className="td text-right tabular-nums">{item.price != null ? formatCurrency(item.price) : '—'}</td>
+      <td className="td text-right tabular-nums">{item.stock != null ? item.stock.toLocaleString('pt-BR') : '—'}</td>
+      <td className="td">
+        <StatusBadge status={item.status ?? (item.active ? 'ativo' : 'inativo')} tone={item.active ? 'ok' : 'neutral'} />
+      </td>
+      <td className="td text-right">
+        {item.link && (
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex text-gray-400 hover:text-brand-700"
+            aria-label={`Abrir ${item.name} em ${NOME_PROVEDOR[item.provider] ?? item.provider}`}
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+          </a>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function PlataformasTab() {
+  const [input, setInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [provider, setProvider] = useState('')
+  const conexoes = useConexoesCatalogo()
+  const importar = useImportarCatalogo()
+  const lista = conexoes.data ?? []
+  const importando = lista.some((c) => c.catalog_state)
+  const itens = useCatalogo(search, provider, importando)
+  const provedores = [...new Set(lista.map((c) => c.provider))]
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(input), 300)
+    return () => clearTimeout(t)
+  }, [input])
+
+  if (conexoes.error) return <ErrorState message={(conexoes.error as Error).message} />
+  if (!conexoes.isLoading && conexoes.data === undefined) {
+    return <ErrorState title="Catálogo ainda não ligado" message="Falta rodar o supabase/catalogo.sql no banco." />
+  }
+  if (!conexoes.isLoading && lista.length === 0) {
+    return (
+      <EmptyState
+        title="Nenhuma plataforma conectada com catálogo"
+        hint="Conecte Mercado Livre, Bling, Shopee ou Nuvemshop em Integrações para trazer os produtos cadastrados lá."
+      />
+    )
+  }
+
+  return (
+    <div>
+      <div className="card mb-4 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-sm font-semibold text-gray-900">Produtos cadastrados nas plataformas</h2>
+            <p className="mt-0.5 text-sm text-gray-600">
+              Atualiza sozinho uma vez por dia. O estoque aqui é o que a plataforma mostra e não muda o estoque do Contatta.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`btn-primary ${press}`}
+            onClick={() => importar.mutate()}
+            disabled={importar.isPending || importando || conexoes.isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${importando ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden />
+            {importando ? 'Importando…' : 'Importar agora'}
+          </button>
+        </div>
+        {importar.isError && <p className="mt-2 text-sm text-red-700">{(importar.error as Error).message}</p>}
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          {lista.map((c) => (
+            <li key={c.id} className="flex items-center gap-3">
+              <MarcaLogo id={LOGO[c.provider]} pequena />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-gray-900">{c.account_name || NOME_PROVEDOR[c.provider]}</p>
+                <SituacaoConexao c={c} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+          <input
+            type="search"
+            className="input pl-9"
+            placeholder="Buscar por nome ou SKU…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+        </div>
+        {provedores.length > 1 && (
+          <select className="input w-auto" value={provider} onChange={(e) => setProvider(e.target.value)} aria-label="Plataforma">
+            <option value="">Todas as plataformas</option>
+            {provedores.map((p) => (
+              <option key={p} value={p}>{NOME_PROVEDOR[p] ?? p}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {itens.error && <ErrorState message={(itens.error as Error).message} />}
+
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="th">Produto</th>
+                <th className="th">Plataforma</th>
+                <th className="th">SKU</th>
+                <th className="th text-right">Preço</th>
+                <th className="th text-right">Estoque</th>
+                <th className="th">Situação</th>
+                <th className="th"><span className="sr-only">Abrir</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {itens.isLoading ? <LoadingRows cols={7} /> : (itens.data ?? []).map((i) => <LinhaCatalogo key={i.id} item={i} />)}
+            </tbody>
+          </table>
+        </div>
+        {!itens.isLoading && (itens.data ?? []).length === 0 && (
+          <EmptyState
+            title={search ? 'Nenhum produto encontrado' : importando ? 'Importando os produtos' : 'Nenhum produto importado ainda'}
+            hint={search || importando ? undefined : 'Clique em Importar agora para trazer os produtos das plataformas.'}
+          />
+        )}
+        {(itens.data ?? []).length === 500 && (
+          <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">Mostrando os 500 primeiros. Use a busca para achar o resto.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const TABS: { key: Tab; label: string }[] = [
   { key: 'estoque', label: 'Estoque' },
+  { key: 'plataformas', label: 'Nas plataformas' },
   { key: 'vendidos', label: 'Mais vendidos' },
   { key: 'movimentacoes', label: 'Movimentações' },
 ]
@@ -319,6 +505,7 @@ export default function Products() {
       </div>
 
       {tab === 'estoque' && <EstoqueTab />}
+      {tab === 'plataformas' && <PlataformasTab />}
       {tab === 'vendidos' && <VendidosTab />}
       {tab === 'movimentacoes' && <MovimentacoesTab />}
     </div>
