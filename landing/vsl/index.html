@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Contatta · veja se faz sentido pra sua loja</title>
-<meta name="description" content="Assista como o Contatta transforma os pedidos da sua loja em clientes que voltam. Depois, quatro perguntas mostram se faz sentido pra você agora.">
+<meta name="description" content="Assista como o Contatta transforma os pedidos da sua loja em clientes que voltam. Depois, cinco perguntas mostram se faz sentido pra você agora.">
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="theme-color" content="#f5f6fa">
@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/demo/funil.css?v=20261106a">
-<link rel="stylesheet" href="/vsl/vsl.css?v=20261115a">
+<link rel="stylesheet" href="/vsl/vsl.css?v=20261115b">
 </head>
 <body>
 <div class="v-coluna">
@@ -24,22 +24,22 @@
   <main>
     <section class="v-abre">
       <h1>Quem já comprou de você pode <mark>comprar de novo.</mark></h1>
-      <p>Assista como funciona. Depois, quatro perguntas mostram se o Contatta faz sentido pra sua loja agora.</p>
+      <p>Assista como funciona. Depois, cinco perguntas mostram se o Contatta faz sentido pra sua loja agora.</p>
       <div class="v-palco" id="palco">
         <video id="video" playsinline preload="metadata" poster="/demo/video/contatta-como-funciona.jpg" src="/demo/video/contatta-como-funciona.mp4"></video>
         <button type="button" class="v-tocar" id="tocar" aria-label="Assistir ao vídeo"><span><i aria-hidden="true"></i>Assistir</span></button>
       </div>
       <div class="v-sob">
         <a class="botao botao-primario" href="#perguntas" id="ir">Ver se faz sentido pra minha loja</a>
-        <small>Quatro perguntas. Menos de um minuto.</small>
+        <small>Cinco perguntas. Menos de um minuto.</small>
       </div>
     </section>
 
     <section class="v-quiz" id="perguntas" aria-live="polite">
       <h2 id="q-titulo">Faz sentido pra sua loja?</h2>
       <p class="lead" id="q-lead">O Contatta não serve pra todo mundo. Responda e a gente te diz na hora.</p>
-      <div class="v-trilho" id="trilho" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-      <p class="v-conta" id="conta">Pergunta 1 de 4</p>
+      <div class="v-trilho" id="trilho" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="v-conta" id="conta">Pergunta 1 de 5</p>
 
       <form id="form" novalidate>
         <div class="v-passo" data-passo="0">
@@ -85,6 +85,20 @@
         </div>
 
         <div class="v-passo" data-passo="3" hidden>
+          <fieldset>
+            <legend>Quanto dá pra investir por mês em recompra?</legend>
+            <p class="dica">Ferramenta e operação. Uma faixa já ajuda.</p>
+            <div class="v-ops">
+              <label><input type="radio" name="investimento" value="menos_300"><span>Menos de R$ 300</span></label>
+              <label><input type="radio" name="investimento" value="300_600"><span>R$ 300 a R$ 600</span></label>
+              <label><input type="radio" name="investimento" value="600_1500"><span>R$ 600 a R$ 1.500</span></label>
+              <label><input type="radio" name="investimento" value="1500_3000"><span>R$ 1.500 a R$ 3.000</span></label>
+              <label><input type="radio" name="investimento" value="3000_mais"><span>Mais de R$ 3.000</span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="v-passo" data-passo="4" hidden>
           <h3>Pra quem a gente manda a confirmação?</h3>
           <p class="dica">Sua loja tem o perfil. Falta só saber quem é você.</p>
           <div class="campos">
@@ -126,7 +140,8 @@
   'use strict'
   var F = window.Funil
   // Corte do ICP desta página. Quem cai aqui não deixa contato e vê o "ainda não é o momento".
-  var FORA = { canal: 'nao_vende', volume: 'ate_100' }
+  var FORA = { canal: 'nao_vende', volume: 'ate_100', investimento: 'menos_300' }
+  var INVEST = { menos_300: 'menos de R$ 300 por mês', '300_600': 'R$ 300 a R$ 600 por mês', '600_1500': 'R$ 600 a R$ 1.500 por mês', '1500_3000': 'R$ 1.500 a R$ 3.000 por mês', '3000_mais': 'mais de R$ 3.000 por mês' }
   var VOLUME = { ate_100: 'até 100 pedidos por mês', '101_500': '101 a 500 pedidos por mês', '501_2000': '501 a 2.000 pedidos por mês', '2000_mais': 'mais de 2.000 pedidos por mês' }
   var CANAL = { mercado_livre: 'Mercado Livre', shopee: 'Shopee', tiktok_shop: 'TikTok Shop', amazon: 'Amazon', loja_propria: 'loja própria', outros: 'outros canais', nao_vende: 'ainda não vende' }
 
@@ -191,9 +206,9 @@
     passos[n].hidden = false
     passos[n].classList.remove('entra'); void passos[n].offsetWidth; passos[n].classList.add('entra')
     for (var i = 0; i < trilho.length; i++) trilho[i].classList.toggle('feito', i < n)
-    conta.textContent = n < 3 ? 'Pergunta ' + (n + 1) + ' de 4' : 'Última etapa'
+    conta.textContent = n < 4 ? 'Pergunta ' + (n + 1) + ' de 5' : 'Última etapa'
     voltar.hidden = n === 0
-    seguir.textContent = n === 3 ? 'Ver os horários' : 'Continuar'
+    seguir.textContent = n === 4 ? 'Ver os horários' : 'Continuar'
     erro.hidden = true
   }
   function falhar(msg, campo) { erro.textContent = msg; erro.hidden = false; if (campo) campo.focus() }
@@ -216,14 +231,20 @@
       if (!d.get('prioridade')) return falhar('Escolha o que mais pesa agora.')
       return ir(3)
     }
+    if (atual === 3) {
+      if (!d.get('investimento')) return falhar('Escolha uma faixa de investimento.')
+      if (d.get('investimento') === FORA.investimento) return recusar('investimento', mps, d.get('volume'), d.get('investimento'))
+      return ir(4)
+    }
     enviar(d, mps)
   })
   form.addEventListener('submit', function (e) { e.preventDefault(); seguir.click() })
 
-  function etiqueta(sim, mps, volume) {
+  function etiqueta(sim, mps, volume, invest) {
     var canais = mps.map(function (m) { return CANAL[m] || m }).join(', ')
     return '<div class="v-etq ' + (sim ? 'sim' : 'nao') + '"><dl><dt>Vende por</dt><dd>' + esc(canais) + '</dd>' +
-      (volume ? '<dt>Volume</dt><dd>' + esc(VOLUME[volume]) + '</dd>' : '') + '</dl>' +
+      (volume ? '<dt>Volume</dt><dd>' + esc(VOLUME[volume]) + '</dd>' : '') +
+      (invest ? '<dt>Investimento</dt><dd>' + esc(INVEST[invest]) + '</dd>' : '') + '</dl>' +
       '<span class="carimbo">' + (sim ? 'Faz sentido agora' : 'Ainda não é o momento') + '</span></div>'
   }
   function fechar(html) {
@@ -235,12 +256,14 @@
   }
 
   // fora do ICP: não pede contato, não manda pro WhatsApp
-  function recusar(motivo, mps, volume) {
+  function recusar(motivo, mps, volume, invest) {
     F.evento('fora_icp', { step: motivo })
     document.getElementById('q-titulo').textContent = 'Obrigado por responder.'
-    fechar(etiqueta(false, mps, volume) +
-      '<h3>Hoje o Contatta ia custar mais do que te devolver.</h3>' +
-      (motivo === 'canal'
+    fechar(etiqueta(false, mps, volume, invest) +
+      '<h3>' + (motivo === 'investimento' ? 'Hoje o Contatta não cabe nesse investimento.' : 'Hoje o Contatta ia custar mais do que te devolver.') + '</h3>' +
+      (motivo === 'investimento'
+        ? '<p>Sua loja tem o perfil, mas o investimento mensal fica acima da faixa que você marcou. A gente prefere te dizer isso agora do que na reunião.</p><p>Quando tiver espaço pra investir mais em recompra, volta aqui e responde de novo.</p>'
+        : motivo === 'canal'
         ? '<p>Ele trabalha em cima de quem já comprou de você. Sem venda rodando, não tem o que organizar ainda.</p><p>Quando a loja estiver vendendo todo mês, volta aqui e responde de novo.</p>'
         : '<p>Ele rende quando a loja já tem um volume de clientes pra chamar de volta. Com até 100 pedidos por mês, a conta ainda não fecha.</p><p>Quando passar de 100 pedidos por mês, volta aqui e responde de novo.</p>') +
       '<p class="alt">Enquanto isso, a gente mostra como fazer recompra no <a href="https://www.instagram.com/contatta.pro/" target="_blank" rel="noopener">@contatta.pro</a>.</p>')
@@ -255,7 +278,7 @@
     seguir.innerHTML = '<span class="gira" aria-hidden="true"></span> Enviando'
     var o = F.origem, primeiro = nome.split(' ')[0]
     F.api({
-      acao: 'lead', submission_id: submissao, nome: nome, empresa: String(d.get('empresa') || ''), whatsapp: fone,
+      acao: 'lead', submission_id: submissao, nome: nome, empresa: (String(d.get('empresa') || '').trim().slice(0, 70) + ' · investe ' + INVEST[d.get('investimento')]).replace(/^ · /, ''), whatsapp: fone,
       marketplaces: mps, volume: d.get('volume'), prioridade: d.get('prioridade'), decisor: '',
       consentimento: true, marketing: false, medicao: F.medicaoAceita(), quer_reuniao: true,
       visit_id: o.visit_id, path: location.pathname, url: location.href.split('#')[0],
@@ -265,7 +288,7 @@
       if (!r || !r.ok) throw new Error((r && r.error) || 'Não deu certo.')
       F.pixel('Lead', {}, submissao)
       document.getElementById('q-titulo').textContent = 'Faz sentido, ' + primeiro + '.'
-      fechar(etiqueta(true, mps, d.get('volume')) +
+      fechar(etiqueta(true, mps, d.get('volume'), d.get('investimento')) +
         '<h3>Escolha um horário pra falar com o Mohamad.</h3>' +
         '<p>É uma chamada de vídeo de 20 minutos. Ele mostra o Contatta com o cenário da sua loja e te passa o valor fechado pro seu volume.</p>' +
         '<div id="agenda"><p class="tz">Buscando horários livres…</p></div>' +
