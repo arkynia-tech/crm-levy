@@ -26,6 +26,33 @@ export async function livresAgora(limite = 40): Promise<{ regras: RegrasAgenda; 
   return { regras, livres, config: d.config }
 }
 
+export const ROTULO_INVESTIMENTO: Record<string, string> = {
+  menos_300: 'menos de R$ 300', '300_600': 'R$ 300 a 600', '600_1500': 'R$ 600 a 1.500', '1500_3000': 'R$ 1.500 a 3.000', '3000_mais': 'mais de R$ 3.000',
+}
+
+/** E-mail e faixa de investimento do lead. Vazio se o banco ainda não tem a função (SQL funil-vsl-contato.sql). */
+export async function contatoDoLead(leadId: string): Promise<{ email: string | null; investimento: string | null }> {
+  try {
+    const c = await rpc('aq_funil_lead_contato', { p_lead: leadId })
+    return { email: c?.email ? String(c.email) : null, investimento: c?.investment_range ? String(c.investment_range) : null }
+  } catch (e) {
+    console.error('contato do lead:', e)
+    return { email: null, investimento: null }
+  }
+}
+
+/** Ficha curta do lead para os avisos internos, uma informação por linha. */
+export function fichaDoLead(lead: Json, c: { email: string | null; investimento: string | null }): string {
+  return [
+    `${lead.name}${lead.company ? ` (${lead.company})` : ''}`,
+    `WhatsApp: +${lead.phone ?? lead.phone_norm ?? ''}`,
+    c.email ? `E-mail: ${c.email}` : '',
+    `Vende em: ${lead.marketplaces ?? 'não informou'}`,
+    `Pedidos por mês: ${ROTULO_VOLUME[lead.monthly_orders_range] ?? 'não informou'}`,
+    c.investimento ? `Investimento: ${ROTULO_INVESTIMENTO[c.investimento] ?? c.investimento} por mês` : '',
+  ].filter(Boolean).join('\n')
+}
+
 export async function linkAgendar(base: string, leadId: string): Promise<string> {
   return `${base}?t=${encodeURIComponent(await tokenDoLead(leadId))}`
 }
@@ -62,24 +89,22 @@ export async function agendarReuniao(p: {
   if (lead.opt_out) return { ok: false, error: 'Este contato pediu para não ser contatado.' }
 
   const tz = regras.timezone || 'America/Sao_Paulo'
+  const contato = await contatoDoLead(p.leadId)
+  // O lead é convidado do evento e recebe esta descrição por e-mail: aqui só entra o que é pra ele.
+  // A ficha (score, volume, investimento) vai no aviso interno e fica no app.
   const descricao = [
-    `Lead: ${lead.name}${lead.company ? ` (${lead.company})` : ''}`,
-    `WhatsApp: +${lead.phone ?? ''}`,
-    `Vende em: ${lead.marketplaces ?? 'não informou'}`,
-    `Pedidos/mês: ${ROTULO_VOLUME[lead.monthly_orders_range] ?? 'não informou'}`,
-    `Prioridade: ${ROTULO_PRIORIDADE[lead.priority_goal] ?? 'não informou'}`,
-    lead.main_pain ? `Dor: ${lead.main_pain}` : '',
-    `Score: ${lead.lead_score ?? 'N/D'} · rota ${lead.route ?? 'N/D'}`,
+    'Conversa de 20 minutos, por vídeo, com o Mohamad, fundador do Contatta.',
+    'Ele mostra o Contatta com o cenário da sua loja.',
     '',
-    'Roteiro (20 min): 0-2 agenda · 2-5 diagnóstico · 5-12 telas ligadas à dor · 12-16 implantação · 16-18 proposta · 18-20 fechamento.',
-    'Detalhes no app: Conta > Funil comercial.',
-  ].filter(Boolean).join('\n')
+    `Precisa trocar o horário? ${await linkAgendar(String(cfg.link_agendar ?? 'https://contatta.pro/agendar/'), p.leadId)}`,
+  ].join('\n')
 
   let ev: { id: string; meet: string | null; link: string | null }
   try {
     ev = await criarEvento({
       inicio: slot.inicio, fim: slot.fim, tz, idPedido: crypto.randomUUID(),
-      titulo: `Contatta · demonstração com ${lead.company || lead.name}`, descricao,
+      titulo: `Contatta · conversa com ${String(lead.name).split(' ')[0]} (${lead.company || 'demonstração'})`, descricao,
+      convidado: contato.email,
     })
   } catch (e) {
     console.error('evento não criado:', e)
@@ -101,7 +126,7 @@ export async function agendarReuniao(p: {
   const rotulo = formatarHorario(slot.inicio, tz)
   // confirmação sai na hora (se o envio estiver ligado); se não, fica na fila
   if (r.confirmacao_id) await enviarDaFila(String(r.confirmacao_id)).catch((e) => console.error('confirmação:', e))
-  await alertar(cfg, `Reunião marcada: ${lead.name}${lead.company ? ` (${lead.company})` : ''}, ${rotulo}. Score ${lead.lead_score ?? 'N/D'}.`)
+  await alertar(cfg, `REUNIÃO MARCADA\n${rotulo}\n\n${fichaDoLead(lead, contato)}\n${contato.email ? 'Convite enviado pro e-mail dele.' : 'Sem e-mail: não foi convite.'}${ev.meet ? `\nMeet: ${ev.meet}` : ''}`)
   if (lead.ads_consent) {
     await enviarCapi({ nome: 'Schedule', eventId: `schedule-${r.demo_id}`, telefone: lead.phone, origem: 'system_generated', ip: p.ip, userAgent: p.userAgent })
   }
@@ -113,10 +138,13 @@ async function textoDaFila(d: Json): Promise<string> {
   const f = d.followup, demo = d.demo, cfg = d.config
   const tz = cfg?.timezone || 'America/Sao_Paulo'
   const quando = demo?.scheduled_at ? formatarHorario(demo.scheduled_at, tz) : ''
+  const primeiro = String(d.lead?.name ?? '').trim().split(' ')[0] || 'tudo bem'
   const meet = demo?.meet_url ? ` Link da chamada: ${demo.meet_url}` : ''
   switch (f.step) {
     case 'confirmacao':
-      return `Reunião confirmada: ${quando}, 20 minutos.${meet} Se precisar trocar o horário: ${await linkAgendar(cfg.link_agendar, d.lead.id)}`
+      return `Oi, ${primeiro}! Aqui é a Lara, do Contatta. Sua conversa com o Mohamad está confirmada: ${quando}, 20 minutos por vídeo.${meet} Se precisar trocar o horário, é por aqui: ${await linkAgendar(cfg.link_agendar, d.lead.id)}`
+    case 'sem_horario':
+      return `Oi, ${primeiro}! Aqui é a Lara, do Contatta. Vi que você respondeu as perguntas e não chegou a escolher o horário. Sua loja tem o perfil. Pra marcar os 20 minutos com o Mohamad, é só escolher aqui: ${await linkAgendar(cfg.link_agendar, d.lead.id)}`
     case 'lembrete_24h':
       return `Lembrete da nossa conversa sobre o Contatta: ${quando}.${meet} Continua bom pra você?`
     case 'lembrete_1h':

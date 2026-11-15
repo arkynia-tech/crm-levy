@@ -17,12 +17,13 @@ import type { Json } from '../_shared/asaas.ts'
 import { cors, depoisDeResponder, ipDe, responder, rpc } from '../_shared/comum.ts'
 import { agendaConfigurada, formatarHorario } from '../_shared/funil/agenda.ts'
 import { enviarCapi } from '../_shared/funil/meta.ts'
-import { agendarReuniao, alertar, livresAgora, ROTULO_PRIORIDADE, ROTULO_VOLUME } from '../_shared/funil/operacoes.ts'
+import { agendarReuniao, alertar, livresAgora, ROTULO_INVESTIMENTO, ROTULO_PRIORIDADE, ROTULO_VOLUME } from '../_shared/funil/operacoes.ts'
 import { dentroDoLimite, leadDoToken, origensPermitidas, tokenDoLead, turnstileOk } from '../_shared/funil/seguranca.ts'
 
 const MARKETPLACES = new Set(['mercado_livre', 'shopee', 'loja_propria', 'tiktok', 'amazon', 'magalu', 'outros', 'nao_vende'])
 const VOLUMES = new Set(['ate_100', '101_500', '501_2000', '2000_mais', 'nao_informado'])
 const PRIORIDADES = new Set(['recompra', 'crm', 'posvenda', 'canais'])
+const INVESTIMENTOS = new Set(['300_600', '600_1500', '1500_3000', '3000_mais'])
 const CONSENT_VERSAO = 'demo-2026-11'
 const PRIV_VERSAO = 'priv-2026-10'
 
@@ -67,10 +68,14 @@ Deno.serve(async (req) => {
       if (nome.length < 2) return responder(400, { ok: false, error: 'Diga seu nome.' }, H)
       if (fone.length < 10 || fone.length > 13) return responder(400, { ok: false, error: 'Confira o WhatsApp com DDD.' }, H)
       if (b.consentimento !== true) return responder(400, { ok: false, error: 'Precisamos da sua autorização para falar com você.' }, H)
+      // e-mail e investimento só vêm da página /vsl; /demo continua valendo sem eles
+      const email = txt(b.email, 160).toLowerCase()
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return responder(400, { ok: false, error: 'Confira o e-mail.' }, H)
+      const investimento = INVESTIMENTOS.has(String(b.investimento)) ? String(b.investimento) : null
 
       const r = await rpc('aq_funil_capturar', {
         p: {
-          submission_id: txt(b.submission_id, 64), name: nome, company: txt(b.empresa, 120), phone: fone,
+          submission_id: txt(b.submission_id, 64), name: nome, company: txt(b.empresa, 120), phone: fone, email: email || null,
           marketplaces: mps, monthly_orders_range: VOLUMES.has(String(b.volume)) ? b.volume : null,
           priority_goal: PRIORIDADES.has(String(b.prioridade)) ? b.prioridade : null,
           decision_maker: ['sim', 'compartilhada', 'nao'].includes(String(b.decisor)) ? b.decisor : null,
@@ -84,6 +89,9 @@ Deno.serve(async (req) => {
       if (!r.ok) return responder(400, { ok: false, error: String(r.error ?? 'Não deu certo. Tente de novo.') }, H)
       if (r.duplicate_submission) return responder(200, { ok: true, duplicado: true }, H)
 
+      if (investimento) {
+        await rpc('aq_funil_lead_extra', { p_lead: r.lead_id, p_investimento: investimento }).catch((e) => console.error('investimento não gravado:', e))
+      }
       const token = await tokenDoLead(String(r.lead_id))
       depoisDeResponder((async () => {
         if (r.ads_consent) {
@@ -94,8 +102,16 @@ Deno.serve(async (req) => {
           })
         }
         const cfg = (await rpc('aq_funil_agenda_dados')).config
-        await alertar(cfg, `Lead novo pela LP: ${nome}${r.company ? ` (${r.company})` : ''} · rota ${r.route ?? 'sem rota'} · score ${r.score ?? 'N/D'} · ${
-          ROTULO_VOLUME[String(b.volume)] ?? 'volume não informado'} · ${ROTULO_PRIORIDADE[String(b.prioridade)] ?? ''}`)
+        await alertar(cfg, [
+          'LEAD NOVO PELO SITE', '',
+          `${nome}${r.company ? ` (${r.company})` : ''}`,
+          `WhatsApp: +${r.phone_norm ?? fone}`,
+          email ? `E-mail: ${email}` : '',
+          `Pedidos por mês: ${ROTULO_VOLUME[String(b.volume)] ?? 'não informou'}`,
+          investimento ? `Investimento: ${ROTULO_INVESTIMENTO[investimento]} por mês` : '',
+          ROTULO_PRIORIDADE[String(b.prioridade)] ? `Quer: ${ROTULO_PRIORIDADE[String(b.prioridade)]}` : '',
+          '', r.route === 'fora_icp' ? 'Fora do perfil: não recebe mensagem.' : 'Ainda não marcou horário. Se não marcar em 5 minutos, a Lara manda o link da agenda.',
+        ].filter((l, i, a) => l !== '' || (i > 0 && a[i - 1] !== '')).join('\n'))
       })())
       return responder(200, {
         ok: true, route: r.route ?? null, priority: r.priority ?? null, token,

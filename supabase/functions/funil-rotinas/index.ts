@@ -8,7 +8,7 @@
 
 import { responder, rpc } from '../_shared/comum.ts'
 import { insightsConfigurado, puxarInsights } from '../_shared/funil/meta.ts'
-import { enviarDaFila } from '../_shared/funil/operacoes.ts'
+import { alertar, enviarDaFila } from '../_shared/funil/operacoes.ts'
 import { iguais } from '../_shared/funil/seguranca.ts'
 
 function horaSP(): { h: number; m: number } {
@@ -24,6 +24,22 @@ Deno.serve(async (req) => {
 
   const saida: Record<string, unknown> = {}
   try {
+    // quem respondeu as perguntas há 5 minutos e não marcou: a Lara manda o link da agenda
+    try {
+      const s = await rpc('aq_funil_sem_horario')
+      const cfg = (await rpc('aq_funil_agenda_dados')).config
+      let mandados = 0
+      for (const p of (s.prontos ?? []) as { id: string; nome: string; empresa: string | null; fone: string }[]) {
+        const e = await enviarDaFila(p.id).catch((err) => ({ ok: false, error: String(err) }))
+        if (e.ok) mandados++
+        await alertar(cfg, `NÃO MARCOU HORÁRIO\n\n${p.nome}${p.empresa ? ` (${p.empresa})` : ''}\nWhatsApp: +${p.fone}\n\n${
+          e.ok ? 'Respondeu as perguntas há 5 minutos e saiu sem marcar. A Lara mandou o link da agenda pra ele.' : `Respondeu e saiu sem marcar. A mensagem da Lara NÃO saiu: ${e.error}`}`)
+        await new Promise((ok) => setTimeout(ok, 2000))
+      }
+      saida.sem_horario = mandados
+    } catch (e) {
+      saida.sem_horario_erro = String(e) // banco sem o SQL novo: o resto da rotina segue
+    }
     const r = await rpc('aq_funil_rotina')
     saida.criados = r.criados
     const enviados: string[] = [], falhas: string[] = []

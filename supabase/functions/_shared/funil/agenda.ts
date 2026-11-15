@@ -109,8 +109,12 @@ async function ocupadosNoGoogle(de: Date, ate: Date, tz: string): Promise<Interv
 
 export async function criarEvento(p: {
   inicio: string; fim: string; titulo: string; descricao: string; idPedido: string; tz: string
+  /** e-mail do lead: entra como convidado e o Google manda o convite por e-mail */
+  convidado?: string | null
 }): Promise<{ id: string; meet: string | null; link: string | null }> {
-  const j = await google('POST', `/calendars/${encodeURIComponent(calendario())}/events?conferenceDataVersion=1&sendUpdates=none`, {
+  const avisar = p.convidado ? 'all' : 'none'
+  const j = await google('POST', `/calendars/${encodeURIComponent(calendario())}/events?conferenceDataVersion=1&sendUpdates=${avisar}`, {
+    ...(p.convidado ? { attendees: [{ email: p.convidado }], guestsCanInviteOthers: false, guestsCanSeeOtherGuests: false } : {}),
     summary: p.titulo,
     description: p.descricao,
     start: { dateTime: p.inicio, timeZone: p.tz },
@@ -124,7 +128,8 @@ export async function criarEvento(p: {
 
 export async function removerEvento(id: string): Promise<void> {
   try {
-    await google('DELETE', `/calendars/${encodeURIComponent(calendario())}/events/${encodeURIComponent(id)}?sendUpdates=none`)
+    // 'all': se o evento tinha convidado, ele recebe o cancelamento por e-mail
+    await google('DELETE', `/calendars/${encodeURIComponent(calendario())}/events/${encodeURIComponent(id)}?sendUpdates=all`)
   } catch (e) {
     console.error('não deu para tirar o evento antigo da agenda:', e)
   }
