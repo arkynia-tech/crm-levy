@@ -1,0 +1,77 @@
+/* Página de VSL + qualificação (contatta.pro/vsl). Usa os tokens e peças de /demo/funil.css. */
+body{background:var(--fundo)}
+.v-topo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0}
+.v-topo .pra{font-size:14px;font-weight:500;color:var(--cinza)}
+@media (max-width:560px){.v-topo .pra{display:none}}
+
+.v-coluna{max-width:860px;margin:0 auto;padding:0 20px}
+.v-abre{padding:28px 0 0;text-align:left}
+.v-abre h1{font-size:clamp(34px,6.2vw,64px);font-weight:800;font-stretch:88%;letter-spacing:-.035em;line-height:1}
+.v-abre h1 mark{background:var(--amarelo);color:inherit;padding:0 .12em;border-radius:6px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.v-abre p{margin-top:18px;font-size:clamp(17px,2vw,20px);color:var(--cinza);max-width:52ch}
+
+/* palco do vídeo */
+.v-palco{margin-top:32px;position:relative;border-radius:20px;overflow:hidden;background:var(--tinta);aspect-ratio:16/9;
+  box-shadow:0 0 0 1px rgba(12,16,27,.08),0 50px 90px -50px rgba(12,16,27,.6)}
+.v-palco video{width:100%;height:100%;display:block;object-fit:cover;background:var(--tinta)}
+.v-tocar{position:absolute;inset:0;display:grid;place-items:center;border:0;padding:0;cursor:pointer;background:linear-gradient(180deg,rgba(12,16,27,.05),rgba(12,16,27,.55));
+  transition:opacity 220ms ease}
+.v-tocar span{display:flex;align-items:center;gap:14px;background:#fff;color:var(--tinta);font:700 17px/1 Archivo,sans-serif;padding:16px 26px 16px 18px;border-radius:999px;
+  box-shadow:0 18px 40px -16px rgba(0,0,0,.7);transition:transform 160ms var(--ease-out)}
+.v-tocar i{width:40px;height:40px;border-radius:50%;background:var(--indigo);display:grid;place-items:center}
+.v-tocar i::before{content:"";border-left:13px solid #fff;border-top:8px solid transparent;border-bottom:8px solid transparent;margin-left:4px}
+.v-tocar:active span{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.v-tocar:hover span{transform:scale(1.03)}}
+.v-palco.tocando .v-tocar{opacity:0;pointer-events:none}
+.v-sob{margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px}
+.v-sob small{font-size:14px;color:var(--cinza-2)}
+
+/* perguntas */
+.v-quiz{margin:72px 0 0;background:var(--branco);border-radius:22px;padding:clamp(22px,4vw,40px);box-shadow:0 0 0 1px var(--linha),0 40px 80px -50px rgba(12,16,27,.35)}
+.v-quiz > h2{font-size:clamp(26px,3.6vw,36px);font-weight:800;font-stretch:90%;letter-spacing:-.025em}
+.v-quiz > .lead{margin-top:10px;color:var(--cinza);max-width:56ch}
+.v-trilho{margin-top:26px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.v-trilho i{height:5px;border-radius:99px;background:var(--linha);overflow:hidden;position:relative}
+.v-trilho i::after{content:"";position:absolute;inset:0;background:var(--indigo);transform:scaleX(0);transform-origin:left;transition:transform 320ms var(--ease-out)}
+.v-trilho i.feito::after{transform:scaleX(1)}
+.v-conta{margin-top:12px;font-size:14px;font-weight:600;color:var(--cinza)}
+
+.v-passo{margin-top:22px}
+.v-passo[hidden]{display:none}
+.v-passo.entra{animation:v-entra 260ms var(--ease-out)}
+@keyframes v-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.v-passo legend,.v-passo h3{font:800 clamp(22px,3vw,28px)/1.12 Archivo,sans-serif;font-stretch:92%;letter-spacing:-.02em;color:var(--tinta);padding:0;margin:0 0 6px}
+.v-passo fieldset{border:0;padding:0;margin:0}
+.v-passo .dica{color:var(--cinza);font-size:15px;margin-bottom:18px}
+/* opções grandes, uma por linha: alvo de toque folgado no celular */
+.v-ops{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.v-ops label{position:relative;cursor:pointer;display:block}
+.v-ops input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.v-ops span{display:flex;align-items:center;min-height:56px;padding:0 18px;border-radius:14px;border:1.5px solid var(--linha);background:#fff;font-weight:600;font-size:16px;color:var(--tinta);
+  transition:border-color 120ms ease,background-color 120ms ease,transform 140ms var(--ease-out)}
+.v-ops label:active span{transform:scale(.98)}
+.v-ops input:checked + span{border-color:var(--indigo);background:var(--indigo-claro);color:var(--indigo-escuro)}
+.v-ops input:focus-visible + span{outline:3px solid var(--indigo);outline-offset:2px}
+@media (hover:hover) and (pointer:fine){.v-ops label:hover span{border-color:var(--cinza-2)}}
+.v-nav{margin-top:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.v-voltar{background:none;border:0;padding:8px 4px;font:600 15px Inter,sans-serif;color:var(--cinza);cursor:pointer}
+.v-voltar[hidden]{display:none}
+.v-aceite{display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-size:14.5px;color:var(--cinza)}
+.v-aceite input{margin-top:3px;width:18px;height:18px;accent-color:var(--indigo);flex:none}
+
+/* veredito em formato de etiqueta de envio */
+.v-etq{margin-top:8px;background:var(--pardo-claro);color:#3d2d14;border-radius:12px;padding:20px 22px;position:relative;animation:v-entra 320ms var(--ease-out)}
+.v-etq::before{content:"";position:absolute;left:22px;right:22px;top:0;height:6px;background:repeating-linear-gradient(90deg,#3d2d14 0 3px,transparent 3px 7px,#3d2d14 7px 8px,transparent 8px 13px);opacity:.55}
+.v-etq dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:14px 0 0;font-size:15px}
+.v-etq dt{opacity:.7}
+.v-etq dd{margin:0;font-weight:600}
+.v-etq .carimbo{display:inline-block;margin-top:14px;font:800 15px/1 Archivo,sans-serif;letter-spacing:.02em;padding:8px 12px;border-radius:8px;border:2px solid currentColor;transform:rotate(-2deg)}
+.v-etq.sim .carimbo{color:var(--verde-escuro)}
+.v-etq.nao .carimbo{color:#8a4b12}
+.v-fim h3{font:800 clamp(24px,3.4vw,32px)/1.1 Archivo,sans-serif;font-stretch:90%;letter-spacing:-.025em;color:var(--tinta);margin-top:24px}
+.v-fim p{margin-top:10px;color:var(--cinza);max-width:58ch}
+.v-fim .alt{margin-top:18px;font-size:15px}
+
+.v-pe{margin:64px 0 40px;font-size:13.5px;color:var(--cinza-2);display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between}
+.v-pe a{color:inherit}
+@media (prefers-reduced-motion:reduce){.v-passo.entra,.v-etq{animation:none}.v-trilho i::after{transition:none}}
