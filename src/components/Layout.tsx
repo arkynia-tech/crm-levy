@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
+  ArrowLeft,
+  Gauge,
   Building2,
   Smartphone,
   LayoutDashboard,
@@ -42,6 +44,7 @@ import { metaSignupDisponivel } from '../lib/metaSignup'
 import { NovidadePopup } from './NovidadePopup'
 import { useNovidadePopup } from '../hooks/novidades'
 import { useNaoLidas, useRecursos } from '../hooks/conversas'
+import { useEntrarNaLoja } from '../hooks/painelGeral'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
@@ -49,7 +52,10 @@ type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?:
 const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
   {
     titulo: null,
-    itens: [{ to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' }],
+    itens: [
+      { to: '/master', label: 'Painel geral', icon: Gauge, permission: 'masterPanel' },
+      { to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' },
+    ],
   },
   {
     titulo: 'Base de clientes',
@@ -314,6 +320,31 @@ function SidebarContent({
   )
 }
 
+// Telas do master que não são de uma loja: nelas não aparece a faixa "Você está na loja"
+const TELAS_DO_MASTER = ['/master', '/painel-vendas', '/links-pagamento', '/comercial', '/envios', '/clientes-lojas']
+
+/** Master dentro de uma loja: deixa claro qual é e volta pro Painel geral. */
+function FaixaLojaDoMaster({ loja }: { loja: string | null }) {
+  const { pathname } = useLocation()
+  const { voltar } = useEntrarNaLoja()
+  if (!loja || TELAS_DO_MASTER.some((t) => pathname === t || pathname.startsWith(t + '/'))) return null
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-100 bg-brand-50 px-4 py-2 text-sm">
+      <p className="text-gray-800">
+        Você está na loja <span className="font-semibold">{loja}</span>
+      </p>
+      <button
+        type="button"
+        onClick={voltar}
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-brand-700 transition-transform hover:bg-brand-100 active:scale-[0.97]"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Voltar ao painel
+      </button>
+    </div>
+  )
+}
+
 export default function Layout() {
   const { activeClient } = useCompany()
   const { data: papel } = useUserRole()
@@ -400,6 +431,7 @@ export default function Layout() {
             <ContaBloqueada s={situacao} papel={papel} loja={activeClient?.name ?? null} />
           ) : (
             <>
+              {papel === 'master' && <FaixaLojaDoMaster loja={activeClient?.name ?? null} />}
               <AvisoCobranca />
               <Outlet />
               <NovidadePopup ativo={Boolean(papel)} />

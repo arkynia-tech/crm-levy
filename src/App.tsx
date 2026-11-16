@@ -9,6 +9,8 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import DefinirSenha from './pages/DefinirSenha'
 import Dashboard from './pages/Dashboard'
+import PainelGeral from './pages/PainelGeral'
+import { masterEstaNaLoja } from './hooks/painelGeral'
 import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
 import Orders from './pages/Orders'
@@ -101,6 +103,13 @@ function FallbackRoute() {
   return <Navigate to={homeRouteFor(role)} replace />
 }
 
+/** Master entra pelo Painel geral; depois de escolher uma loja, o "/" é o painel dela. */
+function Inicio() {
+  const { data: role } = useUserRole()
+  if (role === 'master' && !masterEstaNaLoja()) return <Navigate to="/master" replace />
+  return <Dashboard />
+}
+
 export default function App() {
   if (!isSupabaseConfigured) {
     return (
@@ -143,7 +152,11 @@ function Rotas() {
       <Route element={<ProtectedRoutes />}>
         <Route
           path="/"
-          element={<RequirePermission permission="dashboard"><Dashboard /></RequirePermission>}
+          element={<RequirePermission permission="dashboard"><Inicio /></RequirePermission>}
+        />
+        <Route
+          path="/master"
+          element={<RequirePermission permission="masterPanel"><PainelGeral /></RequirePermission>}
         />
         <Route
           path="/clientes"

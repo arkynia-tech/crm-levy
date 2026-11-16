@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { esquecerLojaDoMaster } from '../hooks/painelGeral'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
@@ -34,6 +35,9 @@ export default function Login() {
     const from = (location.state as { from?: string } | null)?.from ?? '/'
     return <Navigate to={from} replace />
   }
+
+  // saiu e vai entrar de novo: o master volta a começar pelo Painel geral
+  useEffect(() => esquecerLojaDoMaster(), [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
