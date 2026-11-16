@@ -24,7 +24,7 @@ export function esquecerLojaDoMaster() {
   marcarNaLoja(false)
 }
 
-function marcarNaLoja(sim: boolean) {
+export function marcarNaLoja(sim: boolean) {
   try {
     if (sim) sessionStorage.setItem(NA_LOJA, '1')
     else sessionStorage.removeItem(NA_LOJA)
@@ -45,6 +45,20 @@ export function useEntrarNaLoja() {
       navigate('/master')
     },
   }
+}
+
+/** Telas do master que não são de uma loja: nelas o menu mostra o modo "Painel geral". */
+export const TELAS_DO_MASTER = ['/master', '/painel-vendas', '/links-pagamento', '/comercial', '/envios', '/clientes-lojas']
+/** Telas que servem aos dois modos: mantêm o modo em que o master estava. */
+const TELAS_NEUTRAS = ['/novidades']
+
+const casa = (pathname: string, telas: string[]) => telas.some((t) => pathname === t || pathname.startsWith(t + '/'))
+
+/** Em qual modo o master está, pela tela aberta. */
+export function modoDoMaster(pathname: string): 'geral' | 'loja' {
+  if (casa(pathname, TELAS_DO_MASTER)) return 'geral'
+  if (casa(pathname, TELAS_NEUTRAS)) return masterEstaNaLoja() ? 'loja' : 'geral'
+  return 'loja'
 }
 
 // ---------------------------------------------------------------------------

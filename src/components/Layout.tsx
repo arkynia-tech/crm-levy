@@ -44,18 +44,34 @@ import { metaSignupDisponivel } from '../lib/metaSignup'
 import { NovidadePopup } from './NovidadePopup'
 import { useNovidadePopup } from '../hooks/novidades'
 import { useNaoLidas, useRecursos } from '../hooks/conversas'
-import { useEntrarNaLoja } from '../hooks/painelGeral'
+import { marcarNaLoja, modoDoMaster, useEntrarNaLoja } from '../hooks/painelGeral'
 
 type ItemMenu = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; permission: Permission }
 
+/** Grupo `geral`: telas do master que não são de uma loja (só aparecem no modo Painel geral). */
+type GrupoMenu = { titulo: string | null; itens: ItemMenu[]; geral?: boolean }
+
 /** Menu em grupos: o que é da base de clientes, do relacionamento, dos dados e da conta. */
-const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
+const NAV: GrupoMenu[] = [
   {
     titulo: null,
+    geral: true,
+    itens: [{ to: '/master', label: 'Painel geral', icon: Gauge, permission: 'masterPanel' }],
+  },
+  {
+    titulo: 'Gestão do Contatta',
+    geral: true,
     itens: [
-      { to: '/master', label: 'Painel geral', icon: Gauge, permission: 'masterPanel' },
-      { to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' },
+      { to: '/painel-vendas', label: 'Painel de vendas', icon: TrendingUp, permission: 'salesPanel' },
+      { to: '/links-pagamento', label: 'Links de pagamento', icon: Link2, permission: 'salesPanel' },
+      { to: '/comercial', label: 'Funil comercial', icon: Target, permission: 'salesPanel' },
+      { to: '/envios', label: 'Envios', icon: Send, permission: 'sendLog' },
+      { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
     ],
+  },
+  {
+    titulo: null,
+    itens: [{ to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true, permission: 'dashboard' }],
   },
   {
     titulo: 'Base de clientes',
@@ -88,14 +104,7 @@ const NAV: { titulo: string | null; itens: ItemMenu[] }[] = [
   },
   {
     titulo: 'Conta',
-    itens: [
-      { to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' },
-      { to: '/painel-vendas', label: 'Painel de vendas', icon: TrendingUp, permission: 'salesPanel' },
-      { to: '/links-pagamento', label: 'Links de pagamento', icon: Link2, permission: 'salesPanel' },
-      { to: '/comercial', label: 'Funil comercial', icon: Target, permission: 'salesPanel' },
-      { to: '/envios', label: 'Envios', icon: Send, permission: 'sendLog' },
-      { to: '/clientes-lojas', label: 'Gerenciar Lojas', icon: Building2, permission: 'manageClients' },
-    ],
+    itens: [{ to: '/assinatura', label: 'Assinatura', icon: CreditCard, permission: 'billing' }],
   },
 ]
 
@@ -121,6 +130,16 @@ function SidebarContent({
   const { data: naoLidas = 0 } = useNaoLidas(can(role, 'conversas') && conversasNoPlano)
   // lançamento que o usuário ainda não viu: acende um ponto no item Novidades
   const { data: novidadePendente } = useNovidadePopup(Boolean(role) && !travado)
+  // master tem dois modos: Painel geral (todas as lojas) e dentro de uma loja
+  const { pathname } = useLocation()
+  const { entrar, voltar } = useEntrarNaLoja()
+  const ehMaster = role === 'master'
+  const modo = ehMaster ? modoDoMaster(pathname) : 'loja'
+  const grupos = NAV.filter((g) => !ehMaster || Boolean(g.geral) === (modo === 'geral'))
+  const linkClasse = (ativo: boolean) =>
+    `flex w-full items-center rounded-md py-2 text-sm font-medium transition-colors ${
+      collapsed ? 'justify-center px-2' : 'gap-3 px-2.5'
+    } ${ativo ? 'bg-brand-600/15 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`
 
   return (
     <div className="flex h-full flex-col">
@@ -149,13 +168,36 @@ function SidebarContent({
           Com uma só, não mostramos nada (info desnecessária por enquanto). */}
       {clients.length > 1 && !collapsed && (
         <div className="px-3 pb-4">
+          {ehMaster && modo === 'loja' && (
+            <button
+              type="button"
+              onClick={() => {
+                voltar()
+                onNavigate?.()
+              }}
+              className="mb-2 inline-flex items-center gap-1.5 px-1 text-xs font-medium text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Painel geral
+            </button>
+          )}
           <label className="block">
-            <span className="sr-only">Empresa ativa</span>
+            <span className="sr-only">{ehMaster && modo === 'geral' ? 'Entrar numa loja' : 'Empresa ativa'}</span>
             <select
               className="w-full rounded-md border border-white/10 bg-ink-800 px-2.5 py-2 text-sm text-slate-200 focus:border-brand-500 focus:outline-none"
-              value={activeClient?.id ?? ''}
-              onChange={(e) => setActiveClientId(e.target.value)}
+              value={ehMaster && modo === 'geral' ? '' : activeClient?.id ?? ''}
+              onChange={(e) => {
+                if (ehMaster && modo === 'geral') {
+                  if (e.target.value) entrar(e.target.value)
+                  onNavigate?.()
+                } else setActiveClientId(e.target.value)
+              }}
             >
+              {ehMaster && modo === 'geral' && (
+                <option value="" disabled>
+                  Entrar numa loja…
+                </option>
+              )}
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name ?? formatCnpj(c.document)}
@@ -172,11 +214,16 @@ function SidebarContent({
         className={`flex-1 overflow-y-auto px-3 pt-2 ${travado ? 'pointer-events-none select-none opacity-40' : ''}`}
         aria-label="Navegação principal"
       >
-        {NAV.map((grupo, gi) => {
+        {ehMaster && modo === 'loja' && collapsed && (
+          <button type="button" onClick={voltar} title="Painel geral" className={`${linkClasse(false)} mb-2`}>
+            <Gauge className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+          </button>
+        )}
+        {grupos.map((grupo, gi) => {
           const itens = grupo.itens.filter(({ permission }) => can(role, permission))
           if (itens.length === 0) return null
           return (
-            <div key={grupo.titulo ?? 'inicio'} className={gi === 0 ? '' : 'mt-5'}>
+            <div key={grupo.titulo ?? `inicio-${gi}`} className={gi === 0 ? '' : 'mt-5'}>
               {grupo.titulo &&
                 (collapsed ? (
                   <div className="mx-2 mb-2 h-px bg-white/10" aria-hidden />
@@ -272,7 +319,7 @@ function SidebarContent({
 
       <div
         ref={(el) => el?.toggleAttribute('inert', travado)}
-        className={can(role, 'settings') ? `px-3 pb-1 ${travado ? 'pointer-events-none select-none opacity-40' : ''}` : 'hidden'}
+        className={can(role, 'settings') && modo === 'loja' ? `px-3 pb-1 ${travado ? 'pointer-events-none select-none opacity-40' : ''}` : 'hidden'}
       >
         <NavLink
           to="/configuracoes"
@@ -320,14 +367,16 @@ function SidebarContent({
   )
 }
 
-// Telas do master que não são de uma loja: nelas não aparece a faixa "Você está na loja"
-const TELAS_DO_MASTER = ['/master', '/painel-vendas', '/links-pagamento', '/comercial', '/envios', '/clientes-lojas']
-
 /** Master dentro de uma loja: deixa claro qual é e volta pro Painel geral. */
 function FaixaLojaDoMaster({ loja }: { loja: string | null }) {
   const { pathname } = useLocation()
   const { voltar } = useEntrarNaLoja()
-  if (!loja || TELAS_DO_MASTER.some((t) => pathname === t || pathname.startsWith(t + '/'))) return null
+  // abriu uma tela de loja (pelo menu, voltar do navegador ou link): o "/" passa a ser o painel dela
+  const modo = modoDoMaster(pathname)
+  useEffect(() => {
+    marcarNaLoja(modo === 'loja')
+  }, [modo])
+  if (!loja || modo === 'geral') return null
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-100 bg-brand-50 px-4 py-2 text-sm">
       <p className="text-gray-800">
