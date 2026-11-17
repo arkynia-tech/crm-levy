@@ -79,6 +79,7 @@ Com a IA em sombra ou desligada, `handled` é sempre falso: nada muda para quem 
 
 ### 7. Meta (medição)
 - **Pixel:** colocar o ID em `pixelId` no topo de `landing/demo/funil.js`. Só carrega para quem aceita na barra de cookies.
+- **API de Conversões (desde 16/11/2026):** o Lead e o Schedule saem pelo servidor (`enviarCapi`) pra todo cadastro dos formulários /demo e /vsl, mesmo sem aceite na barra de cookies. Os formulários mandam `medicao_cadastro: true` e mostram o aviso logo abaixo do consentimento; o aviso de privacidade (`landing/privacidade.html`, versão priv-2026-11) explica o envio e a base (legítimo interesse). O `event_id` é o mesmo do Pixel (`submission_id` no Lead, `schedule-<demo_id>` no Schedule), pra Meta não contar duas vezes. Quem pedir pra parar: `update aq_leads set ads_consent = false where ...`.
 - **API de Conversões:** `META_PIXEL_ID` e `META_CAPI_TOKEN` nos secrets (o token é gerado no Gerenciador de Eventos). Lead sai com o mesmo `event_id` do Pixel (sem contar duas vezes). Marcar reunião manda `Schedule`.
 - **Números dos anúncios:** `META_AD_ACCOUNT_ID` (conta ContattaPro, `2581082029050494`) e `META_ADS_TOKEN` (token de usuário do sistema com `ads_read`). A rotina puxa às 6h; também tem o botão "Puxar do Meta". Sem isso, lançar à mão na Configuração.
 - **UTM dos anúncios** (o nome do anúncio vira a chave do criativo no painel):

@@ -3,12 +3,12 @@
 // Ações (POST JSON, campo `acao`):
 //   evento   {visit_id, event, step?, path, utm_*, ad_id?, referrer_host?, device?}
 //   lead     formulário: {submission_id, nome, empresa?, whatsapp, marketplaces[], volume, prioridade,
-//            decisor?, consentimento, marketing?, medicao?, quer_reuniao?, visit_id, utm_*, ad_id?,
+//            decisor?, consentimento, marketing?, medicao?, medicao_cadastro?, quer_reuniao?, visit_id, utm_*, ad_id?,
 //            fbp?, fbc?, site (honeypot), turnstile?}
 //            → {ok, route, token, nome, horarios_disponiveis}
 //   lead_info {token} → {ok, nome, reuniao?}
 //   horarios {token} → {ok, horarios: [{inicio, fim, rotulo}]} ou {ok:false, motivo}
-//   agendar  {token, inicio, visit_id?} → {ok, inicio, rotulo, meet}
+//   agendar  {token, inicio, visit_id?} → {ok, inicio, rotulo, meet, demo_id}
 //
 // Sem JWT (é o site). Proteções: CORS só das origens do Contatta, honeypot,
 // limite por IP, Turnstile opcional, token assinado por lead e o freio do banco.
@@ -25,7 +25,7 @@ const VOLUMES = new Set(['ate_100', '101_500', '501_2000', '2000_mais', 'nao_inf
 const PRIORIDADES = new Set(['recompra', 'crm', 'posvenda', 'canais'])
 const INVESTIMENTOS = new Set(['300_600', '600_1500', '1500_3000', '3000_mais'])
 const CONSENT_VERSAO = 'demo-2026-11'
-const PRIV_VERSAO = 'priv-2026-10'
+const PRIV_VERSAO = 'priv-2026-11'
 
 const txt = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
@@ -80,7 +80,9 @@ Deno.serve(async (req) => {
           priority_goal: PRIORIDADES.has(String(b.prioridade)) ? b.prioridade : null,
           decision_maker: ['sim', 'compartilhada', 'nao'].includes(String(b.decisor)) ? b.decisor : null,
           whatsapp_optin: true, consent_status: 'granted', consent_text_version: CONSENT_VERSAO,
-          privacy_notice_version: PRIV_VERSAO, marketing_optin: b.marketing === true, ads_consent: b.medicao === true,
+          privacy_notice_version: PRIV_VERSAO, marketing_optin: b.marketing === true, // medição: aceitou a barra de cookies (medicao) ou enviou um formulário que avisa
+          // que o cadastro vai pra Meta medir o anúncio (medicao_cadastro, desde 16/11/2026)
+          ads_consent: b.medicao === true || b.medicao_cadastro === true,
           quer_reuniao: b.quer_reuniao === true, source: 'landing_demo', visit_id: txt(b.visit_id, 64), path: txt(b.path, 200),
           utm_source: txt(b.utm_source, 80), utm_medium: txt(b.utm_medium, 80), utm_campaign: txt(b.utm_campaign, 80),
           utm_content: txt(b.utm_content, 120), ad_id: txt(b.ad_id, 120),

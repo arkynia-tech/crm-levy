@@ -1,6 +1,7 @@
 // Meta: API de Conversões (CAPI) e números dos anúncios (Insights).
 //
-// CAPI: só manda evento de quem aceitou a medição (ads_consent). O Lead sai com
+// CAPI: só manda evento de quem tem ads_consent: aceitou a barra de cookies ou
+// enviou um formulário com o aviso de medição (medicao_cadastro). O Lead sai com
 // o mesmo event_id do Pixel do navegador (o submission_id), pra Meta não contar
 // duas vezes. Etapas do CRM (Schedule, DemoAttended, Purchase) saem como
 // "system_generated", ligadas ao lead pelo telefone com hash.

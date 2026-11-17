@@ -267,6 +267,8 @@ img{max-width:100%;display:block}
 .aceite{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--tinta-2);cursor:pointer}
 .aceite input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--indigo);flex:none}
 .aceite a{color:var(--indigo)}
+.aviso-medicao{margin:0 0 0 32px;font-size:13px;line-height:1.45;color:var(--tinta-2)}
+.aviso-medicao a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .erro-form{margin-top:16px;color:var(--erro);font-weight:600;font-size:15px}
 .enviar{margin-top:24px;display:flex;flex-wrap:wrap;align-items:center;gap:14px}
 .enviar .botao{min-width:240px}

@@ -58,6 +58,8 @@ body{background:var(--fundo)}
 .v-voltar[hidden]{display:none}
 .v-aceite{display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-size:14.5px;color:var(--cinza)}
 .v-aceite input{margin-top:3px;width:18px;height:18px;accent-color:var(--indigo);flex:none}
+.v-aviso{margin:10px 0 0 28px;font-size:13px;line-height:1.45;color:var(--cinza)}
+.v-aviso a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 
 /* veredito em formato de etiqueta de envio */
 .v-etq{margin-top:8px;background:var(--pardo-claro);color:#3d2d14;border-radius:12px;padding:20px 22px;position:relative;animation:v-entra 320ms var(--ease-out)}

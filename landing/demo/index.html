@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://lopdvdblwasuowjdokpo.supabase.co" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/demo/funil.css?v=20261106a">
+<link rel="stylesheet" href="/demo/funil.css?v=20261116a">
 </head>
 <body>
 
@@ -236,6 +236,7 @@
         <div class="aceites">
           <label class="aceite"><input type="checkbox" name="consentimento" required><span>Autorizo o Contatta a falar comigo pelo WhatsApp sobre esta solicitação. Posso pedir para parar a qualquer momento. <a href="/privacidade.html" target="_blank" rel="noopener">Como usamos seus dados</a>.</span></label>
           <label class="aceite"><input type="checkbox" name="marketing"><span>Quero receber conteúdos sobre recompra e pós-venda (opcional).</span></label>
+          <p class="aviso-medicao">Ao enviar, avisamos a Meta que este cadastro veio de um anúncio do Contatta, com o seu telefone embaralhado, pra saber quais anúncios funcionam. <a href="/privacidade.html" target="_blank" rel="noopener">Detalhes</a>.</p>
         </div>
         <div id="turnstile"></div>
         <p class="erro-form" id="erro" role="alert" hidden></p>
@@ -480,7 +481,7 @@
     var corpo = {
       acao: 'lead', submission_id: submissao, nome: nome, empresa: String(d.get('empresa') || ''), whatsapp: fone,
       marketplaces: mps, volume: d.get('volume'), prioridade: d.get('prioridade'), decisor: d.get('decisor') || '',
-      consentimento: true, marketing: Boolean(d.get('marketing')), medicao: F.medicaoAceita(), quer_reuniao: querReuniao,
+      consentimento: true, marketing: Boolean(d.get('marketing')), medicao: F.medicaoAceita(), medicao_cadastro: true, quer_reuniao: querReuniao,
       visit_id: o.visit_id, path: location.pathname, url: location.href.split('#')[0],
       utm_source: o.utm_source || '', utm_medium: o.utm_medium || '', utm_campaign: o.utm_campaign || '', utm_content: o.utm_content || '',
       ad_id: o.ad_id || '', fbp: F.cookie('_fbp'), fbc: o.fbc || F.cookie('_fbc'), site: String(d.get('site') || ''), turnstile: turnstileToken,
@@ -565,7 +566,7 @@
             msg.textContent = a.error || 'Não deu para marcar. Escolha outro horário.'
             return carregarAgenda(token, primeiro)
           }
-          F.pixel('Schedule', {}, 'schedule-' + submissao)
+          F.pixel('Schedule', {}, 'schedule-' + (a.demo_id || submissao))
           caixa.innerHTML = '<div class="ticket"><b>' + esc(a.rotulo) + '</b>Conversa de 20 minutos sobre a sua operação.' +
             (a.meet ? '<br>Link da chamada: <a href="' + esc(a.meet) + '" target="_blank" rel="noopener">' + esc(a.meet.replace('https://', '')) + '</a>' : '') +
             '</div><p style="margin-top:14px">A confirmação também chega no seu WhatsApp.</p>'
