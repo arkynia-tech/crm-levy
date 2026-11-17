@@ -11,8 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/demo/funil.css?v=20261106a">
-<link rel="stylesheet" href="/vsl/vsl.css?v=20261115d">
+<link rel="stylesheet" href="/demo/funil.css?v=20261116a">
+<link rel="stylesheet" href="/vsl/vsl.css?v=20261116a">
 </head>
 <body>
 <div class="v-coluna">
@@ -157,7 +157,8 @@
             <div class="campo"><label for="email">E-mail</label><input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="voce@sualoja.com.br" required><small>O convite da conversa chega nele.</small></div>
             <div class="campo"><label for="empresa">Nome da loja</label><input id="empresa" name="empresa" autocomplete="organization"></div>
           </div>
-          <label class="v-aceite"><input type="checkbox" name="consentimento" value="1"><span>Autorizo o Contatta a falar comigo pelo WhatsApp e por e-mail sobre esta solicitação. Posso pedir pra parar quando quiser. <a href="/politica-de-privacidade.html" target="_blank" rel="noopener">Como usamos seus dados</a>.</span></label>
+          <label class="v-aceite"><input type="checkbox" name="consentimento" value="1"><span>Autorizo o Contatta a falar comigo pelo WhatsApp e por e-mail sobre esta solicitação. Posso pedir pra parar quando quiser. <a href="/privacidade.html" target="_blank" rel="noopener">Como usamos seus dados</a>.</span></label>
+          <p class="v-aviso">Ao enviar, avisamos a Meta que este cadastro veio de um anúncio do Contatta, com o seu telefone embaralhado, pra saber quais anúncios funcionam. <a href="/privacidade.html" target="_blank" rel="noopener">Detalhes</a>.</p>
         </div>
 
         <p class="erro-form" id="erro" role="alert" hidden></p>
@@ -333,7 +334,7 @@
     F.api({
       acao: 'lead', submission_id: submissao, nome: nome, empresa: String(d.get('empresa') || ''), whatsapp: fone, email: email, investimento: d.get('investimento'),
       marketplaces: mps, volume: d.get('volume'), prioridade: d.get('prioridade'), decisor: '',
-      consentimento: true, marketing: false, medicao: F.medicaoAceita(), quer_reuniao: true,
+      consentimento: true, marketing: false, medicao: F.medicaoAceita(), medicao_cadastro: true, quer_reuniao: true,
       visit_id: o.visit_id, path: location.pathname, url: location.href.split('#')[0],
       utm_source: o.utm_source || '', utm_medium: o.utm_medium || '', utm_campaign: o.utm_campaign || '', utm_content: o.utm_content || '',
       ad_id: o.ad_id || '', fbp: F.cookie('_fbp'), fbc: o.fbc || F.cookie('_fbc'), site: '', turnstile: '',
@@ -379,7 +380,7 @@
         marcar.innerHTML = '<span class="gira" aria-hidden="true"></span> Marcando'
         F.api({ acao: 'agendar', token: token, inicio: escolhido.inicio, visit_id: F.origem.visit_id }, 25000).then(function (a) {
           if (!a.ok) { msg.textContent = a.error || 'Não deu pra marcar. Escolha outro horário.'; return carregarAgenda(token, primeiro) }
-          F.pixel('Schedule', {}, 'schedule-' + submissao)
+          F.pixel('Schedule', {}, 'schedule-' + (a.demo_id || submissao))
           caixa.innerHTML = '<div class="ticket"><b>' + esc(a.rotulo) + '</b>Conversa de 20 minutos com o Mohamad.' +
             (a.meet ? '<br>Link da chamada: <a href="' + esc(a.meet) + '" target="_blank" rel="noopener">' + esc(a.meet.replace('https://', '')) + '</a>' : '') +
             '</div><p style="margin-top:14px">A confirmação chega no seu WhatsApp e o convite no seu e-mail.</p>'

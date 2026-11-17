@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,600..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/demo/funil.css?v=20261106a">
+<link rel="stylesheet" href="/demo/funil.css?v=20261116a">
 <style>
   main{min-height:calc(100vh - 64px);padding:40px 0 80px}
   .caixa{max-width:640px;margin:0 auto;background:var(--branco);border-radius:20px;padding:32px;box-shadow:0 0 0 1px var(--linha),0 30px 60px -30px rgba(12,16,27,.3)}
@@ -88,7 +88,7 @@
         marcar.innerHTML = '<span class="gira" aria-hidden="true"></span> Marcando'
         F.api({ acao: 'agendar', token: token, inicio: escolhido.inicio, visit_id: F.origem.visit_id }, 25000).then(function (a) {
           if (!a.ok) { msg.textContent = a.error || 'Esse horário não está mais livre.'; return carregar() }
-          F.pixel('Schedule')
+          F.pixel('Schedule', {}, a.demo_id ? 'schedule-' + a.demo_id : undefined)
           caixa.innerHTML = '<h1>Conversa marcada</h1><div class="ticket"><b>' + esc(a.rotulo) + '</b>20 minutos sobre a sua operação.' +
             (a.meet ? '<br>Link da chamada: <a href="' + esc(a.meet) + '" target="_blank" rel="noopener">' + esc(a.meet.replace('https://', '')) + '</a>' : '') +
             '</div><p style="margin-top:14px">A confirmação também chega no seu WhatsApp.</p>'

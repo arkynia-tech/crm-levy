@@ -72,7 +72,7 @@ export async function alertar(config: Json, texto: string): Promise<void> {
 export async function agendarReuniao(p: {
   leadId: string; inicio: string; por: 'lead_lp' | 'lead_whatsapp' | 'crm'; visitId?: string
   ip?: string; userAgent?: string
-}): Promise<{ ok: true; inicio: string; meet: string | null; rotulo: string } | { ok: false; error: string }> {
+}): Promise<{ ok: true; inicio: string; meet: string | null; rotulo: string; demo_id: string } | { ok: false; error: string }> {
   let regras: RegrasAgenda, livres: Intervalo[], cfg: Json
   try {
     ;({ regras, livres, config: cfg } = await livresAgora(200))
@@ -130,7 +130,8 @@ export async function agendarReuniao(p: {
   if (lead.ads_consent) {
     await enviarCapi({ nome: 'Schedule', eventId: `schedule-${r.demo_id}`, telefone: lead.phone, origem: 'system_generated', ip: p.ip, userAgent: p.userAgent })
   }
-  return { ok: true, inicio: slot.inicio, meet: ev.meet, rotulo }
+  // demo_id volta pro site: o Pixel do navegador usa o mesmo event_id (schedule-<demo_id>) e a Meta não conta duas vezes
+  return { ok: true, inicio: slot.inicio, meet: ev.meet, rotulo, demo_id: r.demo_id }
 }
 
 /** Texto final de uma mensagem da fila (confirmação e lembretes são montados na hora, com o link do Meet). */
