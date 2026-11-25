@@ -14,6 +14,7 @@
 
 import type { Json } from './asaas.ts'
 import { banco } from './comum.ts'
+import { checarWhatsApp } from './whatsapp-checar.ts'
 
 const BASE = (Deno.env.get('NOVAVIDA_URL') ?? 'https://wsnv.novavidati.com.br').replace(/\/$/, '')
 const TOKEN_URL = BASE + '/wslocalizador.asmx/GerarTokenJson'
@@ -114,6 +115,40 @@ export function telefoneDaEmpresa(dados: Json | null | undefined): string | null
   )
 }
 
+/**
+ * Todos os números que podem ser o WhatsApp do cliente, na ordem de
+ * preferência (25/11/2026). Pessoa: os até 4 celulares, os marcados como
+ * WhatsApp primeiro. Empresa: telefones da empresa e celulares dos sócios,
+ * marcados primeiro; fixo entra também, porque o WhatsApp Business funciona em
+ * fixo e a checagem é que decide.
+ */
+export function candidatos(dados: Json | null | undefined, pj = false): string[] {
+  if (!dados || typeof dados !== 'object') return []
+  if (!pj) return celulares(dados.TELEFONES)
+  const lista = (v: unknown) => (Array.isArray(v) ? v : v && typeof v === 'object' ? [v] : []) as Json[]
+  const empresa = lista(dados.TELEFONES)
+    .map((t) => ({ fone: `${t.DDD ?? ''}${t.FONE ?? t.TELEFONE ?? ''}`.replace(/\D/g, ''), whats: sim(t.WHATSAPP ?? t.FLWHATS) }))
+  const socios = lista(dados.SOCIOS)
+    .map((s) => ({ fone: `${s.DDDCELSOCIO ?? ''}${s.CELSOCIO ?? ''}`.replace(/\D/g, ''), whats: sim(s.FLWHATSAPPCELSOCIO) }))
+  const todos = [...empresa, ...socios].filter((t) => t.fone.length >= 10 && t.fone.length <= 11)
+  return [...new Set([...todos.filter((t) => t.whats), ...todos.filter((t) => !t.whats)].map((t) => t.fone))]
+}
+
+/**
+ * O número que vai para o cliente. Com a checagem do WhatsApp, o primeiro
+ * candidato que tem WhatsApp de verdade (nenhum tem: nenhum número). Sem a
+ * checagem (Mensy fora), a regra antiga, pela marca da NovaVida.
+ */
+export function escolherFone(dados: Json | null | undefined, pj: boolean, checagem: Map<string, boolean> | null): string | null {
+  if (!checagem) return pj ? telefoneDaEmpresa(dados) : (celulares(dados?.TELEFONES)[0] ?? null)
+  return candidatos(dados, pj).find((f) => checagem.get(f) === true) ?? null
+}
+
+/** O que a checagem disse de cada candidato, para guardar em extra.whatsapp_checado. */
+export function registroDaChecagem(lista: string[], checagem: Map<string, boolean>, agora: string): Json {
+  return { em: agora, numeros: Object.fromEntries(lista.map((f) => [f, checagem.get(f) === true])) }
+}
+
 /** A 2429 manda AAAAMMDD; a antiga mandava DD/MM/AAAA. */
 export function nascimento(s: unknown): string | null {
   const v = String(s ?? '').trim()
@@ -141,7 +176,15 @@ export interface ClienteAtual {
  * O que gravar no cliente a partir da resposta. Nunca apaga o que já existe:
  * só preenche o que está vazio. `origem` vai para extra.enriquecido_por.
  */
-export function montarPatch(c: ClienteAtual, status: number, dados: Json | null, origem: string, agora: string, pj = false): Json {
+export function montarPatch(
+  c: ClienteAtual,
+  status: number,
+  dados: Json | null,
+  origem: string,
+  agora: string,
+  pj = false,
+  checagem: Map<string, boolean> | null = null,
+): Json {
   const extra: Json = {
     ...(c.extra ?? {}),
     enriched_at: agora,
@@ -150,20 +193,19 @@ export function montarPatch(c: ClienteAtual, status: number, dados: Json | null,
   }
   const patch: Json = { extra }
   if (!dados) return patch
+  if (!c.phone) {
+    const fone = escolherFone(dados, pj, checagem)
+    if (fone) patch.phone = '+55' + fone
+    if (checagem) extra.whatsapp_checado = registroDaChecagem(candidatos(dados, pj), checagem, agora)
+  }
   if (pj) {
     // empresa (2410): telefones e e-mails em lista, sem data de nascimento
-    const fone = c.phone ? null : telefoneDaEmpresa(dados)
-    if (fone) patch.phone = '+55' + fone
     const email = (Array.isArray(dados.EMAILS) ? dados.EMAILS : []).map((e: Json) => String(e?.EMAIL ?? '').trim()).find(Boolean)
     if (!c.email && email) patch.email = email
     const end = dados.ENDERECO ?? {}
     if (!c.city && end.CIDADE) patch.city = titulo(end.CIDADE)
     if (!c.state && end.UF) patch.state = String(end.UF).toUpperCase()
     return patch
-  }
-  if (!c.phone) {
-    const [primeiro] = celulares(dados.TELEFONES)
-    if (primeiro) patch.phone = '+55' + primeiro
   }
   if (!c.email && dados.EMAILS?.EMAIL1) patch.email = dados.EMAILS.EMAIL1
   if (!c.birth_date) {
@@ -227,7 +269,11 @@ export async function consultarLote(
         else parar = m
         continue
       }
-      const patch = montarPatch(c, r.status, abrir(r.corpo), opcoes.origem, new Date().toISOString(), pj)
+      const dados = abrir(r.corpo)
+      // os números da NovaVida passam pelo WhatsApp antes de gravar (25/11/2026)
+      const numeros = dados && !(c.phone ?? '').trim() ? candidatos(dados, pj) : []
+      const checagem = numeros.length ? await checarWhatsApp(numeros) : null
+      const patch = montarPatch(c, r.status, dados, opcoes.origem, new Date().toISOString(), pj, checagem)
       const { error: e } = await banco.from('customers').update(patch).eq('id', c.id)
       if (e) {
         console.error('customers update', c.id, e.message)

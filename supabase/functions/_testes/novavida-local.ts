@@ -6,7 +6,8 @@
 Deno.env.set('SUPABASE_URL', 'http://localhost:1')
 Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'x')
 
-const { abrir, celulares, ehCnpj, montarPatch, nascimento, razao, telefoneDaEmpresa } = await import('../_shared/novavida.ts')
+const { abrir, candidatos, celulares, ehCnpj, escolherFone, montarPatch, nascimento, razao, telefoneDaEmpresa } = await import('../_shared/novavida.ts')
+const { checarWhatsApp } = await import('../_shared/whatsapp-checar.ts')
 
 let falhas = 0
 function igual(nome: string, a: unknown, b: unknown) {
@@ -66,6 +67,43 @@ igual('PJ: só fixo sem WhatsApp, nada', telefoneDaEmpresa({ TELEFONES: [{ DDD: 
 const pp = montarPatch({ id: 'x', extra: null, phone: null, email: null, birth_date: null, city: null, state: null }, 200, pj, 'botao', 'agora', true)
 igual('PJ: grava fonte 2410, telefone, e-mail, cidade e UF', [pp.extra.novavida.fonte, pp.phone, pp.email, pp.city, pp.state],
   ['nvbook_pj_2410', '+5511977776666', 'contato@exemplo.com.br', 'Campinas', 'SP'])
+
+// Checagem no WhatsApp antes de gravar (25/11/2026)
+const quatro: any = {
+  DDDCEL1: '11', CEL1: '911112222', FLWHATSAPPCEL1: 'S',
+  DDDCEL2: '11', CEL2: '933334444', FLWHATSAPPCEL2: 'N',
+  DDDCEL3: '11', CEL3: '955556666', FLWHATSAPPCEL3: 'N',
+}
+const d4: any = { TELEFONES: quatro }
+const so = (...sim: string[]) => new Map(['11911112222', '11933334444', '11955556666'].map((f) => [f, sim.includes(f)]))
+igual('candidatos PF: marcado primeiro, depois os outros', candidatos(d4), ['11911112222', '11933334444', '11955556666'])
+igual('escolher: a marca da NovaVida errou, fica o que tem WhatsApp', escolherFone(d4, false, so('11933334444')), '11933334444')
+igual('escolher: o marcado tem mesmo, fica ele', escolherFone(d4, false, so('11911112222', '11955556666')), '11911112222')
+igual('escolher: nenhum tem WhatsApp, nenhum número', escolherFone(d4, false, so()), null)
+igual('escolher: sem checagem (Mensy fora), regra antiga', escolherFone(d4, false, null), '11911112222')
+const pc: any = montarPatch(vazio, 200, d4, 'automatico', agora, false, so('11955556666'))
+igual('patch com checagem: grava o certo e o que cada um deu', [pc.phone, pc.extra.whatsapp_checado.numeros],
+  ['+5511955556666', { '11911112222': false, '11933334444': false, '11955556666': true }])
+const pn: any = montarPatch(vazio, 200, d4, 'automatico', agora, false, so())
+igual('patch: nenhum com WhatsApp não grava telefone, mas guarda a checagem', [pn.phone, Object.keys(pn.extra.whatsapp_checado.numeros).length], [undefined, 3])
+igual('patch: cliente com telefone não é checado', montarPatch(cheio, 200, d4, 'automatico', agora, false, so()).extra.whatsapp_checado, undefined)
+igual('candidatos PJ: com WhatsApp primeiro, fixo entra', candidatos(pj, true), ['11977776666', '1933334444', '19988887777'])
+igual('PJ com checagem: só o fixo da empresa tem (WhatsApp Business)', escolherFone(pj, true, new Map([['1933334444', true]])), '1933334444')
+
+// checarWhatsApp com o Mensy de mentira
+const fetchReal = globalThis.fetch
+let pedido: any = null
+globalThis.fetch = (async (_url: string, init: any) => {
+  pedido = JSON.parse(init.body)
+  return new Response(JSON.stringify({ results: pedido.numbers.map((n: string) => ({ number: n, isOnWhatsApp: n.endsWith('4444') })) }), { status: 200 })
+}) as any
+Deno.env.set('MENSY_API_KEY', 'x')
+const m = await checarWhatsApp(['11911112222', '+55 11 93333-4444', '11911112222', '123'])
+igual('checar: manda com 55, sem repetir nem lixo, pela sessão contatta', [pedido.sessionId, pedido.numbers], ['contatta', ['5511911112222', '5511933334444']])
+igual('checar: devolve sem o 55', [m?.get('11911112222'), m?.get('11933334444')], [false, true])
+globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'session_not_connected' }), { status: 409 })) as any
+igual('checar: conexão caída devolve null (ninguém é descartado)', await checarWhatsApp(['11911112222']), null)
+globalThis.fetch = fetchReal
 
 console.log(falhas ? `\n${falhas} falha(s)` : '\ntudo certo')
 if (falhas) Deno.exit(1)

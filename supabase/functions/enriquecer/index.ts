@@ -10,11 +10,18 @@
 //              contadores.
 //   continuar  só a própria função (x-cron-token): o que não coube no prazo de
 //              uma execução segue na próxima, com o placar somado.
+//   conferir_whatsapp  (25/11/2026) login da loja: passa pelo WhatsApp o
+//              telefone de quem já foi consultado na NovaVida e ainda não foi
+//              conferido. Sem WhatsApp, troca pelo próximo número da mesma
+//              resposta que tem (sem consulta nova, sem gastar crédito). Não
+//              mexe em quem a loja escolheu o número na mão, nem em quem já
+//              respondeu "sim" ou "número errado" na primeira mensagem.
 // No fim, uma linha em enrich_runs com quem pediu.
 
 import type { Json } from '../_shared/asaas.ts'
 import { banco, cors, depoisDeResponder, responder, rpc, rpcLinhas } from '../_shared/comum.ts'
-import { consultarLote, gerarToken, type ParaConsultar, type Placar } from '../_shared/novavida.ts'
+import { candidatos, consultarLote, ehCnpj, gerarToken, registroDaChecagem, type ParaConsultar, type Placar } from '../_shared/novavida.ts'
+import { checarWhatsApp } from '../_shared/whatsapp-checar.ts'
 
 const CORS = cors(null, '*')
 const ok = (corpo: Json) => responder(200, corpo, CORS)
@@ -45,6 +52,8 @@ Deno.serve(async (req) => {
     if (typeof b.client_id !== 'string' || !b.client_id) return falha(400, 'Loja não informada.')
     const { papel } = await rpc('crm_role_check', { p_user_id: login.user.id, p_client_id: b.client_id })
     if (!papel) return falha(403, 'Você não tem acesso a esta loja.')
+
+    if (b.action === 'conferir_whatsapp') return ok(await conferirWhatsApp(b.client_id))
 
     const limite = Math.max(1, Math.min(Number(b.limit) || 10, MAXIMO))
     const fila = await rpcLinhas('crm_enrich_pendentes', { p_client_id: b.client_id, p_limit: limite })
@@ -113,4 +122,74 @@ async function registrar(clientId: string, userId: string | null, p: Placar, err
     erro,
   })
   if (error) console.error('enrich_runs', error.message)
+}
+
+// ---------------------------------------------------------------------------
+// Conferir WhatsApp da base que já foi consultada (25/11/2026)
+
+const CONFERIR_PRAZO_MS = 90_000
+const CLIENTES_POR_CHECAGEM = 10 // até 5 números cada: cabe nos 50 do Mensy
+
+type ParaConferir = { id: string; cpf: string | null; phone: string; extra: Json | null }
+
+const soDigitos = (f: string | null) => {
+  const d = String(f ?? '').replace(/\D/g, '')
+  return d.length > 11 && d.startsWith('55') ? d.slice(2) : d
+}
+
+async function conferirWhatsApp(clientId: string): Promise<Json> {
+  const ate = Date.now() + CONFERIR_PRAZO_MS
+  const fila: ParaConferir[] = []
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await banco
+      .from('customers')
+      .select('id, cpf, phone, extra, telefone_manual')
+      .eq('client_id', clientId)
+      .not('phone', 'is', null)
+      .order('id')
+      .range(de, de + 999)
+    if (error) {
+      console.error('conferir customers', error.message)
+      return { ok: false, error: 'Falha ao ler os clientes.' }
+    }
+    for (const c of data ?? []) {
+      const x = (c.extra ?? {}) as Json
+      if (c.telefone_manual || !x.novavida?.resposta) continue
+      if (x.whatsapp_checado || x.telefone_confirmado || x.telefone_errado) continue
+      fila.push(c as ParaConferir)
+    }
+    if ((data ?? []).length < 1000) break
+  }
+
+  const placar = { conferidos: 0, certos: 0, trocados: 0, sem_whatsapp: 0 }
+  while (fila.length && Date.now() < ate) {
+    const grupo = fila.splice(0, CLIENTES_POR_CHECAGEM)
+    const listas = grupo.map((c) => {
+      const atual = soDigitos(c.phone)
+      const outros = candidatos(c.extra?.novavida?.resposta, ehCnpj(c.cpf ?? ''))
+      return { c, atual, lista: [...new Set([atual, ...outros])] }
+    })
+    const checagem = await checarWhatsApp(listas.flatMap((l) => l.lista))
+    if (!checagem) {
+      return { ok: false, error: 'A conferência do WhatsApp está fora do ar agora. Tente de novo em alguns minutos.', ...placar, faltam: fila.length + grupo.length }
+    }
+    const agora = new Date().toISOString()
+    for (const { c, atual, lista } of listas) {
+      const extra: Json = { ...(c.extra ?? {}), whatsapp_checado: registroDaChecagem(lista, checagem, agora) }
+      const patch: Json = { extra }
+      if (checagem.get(atual) === true) placar.certos++
+      else {
+        const novo = lista.find((f) => f !== atual && checagem.get(f) === true)
+        if (novo) {
+          patch.phone = '+55' + novo
+          extra.telefone_trocado = { de: atual, para: novo, em: agora, por: 'conferir_whatsapp' }
+          placar.trocados++
+        } else placar.sem_whatsapp++
+      }
+      const { error } = await banco.from('customers').update(patch).eq('id', c.id)
+      if (error) console.error('conferir update', c.id, error.message)
+      else placar.conferidos++
+    }
+  }
+  return { ok: true, ...placar, faltam: fila.length }
 }

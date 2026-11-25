@@ -38,6 +38,31 @@ export async function enrichCustomers(
   }
 }
 
+/**
+ * Passa pelo WhatsApp o telefone de quem já foi consultado e troca o que não
+ * tem WhatsApp pelo próximo número da mesma consulta (sem gastar crédito).
+ * Roda até ~90 s por clique; `faltam` diz se precisa clicar de novo.
+ */
+export async function conferirWhatsApp(clientId: string): Promise<{
+  ok: boolean; conferidos?: number; certos?: number; trocados?: number; sem_whatsapp?: number; faltam?: number; error?: string
+}> {
+  if (!ENRICH_URL) return { ok: false, error: 'Conferência indisponível no momento.' }
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { ok: false, error: 'Sessão expirada. Saia e entre de novo.' }
+  try {
+    const res = await fetch(ENRICH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: 'conferir_whatsapp', client_id: clientId }),
+    })
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null
+    if (!res.ok || !json?.ok) return { ok: false, error: String(json?.error ?? `Falha (HTTP ${res.status}).`) }
+    return json as { ok: boolean }
+  } catch {
+    return { ok: false, error: 'Não foi possível falar com o serviço de conferência.' }
+  }
+}
 
 /* ---------------------------------------------------------------------------
  * Histórico de enriquecimentos.
