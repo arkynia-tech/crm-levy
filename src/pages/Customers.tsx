@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Sparkles, UserPlus, X } from 'lucide-react'
+import { MessageCircleQuestion, Search, Sparkles, UserPlus, X } from 'lucide-react'
 import {
   useEnrichPendentes,
   useEnrichRuns,
@@ -11,7 +11,7 @@ import {
   useCustomerSituacoes,
   type EnrichFilter,
 } from '../hooks/queries'
-import { enrichCustomers, registrarEnriquecimento, useDefinirEnrichAuto, useEnrichAuto } from '../hooks/enrich'
+import { conferirWhatsApp, enrichCustomers, registrarEnriquecimento, useDefinirEnrichAuto, useEnrichAuto } from '../hooks/enrich'
 import { useUserRole } from '../hooks/settings'
 import { useCompany } from '../context/CompanyContext'
 import type { CustomerWithStats } from '../types'
@@ -137,6 +137,7 @@ function EnrichControl() {
           <span className="font-medium tabular-nums text-gray-700">{pendentes}</span> na fila
         </span>
       )}
+      <ConferirWhatsApp />
       <ChaveAutomatico />
       <button
         type="button"
@@ -151,6 +152,48 @@ function EnrichControl() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Conferir WhatsApp (25/11/2026): quem já foi consultado tem o telefone
+ * conferido no WhatsApp; sem WhatsApp, vai para o próximo número que a mesma
+ * consulta trouxe. Não gasta crédito. Os clientes novos já chegam conferidos.
+ */
+function ConferirWhatsApp() {
+  const { activeClient } = useCompany()
+  const queryClient = useQueryClient()
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  if (!activeClient) return null
+  const run = async () => {
+    setBusy(true)
+    setMsg(null)
+    const r = await conferirWhatsApp(activeClient.id)
+    setBusy(false)
+    if (!r.ok) return setMsg({ tone: 'err', text: r.error ?? 'Não deu pra conferir agora.' })
+    void queryClient.invalidateQueries({ queryKey: ['customers'] })
+    void queryClient.invalidateQueries({ queryKey: ['customer-situacoes'] })
+    if (!r.conferidos) return setMsg({ tone: 'ok', text: 'Nada para conferir: todos os números já foram conferidos.' })
+    const partes = [`${r.conferidos} conferido(s)`, `${r.trocados ?? 0} trocado(s) por um número com WhatsApp`]
+    if (r.sem_whatsapp) partes.push(`${r.sem_whatsapp} sem nenhum número com WhatsApp`)
+    if (r.faltam) partes.push(`faltam ${r.faltam}, clique de novo`)
+    setMsg({ tone: 'ok', text: partes.join(' · ') })
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="btn-secondary shrink-0"
+        onClick={() => void run()}
+        disabled={busy}
+        title="Confere no WhatsApp o número de quem já foi consultado e troca pelo próximo número com WhatsApp. Não gasta crédito."
+      >
+        <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+        {busy ? 'Conferindo…' : 'Conferir WhatsApp'}
+      </button>
+      {msg && <span className={`text-xs ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</span>}
+    </>
   )
 }
 
